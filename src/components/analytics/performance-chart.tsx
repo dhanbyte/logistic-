@@ -18,7 +18,11 @@ export function PerformanceChart({ data, currency }: { data: MonthlyPoint[]; cur
             </defs>
             <CartesianGrid vertical={false} stroke="#eef0f3" />
             <XAxis dataKey="month" axisLine={false} tickLine={false} />
-            <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `${value / 1000}k`} />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(value) => (value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`)}
+            />
             <Tooltip formatter={(value) => `${currency} ${Number(value).toLocaleString()}`} />
             <Area type="monotone" dataKey="revenue" stroke="#176b57" strokeWidth={2.5} fill="url(#revenue)" />
             <Area type="monotone" dataKey="costs" stroke="#64748b" strokeWidth={2} fill="transparent" />
