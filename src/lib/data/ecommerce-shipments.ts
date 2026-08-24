@@ -426,8 +426,10 @@ export async function getDashboardKpis() {
   );
   const walletBalance = Number(profileRes.data?.wallet_balance || 0);
 
-  const deliverySuccessRate =
-    shipments.length > 0 ? Math.round((delivered / shipments.length) * 100) : 0;
+  const totalDispatched = shipments.length || totalOrders || 1;
+  const deliveryRatio = shipments.length > 0 ? Number(((delivered / totalDispatched) * 100).toFixed(1)) : 0;
+  const rtoRatio = shipments.length > 0 ? Number(((rto / totalDispatched) * 100).toFixed(1)) : 0;
+  const ndrRatio = shipments.length > 0 ? Number(((ndr / totalDispatched) * 100).toFixed(1)) : 0;
 
   return {
     totalOrders,
@@ -440,7 +442,10 @@ export async function getDashboardKpis() {
     codPendingAmount,
     walletBalance,
     totalShippingSpend,
-    deliverySuccessRate,
+    deliverySuccessRate: deliveryRatio,
+    deliveryRatio,
+    rtoRatio,
+    ndrRatio,
   };
 }
 

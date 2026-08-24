@@ -10,6 +10,7 @@ import {
   Upload,
   Wallet,
 } from "lucide-react";
+import { DeliveryRatioGauges } from "@/components/dashboard/delivery-ratio-gauges";
 import { EcommerceKpiGrid } from "@/components/dashboard/ecommerce-kpi-grid";
 import { ShippingRateCalculator } from "@/components/dashboard/shipping-rate-calculator";
 import { PageHeader } from "@/components/page-header";
@@ -50,6 +51,11 @@ export default async function DashboardPage() {
 
       {/* 10-Card Ecommerce KPI Grid */}
       <EcommerceKpiGrid kpis={kpis} />
+
+      {/* Circular Delivery & RTO Performance Gauges */}
+      <div className="mt-6">
+        <DeliveryRatioGauges kpis={kpis} />
+      </div>
 
       {/* Main Grid: Rate Calculator & Live Active Shipments */}
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">

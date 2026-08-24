@@ -65,4 +65,7 @@ export const mockEcommerceKpis = {
   walletBalance: 0,
   totalShippingSpend: 0,
   deliverySuccessRate: 0,
+  deliveryRatio: 0,
+  rtoRatio: 0,
+  ndrRatio: 0,
 };
