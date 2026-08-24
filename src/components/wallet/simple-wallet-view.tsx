@@ -91,7 +91,7 @@ export function SimpleWalletView({
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 15;
+  const pageSize = 20;
 
   const presets = [500, 1000, 2000, 5000, 10000];
 
@@ -117,6 +117,12 @@ export function SimpleWalletView({
       matchesCategory = t.category === "CANCELLATION_REFUND" || t.category === "REFUND";
     } else if (categoryFilter === "COD") {
       matchesCategory = t.category === "COD_SETTLEMENT" || t.category === "COD_REMITTANCE";
+    } else if (categoryFilter === "RTO") {
+      matchesCategory = t.category === "RTO_CHARGE";
+    } else if (categoryFilter === "NDR") {
+      matchesCategory = t.category === "NDR_CHARGE";
+    } else if (categoryFilter === "MANUAL") {
+      matchesCategory = t.category === "MANUAL_CREDIT" || t.category === "MANUAL_DEBIT" || t.category === "ADJUSTMENT";
     } else if (categoryFilter !== "ALL") {
       matchesCategory = t.category === categoryFilter;
     }
@@ -139,7 +145,14 @@ export function SimpleWalletView({
       }
     }
 
-    return matchesSearch && matchesCategory && matchesDate;
+    // 4. Status Filter
+    let matchesStatus = true;
+    if (statusFilter !== "ALL") {
+      // In production all recorded ledger entries are Completed/Success unless flagged
+      matchesStatus = statusFilter === "COMPLETED";
+    }
+
+    return matchesSearch && matchesCategory && matchesDate && matchesStatus;
   });
 
   // Calculate Filter Summary
@@ -386,8 +399,26 @@ export function SimpleWalletView({
             </p>
           </div>
 
-          {/* Compact Summary Bar */}
-          <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setCategoryFilter("ALL");
+                setDateFilter("ALL");
+                setStatusFilter("ALL");
+                setCurrentPage(1);
+              }}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              View All Transactions &rarr;
+            </button>
+          </div>
+        </div>
+
+        {/* Compact Summary Bar */}
+        <div className="px-5 py-2.5 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-2">
             <span>Showing <strong className="text-slate-900">{filteredTransactions.length}</strong> transactions</span>
             <span className="text-slate-300">&bull;</span>
             <span className="text-emerald-700 font-bold">Credits: +{formatINR(totalCredits)}</span>
@@ -403,13 +434,13 @@ export function SimpleWalletView({
         </div>
 
         {/* 10. Filters Bar */}
-        <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="p-4 bg-white border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative w-full lg:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-3.5" />
             <input
               type="text"
-              placeholder="Search by AWB, order or transaction ID…"
+              placeholder="Search by Transaction ID, Order ID, AWB…"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -419,7 +450,7 @@ export function SimpleWalletView({
             />
           </div>
 
-          {/* Type & Date Filter Chips */}
+          {/* Type, Date, and Status Filter Chips */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Category Dropdown */}
             <select
@@ -430,11 +461,14 @@ export function SimpleWalletView({
               }}
               className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-indigo-600 focus:outline-none cursor-pointer"
             >
-              <option value="ALL">All Transaction Types</option>
+              <option value="ALL">All Types</option>
               <option value="RECHARGE">Wallet Recharge</option>
               <option value="SHIPPING">Shipping Charge</option>
               <option value="COD">COD Settlement</option>
-              <option value="REFUND">Cancellation Refund</option>
+              <option value="REFUND">Refund</option>
+              <option value="RTO">RTO Charge</option>
+              <option value="NDR">NDR Charge</option>
+              <option value="MANUAL">Manual Adjustment</option>
             </select>
 
             {/* Date Dropdown */}
@@ -451,6 +485,22 @@ export function SimpleWalletView({
               <option value="YESTERDAY">Yesterday</option>
               <option value="LAST_7_DAYS">Last 7 Days</option>
               <option value="LAST_30_DAYS">Last 30 Days</option>
+            </select>
+
+            {/* Status Dropdown */}
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-indigo-600 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="PENDING">Pending</option>
+              <option value="FAILED">Failed</option>
+              <option value="REVERSED">Reversed</option>
             </select>
           </div>
         </div>
@@ -700,6 +750,10 @@ export function SimpleWalletView({
                   </div>
                   <div className="flex justify-between text-slate-600">
                     <span>Fuel/Surcharge:</span>
+                    <span className="font-medium text-slate-800">₹0.00</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Other Charges:</span>
                     <span className="font-medium text-slate-800">₹0.00</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
