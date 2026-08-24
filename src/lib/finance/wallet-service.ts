@@ -15,6 +15,22 @@ const inMemoryLedger: WalletLedgerEntry[] = [];
 const inMemoryReservations = new Map<string, WalletReservation>();
 
 /**
+ * Synchronizes wallet balance across both wallets and profiles tables
+ */
+async function syncDatabaseBalances(supabase: any, userId: string, cashBalancePaise: number) {
+  if (!supabase) return;
+  const bal = toRupees(cashBalancePaise);
+  try {
+    await Promise.allSettled([
+      supabase.from("wallets").update({ balance: bal }).eq("user_id", userId),
+      supabase.from("profiles").update({ wallet_balance: bal }).eq("id", userId),
+    ]);
+  } catch (err) {
+    console.warn("[syncDatabaseBalances]", err);
+  }
+}
+
+/**
  * Calculates available funds, credit availability and low balance flags
  */
 export function computeAvailableFunds(wallet: WalletAccount): ComputedWalletBalance {
@@ -68,17 +84,26 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
 
   const { supabase } = session;
 
-  const { data: existing } = await supabase
-    .from("wallets")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [walletRes, profileRes] = await Promise.all([
+    supabase.from("wallets").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("profiles").select("wallet_balance").eq("id", userId).maybeSingle(),
+  ]);
+
+  const existing = walletRes.data;
+  const profileBal = profileRes.data?.wallet_balance;
+
+  const currentCashPaise =
+    typeof profileBal === "number"
+      ? toPaise(profileBal)
+      : existing?.balance !== undefined
+        ? toPaise(Number(existing.balance))
+        : toPaise(5000);
 
   if (existing) {
     return {
       id: existing.id,
       userId: existing.user_id,
-      cashBalancePaise: toPaise(Number(existing.balance || 0)),
+      cashBalancePaise: currentCashPaise,
       freeCreditPaise: toPaise(Number((existing as any).free_credit || 0)),
       promoCreditPaise: 0,
       reservedBalancePaise: toPaise(Number((existing as any).reserved_balance || 0)),
@@ -95,7 +120,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
   const initialWallet: WalletAccount = {
     id: `wal-${userId.slice(0, 8)}`,
     userId,
-    cashBalancePaise: toPaise(5000),
+    cashBalancePaise: currentCashPaise,
     freeCreditPaise: toPaise(500),
     promoCreditPaise: 0,
     reservedBalancePaise: 0,
@@ -259,10 +284,7 @@ export async function commitShippingReservation(params: {
   // Sync to database if session active
   const session = await getEffectiveSession();
   if (session) {
-    await session.supabase
-      .from("wallets")
-      .update({ balance: toRupees(wallet.cashBalancePaise) })
-      .eq("user_id", reservation.userId);
+    await syncDatabaseBalances(session.supabase, reservation.userId, wallet.cashBalancePaise);
   }
 
   return { ok: true, message: "Reservation committed and freight deducted." };
@@ -343,10 +365,7 @@ export async function creditWalletRecharge(params: {
 
   const session = await getEffectiveSession();
   if (session) {
-    await session.supabase
-      .from("wallets")
-      .update({ balance: toRupees(wallet.cashBalancePaise) })
-      .eq("user_id", params.userId);
+    await syncDatabaseBalances(session.supabase, params.userId, wallet.cashBalancePaise);
   }
 
   return {
@@ -493,10 +512,7 @@ export async function processShipmentCancellationRefund(params: {
 
   const session = await getEffectiveSession();
   if (session) {
-    await session.supabase
-      .from("wallets")
-      .update({ balance: toRupees(wallet.cashBalancePaise) })
-      .eq("user_id", params.userId);
+    await syncDatabaseBalances(session.supabase, params.userId, wallet.cashBalancePaise);
   }
 
   return {
@@ -550,10 +566,7 @@ export async function processPaymentRefund(params: {
 
   const session = await getEffectiveSession();
   if (session) {
-    await session.supabase
-      .from("wallets")
-      .update({ balance: toRupees(wallet.cashBalancePaise) })
-      .eq("user_id", params.userId);
+    await syncDatabaseBalances(session.supabase, params.userId, wallet.cashBalancePaise);
   }
 
   return {
@@ -595,10 +608,7 @@ export async function processCodSettlementCredit(params: {
 
   const session = await getEffectiveSession();
   if (session) {
-    await session.supabase
-      .from("wallets")
-      .update({ balance: toRupees(wallet.cashBalancePaise) })
-      .eq("user_id", params.userId);
+    await syncDatabaseBalances(session.supabase, params.userId, wallet.cashBalancePaise);
   }
 
   return {

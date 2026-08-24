@@ -5,7 +5,7 @@ import { z } from "zod";
 import { calculateChargeableWeight } from "@/lib/calculations";
 import { compareAllCourierRates, getCourierProvider } from "@/lib/couriers/registry";
 import type { CourierRateQuote } from "@/lib/couriers/types";
-import { toPaise } from "@/lib/finance/money";
+import { toPaise, toRupees } from "@/lib/finance/money";
 import {
   commitShippingReservation,
   releaseShippingReservation,
@@ -631,7 +631,7 @@ export async function resolveNdrAction(
 /**
  * Recharges Seller Prepaid Wallet
  */
-export async function rechargeWallet(amount: number): Promise<ActionResult> {
+export async function rechargeWallet(amount: number): Promise<ActionResult<{ newBalance: number }>> {
   try {
     if (amount <= 0 || isNaN(amount)) {
       return { ok: false, message: "Please enter a valid recharge amount." };
@@ -640,38 +640,29 @@ export async function rechargeWallet(amount: number): Promise<ActionResult> {
     const session = await auth();
     if (!session) {
       refreshEcommerceData();
-      return { ok: true };
+      return { ok: true, data: { newBalance: amount } };
     }
 
-    const { user, supabase } = session;
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("wallet_balance")
-      .eq("id", user.id)
-      .single();
+    const { user } = session;
+    const paymentId = `PAY_RZP_${Date.now().toString().slice(-6)}`;
 
-    const currentBal = Number(profile?.wallet_balance ?? 0);
-    const newBal = currentBal + amount;
-
-    await supabase
-      .from("profiles")
-      .update({ wallet_balance: newBal })
-      .eq("id", user.id);
-
-    await supabase.from("wallet_transactions").insert({
-      user_id: user.id,
-      transaction_type: "CREDIT",
-      category: "WALLET_RECHARGE",
-      amount,
-      balance_after: newBal,
-      reference_id: `PAY_RZP_${Date.now().toString().slice(-6)}`,
-      description: "Instant Wallet Topup via UPI / NetBanking",
+    const { creditWalletRecharge } = await import("@/lib/finance/wallet-service");
+    const rechargeRes = await creditWalletRecharge({
+      userId: user.id,
+      amountPaise: toPaise(amount),
+      paymentId,
+      gatewayReference: "Razorpay / UPI Instant Recharge",
     });
 
     refreshEcommerceData();
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, message: "Wallet recharge failed." };
+    return {
+      ok: true,
+      message: `Successfully recharged ₹${amount.toFixed(2)} to your wallet!`,
+      data: { newBalance: toRupees(rechargeRes.newBalancePaise) },
+    };
+  } catch (error: any) {
+    console.error("[rechargeWallet] error:", error);
+    return { ok: false, message: "Wallet recharge failed. Please try again." };
   }
 }
 

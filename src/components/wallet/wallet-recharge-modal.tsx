@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, Plus, Sparkles, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { rechargeWallet } from "@/app/ecommerce-actions";
 import { formatINR } from "@/lib/calculations";
 
 export function WalletRechargeModal() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState<number>(2000);
   const [loading, setLoading] = useState(false);
@@ -21,6 +23,7 @@ export function WalletRechargeModal() {
     if (res.ok) {
       toast.success(`Successfully recharged ${formatINR(amount)} to your wallet!`);
       setOpen(false);
+      router.refresh();
     } else {
       toast.error(res.message);
     }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -44,6 +45,20 @@ export function SimpleWalletView({
   isLowBalance,
   transactions,
 }: SimpleWalletViewProps) {
+  const router = useRouter();
+
+  // Optimistic Local States
+  const [localBalance, setLocalBalance] = useState(availableBalance);
+  const [localTransactions, setLocalTransactions] = useState(transactions);
+
+  useEffect(() => {
+    setLocalBalance(availableBalance);
+  }, [availableBalance]);
+
+  useEffect(() => {
+    setLocalTransactions(transactions);
+  }, [transactions]);
+
   // Recharge Modal State
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState<number>(2000);
@@ -65,15 +80,33 @@ export function SimpleWalletView({
     setRechargeLoading(false);
 
     if (res.ok) {
+      const updatedBalance = res.data?.newBalance ?? (localBalance + rechargeAmount);
+      // Optimistic instant UI reflect
+      setLocalBalance(updatedBalance);
+
+      const newTxn: WalletTransaction = {
+        id: `tx-pay-${Date.now().toString().slice(-6)}`,
+        userId: "current-user",
+        transactionType: "CREDIT",
+        category: "WALLET_RECHARGE",
+        amount: rechargeAmount,
+        balanceAfter: updatedBalance,
+        referenceId: `PAY_RZP_${Date.now().toString().slice(-6)}`,
+        description: "Instant Wallet Topup via UPI / NetBanking",
+        createdAt: new Date().toISOString(),
+      };
+      setLocalTransactions((prev) => [newTxn, ...prev]);
+
       toast.success(`Successfully recharged ${formatINR(rechargeAmount)} to your wallet!`);
       setRechargeOpen(false);
+      router.refresh();
     } else {
       toast.error(res.message);
     }
   }
 
   // Filtered transactions
-  const filteredTransactions = transactions.filter((t) => {
+  const filteredTransactions = localTransactions.filter((t) => {
     const matchesSearch =
       searchTerm === "" ||
       t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,17 +118,23 @@ export function SimpleWalletView({
       categoryFilter === "ALL" ||
       (categoryFilter === "CREDIT" && t.transactionType === "CREDIT") ||
       (categoryFilter === "DEBIT" && t.transactionType === "DEBIT") ||
-      t.category === categoryFilter;
+      t.category === categoryFilter ||
+      (categoryFilter === "SHIPPING_CHARGE" &&
+        (t.category === "SHIPPING_DEDUCTION" || t.category === "SHIPPING_CHARGE")) ||
+      (categoryFilter === "WALLET_RECHARGE" &&
+        (t.category === "WALLET_RECHARGE" || t.category === "FREE_CREDIT_GRANTED" || t.category === "PROMO_CREDIT_GRANTED"));
 
     return matchesSearch && matchesCategory;
   });
 
-  const recentTransactions = transactions.slice(0, 5);
+  const displayedTransactions = showAllTransactions
+    ? filteredTransactions
+    : localTransactions.slice(0, 5);
 
   return (
     <div className="space-y-6">
       {/* Low Balance Warning Banner */}
-      {isLowBalance && (
+      {localBalance < 200 && (
         <div className="flex items-center justify-between rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs">
           <div className="flex items-center gap-3">
             <ShieldAlert size={20} className="text-amber-600 shrink-0" />
@@ -130,7 +169,7 @@ export function SimpleWalletView({
           </div>
 
           <p className="mt-3 text-3xl font-black tracking-tight text-slate-900">
-            {formatINR(availableBalance)}
+            {formatINR(localBalance)}
           </p>
 
           <p className="mt-1 text-xs text-slate-400">Available for creating shipments</p>
@@ -253,7 +292,7 @@ export function SimpleWalletView({
 
         {/* Transactions List */}
         <div className="divide-y divide-slate-100">
-          {(showAllTransactions ? filteredTransactions : recentTransactions).map((t) => {
+          {displayedTransactions.map((t) => {
             const isCredit = t.transactionType === "CREDIT";
             const awbMatch =
               t.awbNumber ||
@@ -318,12 +357,12 @@ export function SimpleWalletView({
             );
           })}
 
-          {transactions.length === 0 && (
+          {displayedTransactions.length === 0 && (
             <div className="py-12 text-center text-slate-400">
               <Wallet className="mx-auto size-8 text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-700">No transactions recorded yet</p>
+              <p className="text-xs font-bold text-slate-700">No transactions match your filter</p>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Recharge your wallet or ship an order to see ledger entries here.
+                Try selecting "ALL" or recharge your wallet to see new ledger entries.
               </p>
             </div>
           )}
