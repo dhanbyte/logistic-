@@ -4,27 +4,40 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowDownLeft,
+  ArrowRight,
   ArrowUpRight,
   Banknote,
+  Building2,
+  Calendar,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
+  Clock,
   CreditCard,
+  Download,
   ExternalLink,
+  Eye,
+  FileSpreadsheet,
   FileText,
   Filter,
+  IndianRupee,
   Info,
   Loader2,
   Package,
   Plus,
+  QrCode,
   RotateCcw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   TrendingDown,
   Truck,
   Wallet,
   X,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { rechargeWallet } from "@/app/ecommerce-actions";
@@ -63,26 +76,105 @@ export function SimpleWalletView({
   // Recharge Modal State
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState<number>(2000);
+  const [customAmount, setCustomAmount] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "NET_BANKING" | "CARD">("UPI");
   const [rechargeLoading, setRechargeLoading] = useState(false);
 
   // Selected Transaction for Itemized Breakdown Modal
   const [selectedTxn, setSelectedTxn] = useState<WalletTransaction | null>(null);
 
-  // All Transactions View Toggle & Search
-  const [showAllTransactions, setShowAllTransactions] = useState(false);
+  // Filters State
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [dateFilter, setDateFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   const presets = [500, 1000, 2000, 5000, 10000];
 
+  // Filter Transactions
+  const filteredTransactions = localTransactions.filter((t) => {
+    // 1. Search Query
+    const query = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      t.id.toLowerCase().includes(query) ||
+      (t.referenceId && t.referenceId.toLowerCase().includes(query)) ||
+      (t.awbNumber && t.awbNumber.toLowerCase().includes(query)) ||
+      (t.orderNumber && t.orderNumber.toLowerCase().includes(query)) ||
+      (t.description && t.description.toLowerCase().includes(query));
+
+    // 2. Category Filter
+    let matchesCategory = true;
+    if (categoryFilter === "RECHARGE") {
+      matchesCategory = t.category === "WALLET_RECHARGE" || t.transactionType === "CREDIT";
+    } else if (categoryFilter === "SHIPPING") {
+      matchesCategory = t.category === "SHIPPING_CHARGE" || t.category === "SHIPPING_DEDUCTION";
+    } else if (categoryFilter === "REFUND") {
+      matchesCategory = t.category === "CANCELLATION_REFUND" || t.category === "REFUND";
+    } else if (categoryFilter === "COD") {
+      matchesCategory = t.category === "COD_SETTLEMENT" || t.category === "COD_REMITTANCE";
+    } else if (categoryFilter !== "ALL") {
+      matchesCategory = t.category === categoryFilter;
+    }
+
+    // 3. Date Filter
+    let matchesDate = true;
+    if (dateFilter !== "ALL" && t.createdAt) {
+      const txnDate = new Date(t.createdAt).getTime();
+      const now = Date.now();
+      const oneDay = 24 * 60 * 60 * 1000;
+
+      if (dateFilter === "TODAY") {
+        matchesDate = now - txnDate <= oneDay;
+      } else if (dateFilter === "YESTERDAY") {
+        matchesDate = now - txnDate > oneDay && now - txnDate <= 2 * oneDay;
+      } else if (dateFilter === "LAST_7_DAYS") {
+        matchesDate = now - txnDate <= 7 * oneDay;
+      } else if (dateFilter === "LAST_30_DAYS") {
+        matchesDate = now - txnDate <= 30 * oneDay;
+      }
+    }
+
+    return matchesSearch && matchesCategory && matchesDate;
+  });
+
+  // Calculate Filter Summary
+  const totalCredits = filteredTransactions
+    .filter((t) => t.transactionType === "CREDIT")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalDebits = filteredTransactions
+    .filter((t) => t.transactionType === "DEBIT")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalRefunds = filteredTransactions
+    .filter((t) => t.category === "CANCELLATION_REFUND" || t.category === "REFUND")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Pagination Slice
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+
   async function handleRecharge() {
+    const finalAmount = customAmount ? Number(customAmount) : rechargeAmount;
+    if (!finalAmount || isNaN(finalAmount) || finalAmount < 100) {
+      toast.error("Please enter a valid recharge amount (minimum ₹100).");
+      return;
+    }
+
     setRechargeLoading(true);
-    const res = await rechargeWallet(rechargeAmount);
+    const res = await rechargeWallet(finalAmount);
     setRechargeLoading(false);
 
     if (res.ok) {
-      const updatedBalance = res.data?.newBalance ?? (localBalance + rechargeAmount);
-      // Optimistic instant UI reflect
+      const updatedBalance = res.data?.newBalance ?? localBalance + finalAmount;
       setLocalBalance(updatedBalance);
 
       const newTxn: WalletTransaction = {
@@ -90,459 +182,625 @@ export function SimpleWalletView({
         userId: "current-user",
         transactionType: "CREDIT",
         category: "WALLET_RECHARGE",
-        amount: rechargeAmount,
+        amount: finalAmount,
         balanceAfter: updatedBalance,
-        referenceId: `PAY_RZP_${Date.now().toString().slice(-6)}`,
-        description: "Instant Wallet Topup via UPI / NetBanking",
+        referenceId: `PG_UPI_${Date.now().toString().slice(-6)}`,
+        description: `Wallet Recharge via ${paymentMethod}`,
         createdAt: new Date().toISOString(),
       };
       setLocalTransactions((prev) => [newTxn, ...prev]);
 
-      toast.success(`Successfully recharged ${formatINR(rechargeAmount)} to your wallet!`);
       setRechargeOpen(false);
+      setCustomAmount("");
+      toast.success(`₹${finalAmount.toLocaleString("en-IN")} added to wallet successfully!`);
       router.refresh();
     } else {
-      toast.error(res.message);
+      toast.error(res.message || "Failed to process wallet recharge.");
     }
   }
 
-  // Filtered transactions
-  const filteredTransactions = localTransactions.filter((t) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.awbNumber && t.awbNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (t.referenceId && t.referenceId.toLowerCase().includes(searchTerm.toLowerCase()));
+  function handleExportStatement() {
+    try {
+      const headers = ["Transaction ID", "Date", "Category", "Type", "Amount", "Balance After", "AWB", "Reference", "Description"];
+      const rows = filteredTransactions.map((t) => [
+        t.id,
+        new Date(t.createdAt).toLocaleString("en-IN"),
+        t.category,
+        t.transactionType,
+        t.amount.toFixed(2),
+        (t.balanceAfter ?? 0).toFixed(2),
+        t.awbNumber || "N/A",
+        t.referenceId || "N/A",
+        `"${t.description.replace(/"/g, '""')}"`,
+      ]);
 
-    const matchesCategory =
-      categoryFilter === "ALL" ||
-      (categoryFilter === "CREDIT" && t.transactionType === "CREDIT") ||
-      (categoryFilter === "DEBIT" && t.transactionType === "DEBIT") ||
-      t.category === categoryFilter ||
-      (categoryFilter === "SHIPPING_CHARGE" &&
-        (t.category === "SHIPPING_DEDUCTION" || t.category === "SHIPPING_CHARGE")) ||
-      (categoryFilter === "WALLET_RECHARGE" &&
-        (t.category === "WALLET_RECHARGE" || t.category === "FREE_CREDIT_GRANTED" || t.category === "PROMO_CREDIT_GRANTED"));
-
-    return matchesSearch && matchesCategory;
-  });
-
-  const displayedTransactions = showAllTransactions
-    ? filteredTransactions
-    : localTransactions.slice(0, 5);
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `ShipWave_Wallet_Statement_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Wallet statement downloaded successfully!");
+    } catch {
+      toast.error("Failed to export statement.");
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Low Balance Warning Banner */}
-      {localBalance < 200 && (
-        <div className="flex items-center justify-between rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs">
-          <div className="flex items-center gap-3">
-            <ShieldAlert size={20} className="text-amber-600 shrink-0" />
-            <div className="text-xs">
-              <p className="font-bold text-amber-900">Low Wallet Balance Alert</p>
-              <p className="text-amber-800">
-                Available balance is below ₹200. Recharge to avoid shipment booking interruptions.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setRechargeOpen(true)}
-            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 shadow-xs cursor-pointer"
-          >
-            + Add Money
-          </button>
+      {/* 1. TOP PAGE HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <Wallet className="size-5 text-indigo-600" />
+            Shipping Wallet
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Manage your available shipping balance, view pending COD remittances, and track freight deductions.
+          </p>
         </div>
-      )}
 
-      {/* 3 Core Shipping Wallet Metric Cards */}
+        <button
+          type="button"
+          onClick={() => setRechargeOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer self-start sm:self-auto"
+        >
+          <Plus size={16} /> + Add Money
+        </button>
+      </div>
+
+      {/* 2. TOP SUMMARY CARDS (3 Cards Desktop / Responsive Mobile Stacking) */}
       <div className="grid gap-4 sm:grid-cols-3">
         {/* Card 1: Available Balance */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs relative overflow-hidden">
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-white p-5 shadow-xs transition-all hover:shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Available Balance
-            </span>
-            <span className="grid size-9 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Wallet size={18} />
+            <span className="text-xs font-bold text-slate-600">Available Balance</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Wallet Active
             </span>
           </div>
 
-          <p className="mt-3 text-3xl font-black tracking-tight text-slate-900">
-            {formatINR(localBalance)}
-          </p>
+          <div className="mt-3 flex items-baseline gap-1">
+            <span className="text-3xl font-black text-slate-900 tracking-tight">
+              {formatINR(localBalance)}
+            </span>
+          </div>
 
-          <p className="mt-1 text-xs text-slate-400">Available for creating shipments</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Available for creating shipments</p>
 
-          <div className="mt-5">
+          <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setRechargeOpen(true)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-2.5 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
             >
-              <Plus size={15} />
-              <span>+ Add Money</span>
+              + Quick Recharge <ArrowRight size={12} />
             </button>
+            <span className="text-[11px] text-slate-400">100% Usable</span>
           </div>
         </div>
 
         {/* Card 2: Pending COD */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Pending COD
-              </span>
-              <span className="grid size-9 place-items-center rounded-xl bg-amber-50 text-amber-600">
-                <Banknote size={18} />
-              </span>
-            </div>
-
-            <p className="mt-3 text-3xl font-black tracking-tight text-slate-900">
-              {formatINR(pendingCod)}
-            </p>
-
-            <p className="mt-1 text-xs text-slate-400">Expected from COD deliveries</p>
+        <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/60 via-white to-white p-5 shadow-xs transition-all hover:shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-900">Pending COD</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+              <Clock size={11} /> Expected Cash
+            </span>
           </div>
 
-          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Settlement Cycle:</span>
-            <span className="font-bold text-slate-800">T+2 Working Days</span>
+          <div className="mt-3">
+            <span className="text-3xl font-black text-slate-900 tracking-tight">
+              {formatINR(pendingCod)}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 mt-1 font-medium">Expected from COD deliveries</p>
+
+          <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-800">
+              Settlement Cycle: <strong>T+3 Days</strong>
+            </span>
+            <Link
+              href="/cod"
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            >
+              View COD Settlements <ArrowRight size={12} />
+            </Link>
           </div>
         </div>
 
         {/* Card 3: Total Used */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Total Used
-              </span>
-              <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                <Truck size={18} />
-              </span>
-            </div>
-
-            <p className="mt-3 text-3xl font-black tracking-tight text-slate-900">
-              {formatINR(totalUsed)}
-            </p>
-
-            <p className="mt-1 text-xs text-slate-400">Lifetime shipping charges spent</p>
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/60 via-white to-white p-5 shadow-xs transition-all hover:shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600">Total Used</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+              <Package size={11} /> Lifetime
+            </span>
           </div>
 
-          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Logistics Invoices:</span>
-            <span className="font-bold text-emerald-700">100% Tax Compliant</span>
+          <div className="mt-3">
+            <span className="text-3xl font-black text-slate-900 tracking-tight">
+              {formatINR(totalUsed)}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 mt-1 font-medium">Lifetime shipping charges spent</p>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+              <ShieldCheck size={13} className="text-indigo-600" /> Logistics Invoices: Tax Compliant
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Recent Transactions Section */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-4 gap-3">
+      {/* 3. BALANCE ACTION BAR */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
+            <Wallet size={20} />
+          </span>
           <div>
-            <h3 className="text-base font-bold text-slate-900">Recent Transactions</h3>
-            <p className="text-xs text-slate-500">Latest wallet credits, freight deductions, and refunds</p>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              Wallet Balance
+            </span>
+            <span className="text-lg font-black text-slate-900">
+              {formatINR(localBalance)}
+            </span>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowAllTransactions(!showAllTransactions)}
-            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-          >
-            <span>{showAllTransactions ? "Show Recent (5)" : "View All Transactions"}</span>
-            <ChevronRight size={14} />
-          </button>
         </div>
 
-        {/* Filter Bar (Visible in All Transactions Mode) */}
-        {showAllTransactions && (
-          <div className="mb-4 flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-3.5" />
-              <input
-                type="text"
-                placeholder="Search by AWB, order or transaction ID…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:outline-none"
-              />
-            </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRechargeOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus size={14} /> + Add Money
+          </button>
+          <button
+            type="button"
+            onClick={handleExportStatement}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet size={14} className="text-emerald-600" /> View Statement
+          </button>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-              {["ALL", "CREDIT", "DEBIT", "WALLET_RECHARGE", "SHIPPING_CHARGE", "CANCELLATION_REFUND"].map(
-                (cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategoryFilter(cat)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap cursor-pointer ${
-                      categoryFilter === cat
-                        ? "bg-slate-900 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {cat.replace(/_/g, " ")}
-                  </button>
-                ),
-              )}
-            </div>
+      {/* 4. RECENT TRANSACTIONS SECTION */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        {/* Header & Subtitle */}
+        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              Recent Transactions
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Latest wallet credits, freight deductions, refunds and adjustments.
+            </p>
           </div>
-        )}
 
-        {/* Transactions List */}
+          {/* Compact Summary Bar */}
+          <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-600">
+            <span>Showing <strong className="text-slate-900">{filteredTransactions.length}</strong> transactions</span>
+            <span className="text-slate-300">&bull;</span>
+            <span className="text-emerald-700 font-bold">Credits: +{formatINR(totalCredits)}</span>
+            <span className="text-slate-300">&bull;</span>
+            <span className="text-rose-700 font-bold">Debits: −{formatINR(totalDebits)}</span>
+            {totalRefunds > 0 && (
+              <>
+                <span className="text-slate-300">&bull;</span>
+                <span className="text-amber-700 font-bold">Refunds: +{formatINR(totalRefunds)}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 10. Filters Bar */}
+        <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative w-full lg:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-3.5" />
+            <input
+              type="text"
+              placeholder="Search by AWB, order or transaction ID…"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:outline-none"
+            />
+          </div>
+
+          {/* Type & Date Filter Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Category Dropdown */}
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-indigo-600 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Transaction Types</option>
+              <option value="RECHARGE">Wallet Recharge</option>
+              <option value="SHIPPING">Shipping Charge</option>
+              <option value="COD">COD Settlement</option>
+              <option value="REFUND">Cancellation Refund</option>
+            </select>
+
+            {/* Date Dropdown */}
+            <select
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-indigo-600 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Time</option>
+              <option value="TODAY">Today</option>
+              <option value="YESTERDAY">Yesterday</option>
+              <option value="LAST_7_DAYS">Last 7 Days</option>
+              <option value="LAST_30_DAYS">Last 30 Days</option>
+            </select>
+          </div>
+        </div>
+
+        {/* 5. TRANSACTION LIST / CARDS */}
         <div className="divide-y divide-slate-100">
-          {displayedTransactions.map((t) => {
-            const isCredit = t.transactionType === "CREDIT";
-            const awbMatch =
-              t.awbNumber ||
-              (t.description?.includes("AWB")
-                ? t.description.match(/AWB\s+([A-Za-z0-9_-]+)/)?.[1]
-                : null);
-
-            return (
-              <div
-                key={t.id}
-                onClick={() => setSelectedTxn(t)}
-                className="flex items-center justify-between py-3.5 hover:bg-slate-50/70 rounded-xl px-2.5 transition-colors cursor-pointer"
+          {paginatedTransactions.length === 0 ? (
+            /* 14. EMPTY STATE */
+            <div className="py-16 text-center text-slate-400">
+              <Package className="mx-auto size-12 text-slate-300 mb-3 stroke-1" />
+              <h4 className="text-sm font-bold text-slate-800">No wallet transactions yet</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                Your wallet recharge, shipping charges and refunds will appear here.
+              </p>
+              <button
+                type="button"
+                onClick={() => setRechargeOpen(true)}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
               >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
+                <Plus size={14} /> + Add Money
+              </button>
+            </div>
+          ) : (
+            paginatedTransactions.map((t) => {
+              const isCredit = t.transactionType === "CREDIT";
+              const isRefund = t.category === "CANCELLATION_REFUND" || t.category === "REFUND";
+              const isShipping = t.category === "SHIPPING_CHARGE" || t.category === "SHIPPING_DEDUCTION";
+              const isCod = t.category === "COD_SETTLEMENT" || t.category === "COD_REMITTANCE";
+
+              return (
+                <div
+                  key={t.id}
+                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors"
+                >
+                  {/* Left & Center */}
+                  <div className="flex items-start gap-3.5">
+                    {/* Left Icon */}
                     <span
-                      className={`text-sm font-bold ${
+                      className={`grid size-10 place-items-center rounded-xl shrink-0 mt-0.5 ${
+                        isCredit
+                          ? "bg-emerald-100 text-emerald-800"
+                          : isRefund
+                          ? "bg-amber-100 text-amber-800"
+                          : isCod
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-rose-100 text-rose-800"
+                      }`}
+                    >
+                      {isCredit ? (
+                        <ArrowDownLeft size={18} />
+                      ) : isRefund ? (
+                        <RotateCcw size={18} />
+                      ) : isCod ? (
+                        <Banknote size={18} />
+                      ) : (
+                        <ArrowUpRight size={18} />
+                      )}
+                    </span>
+
+                    {/* Center Title & Description */}
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                          {t.category.replace(/_/g, " ")}
+                        </h4>
+                        <span className="text-[10px] font-mono text-slate-400">{t.id}</span>
+                      </div>
+
+                      <p className="text-xs text-slate-600 font-medium mt-0.5">{t.description}</p>
+
+                      {/* Clickable AWB link */}
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        {t.awbNumber ? (
+                          <Link
+                            href={`/shipments?q=${t.awbNumber}`}
+                            className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50/70 border border-indigo-100 px-2 py-0.5 rounded-md"
+                          >
+                            AWB: {t.awbNumber}
+                            <ExternalLink size={10} />
+                          </Link>
+                        ) : null}
+
+                        <span className="text-[11px] text-slate-400">
+                          {new Date(t.createdAt).toLocaleString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Amount, Historical Balance After, and View Breakup */}
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
+                    <span
+                      className={`text-base font-black ${
                         isCredit ? "text-emerald-700" : "text-slate-900"
                       }`}
                     >
                       {isCredit ? "+" : "−"} {formatINR(t.amount)}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${
-                        isCredit
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
+
+                    {/* Historical Balance Immediately After That Transaction */}
+                    <span className="text-[11px] text-slate-500 font-medium sm:mt-0.5">
+                      Balance After:{" "}
+                      <strong className="text-slate-800 font-semibold font-mono">
+                        {formatINR(t.balanceAfter ?? 0)}
+                      </strong>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTxn(t)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline sm:mt-1 cursor-pointer"
                     >
-                      {t.category.replace(/_/g, " ")}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 font-medium">{t.description}</p>
-
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                    {awbMatch && (
-                      <Link
-                        href={`/shipments?q=${awbMatch}`}
-                        onClick={(e) => e.stopPropagation()}
-                        target="_blank"
-                        className="font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5"
-                      >
-                        AWB: {awbMatch}
-                        <ExternalLink size={10} />
-                      </Link>
-                    )}
-                    <span>
-                      {new Date(t.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                      View Breakup &rarr;
+                    </button>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <span className="text-xs font-semibold text-slate-400">Balance After:</span>
-                  <p className="text-xs font-bold text-slate-800">{formatINR(t.balanceAfter)}</p>
-                  <span className="text-[10px] text-indigo-600 font-medium hover:underline flex items-center justify-end gap-0.5 mt-0.5">
-                    Breakup <ChevronRight size={10} />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-
-          {displayedTransactions.length === 0 && (
-            <div className="py-12 text-center text-slate-400">
-              <Wallet className="mx-auto size-8 text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-700">No transactions match your filter</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Try selecting "ALL" or recharge your wallet to see new ledger entries.
-              </p>
-            </div>
+              );
+            })
           )}
         </div>
+
+        {/* 12. PAGINATION CONTROLS */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+            >
+              <ChevronLeft size={14} /> Previous
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`size-7 rounded-lg font-bold text-xs cursor-pointer ${
+                    currentPage === page
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Itemized Deduction Breakdown Modal */}
+      {/* 7. TRANSACTION BREAKUP MODAL / DRAWER */}
       {selectedTxn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="grid size-8 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <FileText size={16} />
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Transaction Breakdown</h4>
-                  <p className="text-[10px] text-slate-400 font-mono">{selectedTxn.id}</p>
-                </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Transaction Details</h3>
+                <p className="text-[11px] text-slate-400 font-mono">{selectedTxn.id}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedTxn(null)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-xs">
-              <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
-                <span className="text-slate-500 font-medium">Transaction Type:</span>
-                <span className="font-bold text-slate-900">
-                  {selectedTxn.category.replace(/_/g, " ")}
+            {/* Contextual Modal Content */}
+            <div className="my-4 space-y-3 text-xs">
+              {/* Common Info */}
+              <div className="flex justify-between text-slate-600">
+                <span>Transaction Type:</span>
+                <span className="font-bold text-slate-900 uppercase">{selectedTxn.category.replace(/_/g, " ")}</span>
+              </div>
+
+              {selectedTxn.awbNumber && (
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>AWB Number:</span>
+                  <Link
+                    href={`/shipments?q=${selectedTxn.awbNumber}`}
+                    className="font-mono font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                  >
+                    {selectedTxn.awbNumber} <ExternalLink size={11} />
+                  </Link>
+                </div>
+              )}
+
+              {selectedTxn.orderNumber && (
+                <div className="flex justify-between text-slate-600">
+                  <span>Order ID:</span>
+                  <span className="font-mono font-semibold text-slate-800">{selectedTxn.orderNumber}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-slate-600">
+                <span>Date &amp; Time:</span>
+                <span className="font-semibold text-slate-800">
+                  {new Date(selectedTxn.createdAt).toLocaleString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
                 </span>
               </div>
 
-              {/* 1. SHIPPING CHARGE (Itemized Courier Freight Breakdown) */}
+              {/* Case A: Shipping Charge Breakdown */}
               {(selectedTxn.category === "SHIPPING_CHARGE" || selectedTxn.category === "SHIPPING_DEDUCTION") && (
-                <>
-                  {selectedTxn.awbNumber && (
-                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                      <span className="text-slate-500 font-medium">AWB Number:</span>
-                      <Link
-                        href={`/shipments?q=${selectedTxn.awbNumber}`}
-                        target="_blank"
-                        className="font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5 bg-indigo-50/80 px-2.5 py-1 rounded-lg"
-                      >
-                        {selectedTxn.awbNumber}
-                        <ExternalLink size={12} />
-                      </Link>
-                    </div>
-                  )}
-
-                  <div className="rounded-xl border border-slate-100 p-3 space-y-2.5 bg-white shadow-2xs">
-                    <div className="flex justify-between text-slate-600">
-                      <span>Base Shipping Freight:</span>
-                      <span className="font-semibold text-slate-800">
-                        {formatINR(Math.round((selectedTxn.amount / 1.18) * 100) / 100)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-slate-600">
-                      <span>GST (18% Applicable Tax):</span>
-                      <span className="font-semibold text-slate-800">
-                        {formatINR(selectedTxn.amount - Math.round((selectedTxn.amount / 1.18) * 100) / 100)}
-                      </span>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-slate-900 text-sm">
-                      <span>Total Freight Deducted:</span>
-                      <span className="text-rose-700 font-black">− {formatINR(selectedTxn.amount)}</span>
-                    </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2 mt-3">
+                  <span className="text-[11px] font-bold text-slate-700 block uppercase tracking-wider">
+                    Charge Breakdown
+                  </span>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Base Freight:</span>
+                    <span className="font-medium text-slate-800">{formatINR(Math.round((selectedTxn.amount / 1.18) * 100) / 100)}</span>
                   </div>
-
-                  {selectedTxn.awbNumber && (
-                    <div className="pt-1">
-                      <Link
-                        href={`/shipments?q=${selectedTxn.awbNumber}`}
-                        target="_blank"
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
-                      >
-                        <Truck size={14} /> Track Shipment ({selectedTxn.awbNumber})
-                        <ExternalLink size={12} />
-                      </Link>
-                    </div>
-                  )}
-                </>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Additional Weight:</span>
+                    <span className="font-medium text-slate-800">₹0.00</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>COD Fee:</span>
+                    <span className="font-medium text-slate-800">₹0.00</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Fuel/Surcharge:</span>
+                    <span className="font-medium text-slate-800">₹0.00</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>GST (18% Applicable):</span>
+                    <span className="font-medium text-slate-800">{formatINR(Math.round((selectedTxn.amount - selectedTxn.amount / 1.18) * 100) / 100)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-slate-900">
+                    <span>Total Freight Deducted:</span>
+                    <span className="text-rose-700 font-extrabold">− {formatINR(selectedTxn.amount)}</span>
+                  </div>
+                </div>
               )}
 
-              {/* 2. WALLET RECHARGE (Topup Details) */}
-              {(selectedTxn.category === "WALLET_RECHARGE" || selectedTxn.category === "FREE_CREDIT_GRANTED" || selectedTxn.category === "PROMO_CREDIT_GRANTED") && (
-                <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-emerald-50/40">
+              {/* Case B: Wallet Recharge Breakdown */}
+              {selectedTxn.category === "WALLET_RECHARGE" && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 space-y-2 mt-3">
+                  <span className="text-[11px] font-bold text-emerald-900 block uppercase tracking-wider">
+                    Topup Summary
+                  </span>
                   <div className="flex justify-between text-slate-600">
-                    <span>Payment Mode:</span>
-                    <span className="font-semibold text-slate-800">Instant UPI / NetBanking</span>
+                    <span>Payment Method:</span>
+                    <span className="font-semibold text-slate-800">UPI / Net Banking</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Topup Type:</span>
-                    <span className="font-semibold text-slate-800">Prepaid Shipping Balance</span>
+                    <span>Gateway Reference:</span>
+                    <span className="font-mono text-slate-800">{selectedTxn.referenceId || "PG_RZP_SUCCESS"}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Tax on Topup:</span>
-                    <span className="font-semibold text-slate-500">₹0.00 (Tax applied per shipment)</span>
+                    <span>Applicable Tax:</span>
+                    <span className="font-medium text-emerald-800">₹0.00 (Zero Fee)</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Reference / PG ID:</span>
-                    <span className="font-mono text-slate-700">{selectedTxn.referenceId || selectedTxn.id}</span>
-                  </div>
-
-                  <div className="pt-2 border-t border-emerald-200/60 flex justify-between font-bold text-emerald-800 text-sm">
+                  <div className="pt-2 border-t border-emerald-200 flex justify-between font-bold text-slate-900">
                     <span>Amount Credited:</span>
-                    <span>+ {formatINR(selectedTxn.amount)}</span>
+                    <span className="text-emerald-700 font-black">+ {formatINR(selectedTxn.amount)}</span>
                   </div>
                 </div>
               )}
 
-              {/* 3. CANCELLATION REFUND (Refund Details) */}
-              {(selectedTxn.category === "CANCELLATION_REFUND" || selectedTxn.category === "REFUND" || selectedTxn.category === "FULL_REFUND" || selectedTxn.category === "PARTIAL_REFUND") && (
-                <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-indigo-50/40">
-                  {selectedTxn.awbNumber && (
-                    <div className="flex justify-between text-slate-600">
-                      <span>Cancelled AWB:</span>
-                      <span className="font-mono font-bold text-indigo-600">{selectedTxn.awbNumber}</span>
-                    </div>
-                  )}
+              {/* Case C: Cancellation Refund Breakdown */}
+              {(selectedTxn.category === "CANCELLATION_REFUND" || selectedTxn.category === "REFUND") && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-2 mt-3">
+                  <span className="text-[11px] font-bold text-amber-900 block uppercase tracking-wider">
+                    Refund Breakdown (5-Hour Policy)
+                  </span>
                   <div className="flex justify-between text-slate-600">
-                    <span>Refund Policy:</span>
-                    <span className="font-semibold text-slate-800">5-Hour Cancellation Protection</span>
+                    <span>Policy Status:</span>
+                    <span className="font-semibold text-emerald-700">100% Full Refund</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Ledger Status:</span>
-                    <span className="font-bold text-emerald-700">100% Settled to Wallet</span>
+                    <span>Cancellation Charge:</span>
+                    <span className="font-medium text-slate-800">₹0.00</span>
                   </div>
-
-                  <div className="pt-2 border-t border-indigo-200/60 flex justify-between font-bold text-indigo-900 text-sm">
+                  <div className="pt-2 border-t border-amber-200 flex justify-between font-bold text-slate-900">
                     <span>Refund Credited:</span>
-                    <span className="text-emerald-700">+ {formatINR(selectedTxn.amount)}</span>
+                    <span className="text-emerald-700 font-black">+ {formatINR(selectedTxn.amount)}</span>
                   </div>
                 </div>
               )}
 
-              {/* 4. COD SETTLEMENT (Remittance Details) */}
-              {(selectedTxn.category === "COD_SETTLEMENT" || selectedTxn.category === "COD_REMITTANCE") && (
-                <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-teal-50/40">
-                  {selectedTxn.awbNumber && (
-                    <div className="flex justify-between text-slate-600">
-                      <span>Delivery AWB:</span>
-                      <span className="font-mono font-bold text-teal-700">{selectedTxn.awbNumber}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-slate-600">
-                    <span>Payout Cycle:</span>
-                    <span className="font-semibold text-slate-800">T+2 Courier Settlement</span>
-                  </div>
-
-                  <div className="pt-2 border-t border-teal-200/60 flex justify-between font-bold text-teal-900 text-sm">
-                    <span>Net COD Credited:</span>
-                    <span className="text-emerald-700">+ {formatINR(selectedTxn.amount)}</span>
-                  </div>
+              {/* Historical Balance Sequence Box */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1 text-slate-600">
+                <div className="flex justify-between">
+                  <span>Previous Balance:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {formatINR(
+                      selectedTxn.transactionType === "CREDIT"
+                        ? (selectedTxn.balanceAfter ?? 0) - selectedTxn.amount
+                        : (selectedTxn.balanceAfter ?? 0) + selectedTxn.amount,
+                    )}
+                  </span>
                 </div>
-              )}
-
-              <div className="flex justify-between items-center text-slate-500 text-[11px] pt-1">
-                <span>Balance After Transaction:</span>
-                <span className="font-bold text-slate-800">{formatINR(selectedTxn.balanceAfter)}</span>
+                <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200">
+                  <span>Balance After Transaction:</span>
+                  <span className="font-mono font-black text-indigo-700">
+                    {formatINR(selectedTxn.balanceAfter ?? 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[11px] text-emerald-700 font-bold pt-1">
+                  <span>Transaction Status:</span>
+                  <span className="inline-flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Completed / Verified
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+            {/* Modal Actions */}
+            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+              {selectedTxn.awbNumber ? (
+                <Link
+                  href={`/shipments?q=${selectedTxn.awbNumber}`}
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                >
+                  <Truck size={14} /> Track Shipment ({selectedTxn.awbNumber})
+                </Link>
+              ) : <div />}
+
               <button
                 type="button"
                 onClick={() => setSelectedTxn(null)}
-                className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 cursor-pointer"
               >
                 Close
               </button>
@@ -551,87 +809,151 @@ export function SimpleWalletView({
         </div>
       )}
 
-      {/* Add Money Modal */}
+      {/* 3. ADD MONEY TO WALLET MODAL */}
       {rechargeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <span className="grid size-8 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
                   <Wallet size={18} />
                 </span>
-                <h3 className="text-base font-bold text-slate-900">Add Money to Wallet</h3>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Add Money to Wallet</h3>
+                  <p className="text-[11px] text-slate-400">Instant shipping credits via UPI / Cards</p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setRechargeOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="my-5 space-y-4">
+              {/* Quick Presets */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Recharge Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min={100}
-                  step={100}
-                  value={rechargeAmount}
-                  onChange={(e) => setRechargeAmount(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Popular Amounts
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {presets.map((p) => (
+                <label className="text-xs font-bold text-slate-700 block mb-2">Select Amount</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {presets.map((amt) => (
                     <button
-                      key={p}
+                      key={amt}
                       type="button"
-                      onClick={() => setRechargeAmount(p)}
-                      className={`rounded-lg border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer ${
-                        rechargeAmount === p
-                          ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        setRechargeAmount(amt);
+                        setCustomAmount("");
+                      }}
+                      className={`rounded-xl py-2 text-xs font-bold transition-all cursor-pointer ${
+                        rechargeAmount === amt && !customAmount
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {formatINR(p)}
+                      {formatINR(amt)}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/70 text-xs text-slate-600 flex items-start gap-2">
-                <Sparkles size={16} className="text-indigo-600 shrink-0 mt-0.5" />
-                <p>
-                  Instant recharge via UPI (Google Pay, PhonePe, Paytm), Credit/Debit Cards, or Net Banking.
-                </p>
+              {/* Custom Input */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Or Enter Custom Amount (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    placeholder="Enter amount (min ₹100)"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Methods */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-2">Payment Method</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("UPI")}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-2 text-xs font-semibold cursor-pointer ${
+                      paymentMethod === "UPI"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    <QrCode size={14} /> UPI Apps
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("NET_BANKING")}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-2 text-xs font-semibold cursor-pointer ${
+                      paymentMethod === "NET_BANKING"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    <Building2 size={14} /> Net Banking
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("CARD")}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-2 text-xs font-semibold cursor-pointer ${
+                      paymentMethod === "CARD"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    <CreditCard size={14} /> Debit/Credit
+                  </button>
+                </div>
+              </div>
+
+              {/* Recharge Summary */}
+              <div className="rounded-xl bg-slate-50 p-3 text-xs space-y-1 text-slate-600">
+                <div className="flex justify-between">
+                  <span>Recharge Amount:</span>
+                  <span className="font-bold text-slate-900">
+                    {formatINR(customAmount ? Number(customAmount) || 0 : rechargeAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Processing Fee / GST:</span>
+                  <span className="font-semibold text-emerald-700">₹0.00 (Zero Fee)</span>
+                </div>
+                <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200">
+                  <span>Estimated New Balance:</span>
+                  <span className="text-emerald-700 font-extrabold">
+                    {formatINR(
+                      localBalance + (customAmount ? Number(customAmount) || 0 : rechargeAmount),
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-3">
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setRechargeOpen(false)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={rechargeLoading || rechargeAmount <= 0}
+                disabled={rechargeLoading}
                 onClick={handleRecharge}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
               >
-                {rechargeLoading && <Loader2 className="size-3.5 animate-spin" />}
-                {rechargeLoading ? "Processing…" : `Proceed to Pay ${formatINR(rechargeAmount)}`}
+                {rechargeLoading ? <Loader2 className="animate-spin size-3.5" /> : <Plus size={14} />}
+                Pay &amp; Recharge
               </button>
             </div>
           </div>

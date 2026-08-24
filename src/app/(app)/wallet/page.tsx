@@ -11,19 +11,12 @@ export default async function WalletPage({
   const summary = await getWalletSummary(params.type);
 
   return (
-    <>
-      <PageHeader
-        title="Shipping Wallet"
-        description="Manage your available shipping balance, view pending COD remittances, and track freight deductions."
-      />
-
-      <SimpleWalletView
-        availableBalance={summary.availableBalance}
-        pendingCod={summary.pendingCod}
-        totalUsed={summary.totalUsed}
-        isLowBalance={summary.isLowBalance}
-        transactions={summary.transactions}
-      />
-    </>
+    <SimpleWalletView
+      availableBalance={summary.availableBalance}
+      pendingCod={summary.pendingCod}
+      totalUsed={summary.totalUsed}
+      isLowBalance={summary.isLowBalance}
+      transactions={summary.transactions}
+    />
   );
 }

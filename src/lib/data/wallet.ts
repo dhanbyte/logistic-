@@ -26,9 +26,10 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     userId = session.user.id;
   }
 
-  // Get multi-asset wallet state
+  // Get wallet state
   const walletAccount = await getOrCreateWallet(userId);
   const computed = computeAvailableFunds(walletAccount);
+  const availableBalance = toRupees(computed.cashBalancePaise);
 
   let rawTxns: any[] = [];
   let shipments: any[] = [];
@@ -39,12 +40,12 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
         .from("wallet_transactions")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: true }),
       supabase
         .from("ecommerce_shipments")
         .select("id, shipping_charge, cod_amount, payment_mode, shipment_status, awb_number, created_at, order:orders(order_number)")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: true }),
     ]);
 
     rawTxns = txnsResult.data ?? [];
@@ -116,7 +117,7 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
         transactionType: "DEBIT",
         category: "SHIPPING_CHARGE",
         amount: charge,
-        balanceAfter: toRupees(computed.cashBalancePaise),
+        balanceAfter: 0, // Will be computed in chronological running balance below
         referenceId: awb,
         awbNumber: awb,
         orderNumber: s.order?.order_number,
@@ -126,8 +127,6 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
       existingAwbs.add(awb);
     }
   }
-
-  const availableBalance = toRupees(computed.cashBalancePaise);
 
   // If still empty and user has available balance, add initial starter/recharge credit entry
   if (mappedTxns.length === 0 && availableBalance > 0) {
@@ -144,7 +143,33 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     });
   }
 
-  // Sort latest first
+  // 1. Chronological order to guarantee exact historical running balance
+  mappedTxns.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  let running = 0;
+  for (let i = 0; i < mappedTxns.length; i++) {
+    const t = mappedTxns[i];
+    if (t.balanceAfter && t.balanceAfter > 0 && t.balanceAfter !== availableBalance) {
+      running = t.balanceAfter;
+    } else {
+      if (t.transactionType === "CREDIT") {
+        running += t.amount;
+      } else {
+        running = Math.max(0, running - t.amount);
+      }
+      t.balanceAfter = running;
+    }
+  }
+
+  // Ensure latest transaction's balanceAfter matches current available balance if known
+  if (mappedTxns.length > 0 && availableBalance > 0) {
+    const last = mappedTxns[mappedTxns.length - 1];
+    if (last.balanceAfter !== availableBalance) {
+      last.balanceAfter = availableBalance;
+    }
+  }
+
+  // 2. Sort latest first for UI presentation
   mappedTxns.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   if (filterType && filterType !== "ALL") {
