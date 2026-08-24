@@ -1,47 +1,55 @@
 import { AppShell } from "@/components/app-shell";
-import { createClient } from "@/lib/supabase/server";
+import { getEffectiveSession } from "@/lib/supabase/server";
+import { computeAvailableFunds, getOrCreateWallet } from "@/lib/finance/wallet-service";
+import { toRupees } from "@/lib/finance/money";
 
 export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  if (!supabase) {
-    return (
-      <AppShell
-        fullName="ShopWave Seller"
-        email="seller@shopwave.in"
-        walletBalance={0}
-        isDemo={false}
-      >
-        {children}
-      </AppShell>
-    );
-  }
+  const session = await getEffectiveSession();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let fullName = "Seller";
+  let email = "seller@shopwave.in";
+  let walletBalance = 5000;
 
-  let fullName = user?.email?.split("@")[0] ?? "Seller";
-  let walletBalance = 0;
+  if (session) {
+    const { user, supabase } = session;
+    email = user.email || "seller@shopwave.in";
+    fullName = user.email?.split("@")[0] || "Seller";
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, wallet_balance")
-      .eq("id", user.id)
-      .maybeSingle();
+    try {
+      const [profileRes, walletAccount] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("full_name, wallet_balance")
+          .eq("id", user.id)
+          .maybeSingle(),
+        getOrCreateWallet(user.id),
+      ]);
 
-    if (profile?.full_name) fullName = profile.full_name;
-    if (typeof profile?.wallet_balance === "number") walletBalance = profile.wallet_balance;
+      if (profileRes.data?.full_name) {
+        fullName = profileRes.data.full_name;
+      }
+
+      const computed = computeAvailableFunds(walletAccount);
+      const computedBal = toRupees(computed.availableCashPaise + computed.freeCreditPaise);
+
+      if (typeof profileRes.data?.wallet_balance === "number" && profileRes.data.wallet_balance > 0) {
+        walletBalance = profileRes.data.wallet_balance;
+      } else {
+        walletBalance = computedBal;
+      }
+    } catch (err) {
+      console.warn("[ProtectedLayout.balance]", err);
+    }
   }
 
   return (
     <AppShell
       fullName={fullName}
-      email={user?.email ?? ""}
+      email={email}
       walletBalance={walletBalance}
       isDemo={false}
     >

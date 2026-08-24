@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Menu } from "lucide-react";
+import Link from "next/link";
+import { Menu, Wallet } from "lucide-react";
 import { signOut } from "@/app/actions";
+import { formatINR } from "@/lib/calculations";
 import { AppSidebar } from "./app-sidebar";
 
 export function AppShell({
@@ -53,6 +55,15 @@ export function AppShell({
             <Menu size={21} aria-hidden="true" />
           </button>
           <div className="ml-auto flex items-center gap-3">
+            <Link
+              href="/wallet"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-2xs"
+            >
+              <Wallet size={14} className="text-indigo-600" />
+              <span className="hidden xs:inline text-slate-500 font-medium">Prepaid Wallet:</span>
+              <span className="font-bold text-emerald-700">{formatINR(walletBalance)}</span>
+            </Link>
+
             <span
               aria-hidden="true"
               className="grid size-9 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800"
