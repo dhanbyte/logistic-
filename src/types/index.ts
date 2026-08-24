@@ -345,23 +345,42 @@ export interface WalletTransaction {
   transactionType: "CREDIT" | "DEBIT";
   category:
     | "WALLET_RECHARGE"
-    | "SHIPPING_DEDUCTION"
     | "SHIPPING_CHARGE"
-    | "WEIGHT_DISCREPANCY"
-    | "COD_REMITTANCE"
+    | "SHIPPING_DEDUCTION"
+    | "COD_FEE"
+    | "RTO_CHARGE"
+    | "NDR_CHARGE"
+    | "FULL_REFUND"
+    | "PARTIAL_REFUND"
+    | "CANCELLATION_REFUND"
     | "COD_SETTLEMENT"
+    | "COD_REMITTANCE"
+    | "MANUAL_CREDIT"
+    | "MANUAL_DEBIT"
+    | "ADJUSTMENT"
+    | "REVERSAL"
     | "REFUND"
+    | "WEIGHT_DISCREPANCY"
     | "PENALTY"
     | "FREE_CREDIT_GRANTED"
     | "FREE_CREDIT_USED"
     | "PROMO_CREDIT_GRANTED"
-    | "REVERSAL"
+    | "WELCOME_BONUS"
     | "PAYOUT"
     | "ADMIN_ADJUSTMENT";
   amount: number;
   balanceAfter: number;
   referenceId?: string | null;
   description: string;
+  awbNumber?: string | null;
+  orderNumber?: string | null;
+  breakdown?: {
+    baseFreight?: number;
+    additionalWeight?: number;
+    codFee?: number;
+    otherCharges?: number;
+    gst?: number;
+  };
   paymentGatewayReference?: string | null;
   createdAt: string;
 }

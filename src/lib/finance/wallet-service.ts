@@ -398,9 +398,222 @@ export async function grantFreeCredit(params: {
 }
 
 /**
+ * Process AWB/Shipment Cancellation Refund
+ * Policy:
+ * - Within 5 hours of creation: 100% refund of refundable shipping charge.
+ * - After 5 hours of creation: 50% refund (50% cancellation fee).
+ * - Creates immutable ledger refund entry and updates wallet balance.
+ * - Prevents duplicate cancellation refunds.
+ */
+export async function processShipmentCancellationRefund(params: {
+  userId: string;
+  orderId: string;
+  awbNumber: string;
+  shippingChargePaise: number;
+  shipmentCreatedAt: string | Date;
+  irreversibleCourierChargePaise?: number;
+}): Promise<{
+  ok: boolean;
+  refundAmountPaise: number;
+  cancellationFeePaise: number;
+  refundPercentage: number;
+  newBalancePaise: number;
+  message: string;
+}> {
+  // Check duplicate refund protection
+  const existingRefund = inMemoryLedger.find(
+    (l) =>
+      l.userId === params.userId &&
+      l.transactionType === "CANCELLATION_REFUND" &&
+      l.referenceId === params.awbNumber,
+  );
+  if (existingRefund) {
+    const currentWallet = await getOrCreateWallet(params.userId);
+    return {
+      ok: false,
+      refundAmountPaise: 0,
+      cancellationFeePaise: 0,
+      refundPercentage: 0,
+      newBalancePaise: currentWallet.cashBalancePaise,
+      message: `Cancellation refund has already been processed for AWB ${params.awbNumber}.`,
+    };
+  }
+
+  const createdAtTime = new Date(params.shipmentCreatedAt).getTime();
+  const now = Date.now();
+  const elapsedHours = (now - createdAtTime) / (1000 * 60 * 60);
+
+  const totalChargePaise = params.shippingChargePaise;
+  let refundPercentage = 100;
+  let refundAmountPaise = totalChargePaise;
+  let cancellationFeePaise = 0;
+
+  if (params.irreversibleCourierChargePaise && params.irreversibleCourierChargePaise > 0) {
+    cancellationFeePaise = params.irreversibleCourierChargePaise;
+    refundAmountPaise = Math.max(0, totalChargePaise - cancellationFeePaise);
+    refundPercentage = totalChargePaise > 0 ? Math.round((refundAmountPaise / totalChargePaise) * 100) : 0;
+  } else if (elapsedHours > 5) {
+    // After 5 hours: 50% refund
+    refundPercentage = 50;
+    refundAmountPaise = Math.round(totalChargePaise * 0.5);
+    cancellationFeePaise = totalChargePaise - refundAmountPaise;
+  } else {
+    // Within 5 hours: 100% refund
+    refundPercentage = 100;
+    refundAmountPaise = totalChargePaise;
+    cancellationFeePaise = 0;
+  }
+
+  const wallet = await getOrCreateWallet(params.userId);
+  const prevBalance = wallet.cashBalancePaise;
+  wallet.cashBalancePaise = addPaise(wallet.cashBalancePaise, refundAmountPaise);
+  inMemoryWallets.set(params.userId, wallet);
+
+  // Record Cancellation Refund Ledger Entry
+  await recordLedgerEntry({
+    userId: params.userId,
+    walletId: wallet.id,
+    transactionType: "CANCELLATION_REFUND",
+    amountPaise: refundAmountPaise,
+    direction: "CREDIT",
+    balanceBeforePaise: prevBalance,
+    balanceAfterPaise: wallet.cashBalancePaise,
+    creditBeforePaise: wallet.freeCreditPaise,
+    creditAfterPaise: wallet.freeCreditPaise,
+    referenceType: "SHIPMENT",
+    referenceId: params.awbNumber,
+    orderId: params.orderId,
+    status: "SUCCESS",
+    description: `Cancellation Refund (${refundPercentage}%) for AWB ${params.awbNumber}${
+      cancellationFeePaise > 0
+        ? ` [₹${toRupees(cancellationFeePaise).toFixed(2)} cancellation fee retained]`
+        : ""
+    }`,
+  });
+
+  const session = await getEffectiveSession();
+  if (session) {
+    await session.supabase
+      .from("wallets")
+      .update({ balance: toRupees(wallet.cashBalancePaise) })
+      .eq("user_id", params.userId);
+  }
+
+  return {
+    ok: true,
+    refundAmountPaise,
+    cancellationFeePaise,
+    refundPercentage,
+    newBalancePaise: wallet.cashBalancePaise,
+    message: `Refunded ₹${toRupees(refundAmountPaise).toFixed(2)} (${refundPercentage}% of freight) to wallet.`,
+  };
+}
+
+/**
+ * Process Payment Gateway Recharge Refund
+ */
+export async function processPaymentRefund(params: {
+  userId: string;
+  originalPaymentId: string;
+  refundAmountPaise: number;
+  reason: string;
+}): Promise<{ ok: boolean; newBalancePaise: number; message: string }> {
+  const wallet = await getOrCreateWallet(params.userId);
+  if (wallet.cashBalancePaise < params.refundAmountPaise) {
+    return {
+      ok: false,
+      newBalancePaise: wallet.cashBalancePaise,
+      message: "Insufficient wallet balance to process gateway recharge refund.",
+    };
+  }
+
+  const prevBalance = wallet.cashBalancePaise;
+  wallet.cashBalancePaise = subPaise(wallet.cashBalancePaise, params.refundAmountPaise);
+  inMemoryWallets.set(params.userId, wallet);
+
+  await recordLedgerEntry({
+    userId: params.userId,
+    walletId: wallet.id,
+    transactionType: "FULL_REFUND",
+    amountPaise: params.refundAmountPaise,
+    direction: "DEBIT",
+    balanceBeforePaise: prevBalance,
+    balanceAfterPaise: wallet.cashBalancePaise,
+    creditBeforePaise: wallet.freeCreditPaise,
+    creditAfterPaise: wallet.freeCreditPaise,
+    referenceType: "PAYMENT",
+    referenceId: params.originalPaymentId,
+    paymentId: params.originalPaymentId,
+    status: "SUCCESS",
+    description: `Payment recharge refund: ${params.reason}`,
+  });
+
+  const session = await getEffectiveSession();
+  if (session) {
+    await session.supabase
+      .from("wallets")
+      .update({ balance: toRupees(wallet.cashBalancePaise) })
+      .eq("user_id", params.userId);
+  }
+
+  return {
+    ok: true,
+    newBalancePaise: wallet.cashBalancePaise,
+    message: `Refund of ₹${toRupees(params.refundAmountPaise).toFixed(2)} processed successfully.`,
+  };
+}
+
+/**
+ * Process COD Settlement Credit to Wallet
+ */
+export async function processCodSettlementCredit(params: {
+  userId: string;
+  settlementId: string;
+  netSettlementPaise: number;
+  awbNumber: string;
+}): Promise<{ ok: boolean; newBalancePaise: number; message: string }> {
+  const wallet = await getOrCreateWallet(params.userId);
+  const prevBalance = wallet.cashBalancePaise;
+  wallet.cashBalancePaise = addPaise(wallet.cashBalancePaise, params.netSettlementPaise);
+  inMemoryWallets.set(params.userId, wallet);
+
+  await recordLedgerEntry({
+    userId: params.userId,
+    walletId: wallet.id,
+    transactionType: "COD_SETTLEMENT",
+    amountPaise: params.netSettlementPaise,
+    direction: "CREDIT",
+    balanceBeforePaise: prevBalance,
+    balanceAfterPaise: wallet.cashBalancePaise,
+    creditBeforePaise: wallet.freeCreditPaise,
+    creditAfterPaise: wallet.freeCreditPaise,
+    referenceType: "SETTLEMENT",
+    referenceId: params.settlementId,
+    status: "SUCCESS",
+    description: `COD remittance settlement payout for AWB ${params.awbNumber}`,
+  });
+
+  const session = await getEffectiveSession();
+  if (session) {
+    await session.supabase
+      .from("wallets")
+      .update({ balance: toRupees(wallet.cashBalancePaise) })
+      .eq("user_id", params.userId);
+  }
+
+  return {
+    ok: true,
+    newBalancePaise: wallet.cashBalancePaise,
+    message: `Credited ₹${toRupees(params.netSettlementPaise).toFixed(2)} COD settlement to wallet.`,
+  };
+}
+
+/**
  * Records an immutable double-entry ledger record
  */
-export async function recordLedgerEntry(entry: Omit<WalletLedgerEntry, "id" | "currency" | "createdAt">): Promise<WalletLedgerEntry> {
+export async function recordLedgerEntry(
+  entry: Omit<WalletLedgerEntry, "id" | "currency" | "createdAt">,
+): Promise<WalletLedgerEntry> {
   const ledgerId = `tx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const record: WalletLedgerEntry = {
     ...entry,

@@ -4,18 +4,10 @@ import { toRupees } from "@/lib/finance/money";
 import type { WalletTransaction } from "@/types";
 
 export interface WalletSummary {
-  currentBalance: number;
-  cashBalance: number;
-  freeCredit: number;
-  creditLimit: number;
-  usedCredit: number;
-  reservedBalance: number;
-  totalAvailableFunds: number;
+  availableBalance: number; // Actual amount currently available for creating shipments
+  pendingCod: number;       // Amount expected from COD settlements
+  totalUsed: number;        // Total amount spent on shipping charges
   isLowBalance: boolean;
-  codPending: number;
-  totalShippingSpend: number;
-  totalCreditThisMonth: number;
-  totalDebitThisMonth: number;
   transactions: WalletTransaction[];
   isDemo: boolean;
 }
@@ -47,7 +39,7 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
         .order("created_at", { ascending: false }),
       supabase
         .from("ecommerce_shipments")
-        .select("shipping_charge, cod_amount, payment_mode, shipment_status")
+        .select("shipping_charge, cod_amount, payment_mode, shipment_status, awb_number, order:orders(order_number)")
         .eq("user_id", userId),
     ]);
 
@@ -59,49 +51,36 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     id: t.id,
     userId: t.user_id,
     transactionType: t.transaction_type,
-    category: t.category,
+    category: t.category || (t.transaction_type === "CREDIT" ? "WALLET_RECHARGE" : "SHIPPING_CHARGE"),
     amount: Number(t.amount),
     balanceAfter: Number(t.balance_after),
     referenceId: t.reference_id,
     description: t.description,
+    awbNumber: t.awb_number || (t.description?.includes("AWB") ? t.description.match(/AWB\s+([A-Za-z0-9_-]+)/)?.[1] : null) || t.reference_id,
     paymentGatewayReference: t.payment_gateway_reference,
     createdAt: t.created_at,
   }));
 
   if (filterType && filterType !== "ALL") {
-    mappedTxns = mappedTxns.filter((t) => t.transactionType === filterType);
+    mappedTxns = mappedTxns.filter((t) => t.transactionType === filterType || t.category === filterType);
   }
 
-  const totalCreditThisMonth = mappedTxns
-    .filter((t) => t.transactionType === "CREDIT")
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const totalDebitThisMonth = mappedTxns
-    .filter((t) => t.transactionType === "DEBIT")
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const totalShippingSpend = shipments.reduce(
+  const totalUsed = shipments.reduce(
     (sum, s: any) => sum + Number(s.shipping_charge || 0),
     0,
   );
 
-  const codPending = shipments
+  const pendingCod = shipments
     .filter((s: any) => s.payment_mode === "COD" && s.shipment_status !== "DELIVERED")
     .reduce((sum, s: any) => sum + Number(s.cod_amount || 0), 0);
 
+  const availableBalance = toRupees(computed.availableCashPaise + computed.freeCreditPaise);
+
   return {
-    currentBalance: toRupees(computed.cashBalancePaise),
-    cashBalance: toRupees(computed.cashBalancePaise),
-    freeCredit: toRupees(computed.freeCreditPaise),
-    creditLimit: toRupees(computed.creditLimitPaise),
-    usedCredit: toRupees(computed.usedCreditPaise),
-    reservedBalance: toRupees(computed.reservedBalancePaise),
-    totalAvailableFunds: toRupees(computed.totalAvailableFundsPaise),
-    isLowBalance: computed.isLowBalance,
-    codPending,
-    totalShippingSpend,
-    totalCreditThisMonth,
-    totalDebitThisMonth,
+    availableBalance,
+    pendingCod,
+    totalUsed,
+    isLowBalance: availableBalance < 200,
     transactions: mappedTxns,
     isDemo: false,
   };

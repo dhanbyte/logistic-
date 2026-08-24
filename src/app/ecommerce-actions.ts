@@ -960,9 +960,11 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult> 
   // 1. Fetch any linked shipment
   const { data: shipment } = await supabase
     .from("ecommerce_shipments")
-    .select("id, awb_number, courier_provider:courier_providers(code)")
+    .select("id, awb_number, shipping_charge, created_at, courier_provider:courier_providers(code)")
     .eq("order_id", orderId)
     .maybeSingle();
+
+  let refundMsg = "";
 
   if (shipment && shipment.awb_number) {
     try {
@@ -980,6 +982,21 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult> 
       .from("ecommerce_shipments")
       .update({ shipment_status: "CANCELLED" })
       .eq("id", shipment.id);
+
+    // Process 5-hour cancellation refund policy
+    if (shipment.shipping_charge && Number(shipment.shipping_charge) > 0) {
+      const { processShipmentCancellationRefund } = await import("@/lib/finance/wallet-service");
+      const refundResult = await processShipmentCancellationRefund({
+        userId: user.id,
+        orderId,
+        awbNumber: shipment.awb_number,
+        shippingChargePaise: toPaise(Number(shipment.shipping_charge)),
+        shipmentCreatedAt: shipment.created_at || new Date(),
+      });
+      if (refundResult.ok) {
+        refundMsg = ` ${refundResult.message}`;
+      }
+    }
 
     // Record tracking event
     await supabase.from("tracking_events").insert({
@@ -1001,7 +1018,7 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult> 
   if (error) return { ok: false, message: "Failed to cancel order." };
 
   refreshEcommerceData();
-  return { ok: true, message: "Order and Courier AWB cancelled successfully." };
+  return { ok: true, message: `Order and Courier AWB cancelled successfully.${refundMsg}` };
 }
 
 /**

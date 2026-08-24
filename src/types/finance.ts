@@ -4,9 +4,21 @@ export type TransactionDirection = "CREDIT" | "DEBIT";
 
 export type TransactionType =
   | "WALLET_RECHARGE"
+  | "SHIPPING_CHARGE"
   | "SHIPPING_RESERVE"
   | "SHIPPING_DEBIT"
   | "SHIPPING_REVERSAL"
+  | "COD_FEE"
+  | "RTO_CHARGE"
+  | "NDR_CHARGE"
+  | "FULL_REFUND"
+  | "PARTIAL_REFUND"
+  | "CANCELLATION_REFUND"
+  | "COD_SETTLEMENT"
+  | "MANUAL_CREDIT"
+  | "MANUAL_DEBIT"
+  | "ADJUSTMENT"
+  | "REVERSAL"
   | "FREE_CREDIT_GRANTED"
   | "FREE_CREDIT_USED"
   | "FREE_CREDIT_RELEASED"
@@ -14,8 +26,7 @@ export type TransactionType =
   | "COD_CHARGE"
   | "REFUND"
   | "PAYOUT"
-  | "ADMIN_ADJUSTMENT"
-  | "REVERSAL";
+  | "ADMIN_ADJUSTMENT";
 
 export type ReservationStatus = "PENDING" | "COMMITTED" | "RELEASED" | "EXPIRED";
 

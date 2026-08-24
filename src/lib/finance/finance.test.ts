@@ -263,4 +263,85 @@ describe("Production-Ready Financial, Wallet, Credit & COD Settlement Engine", (
     expect(refundRes.ok).toBe(true);
     expect(refundRes.refundId).toBeDefined();
   });
+
+  // Test 14: 5-Hour Cancellation Policy - 100% Refund within 5 hours
+  it("Scenario 16: Cancellation within 5 hours yields 100% refund", async () => {
+    const { processShipmentCancellationRefund } = await import("./wallet-service");
+    const shippingChargePaise = toPaise(200); // ₹200
+    const recentCreatedAt = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+
+    const refund = await processShipmentCancellationRefund({
+      userId: testUserId,
+      orderId: "ORD-REFUND-100",
+      awbNumber: "SF-REFUND-100",
+      shippingChargePaise,
+      shipmentCreatedAt: recentCreatedAt,
+    });
+
+    expect(refund.ok).toBe(true);
+    expect(refund.refundPercentage).toBe(100);
+    expect(refund.refundAmountPaise).toBe(toPaise(200));
+    expect(refund.cancellationFeePaise).toBe(0);
+  });
+
+  // Test 15: 5-Hour Cancellation Policy - 50% Refund after 5 hours
+  it("Scenario 17: Cancellation after 5 hours yields 50% refund", async () => {
+    const { processShipmentCancellationRefund } = await import("./wallet-service");
+    const shippingChargePaise = toPaise(200); // ₹200
+    const oldCreatedAt = new Date(Date.now() - 7 * 60 * 60 * 1000); // 7 hours ago
+
+    const refund = await processShipmentCancellationRefund({
+      userId: testUserId,
+      orderId: "ORD-REFUND-50",
+      awbNumber: "SF-REFUND-50",
+      shippingChargePaise,
+      shipmentCreatedAt: oldCreatedAt,
+    });
+
+    expect(refund.ok).toBe(true);
+    expect(refund.refundPercentage).toBe(50);
+    expect(refund.refundAmountPaise).toBe(toPaise(100)); // 50% = ₹100
+    expect(refund.cancellationFeePaise).toBe(toPaise(100));
+  });
+
+  // Test 16: Duplicate Refund Prevention
+  it("Scenario 18: Prevents duplicate cancellation refund on same AWB", async () => {
+    const { processShipmentCancellationRefund } = await import("./wallet-service");
+    const shippingChargePaise = toPaise(150);
+
+    const firstRefund = await processShipmentCancellationRefund({
+      userId: testUserId,
+      orderId: "ORD-DUP-01",
+      awbNumber: "SF-DUP-AWB-01",
+      shippingChargePaise,
+      shipmentCreatedAt: new Date(),
+    });
+    expect(firstRefund.ok).toBe(true);
+
+    const duplicateRefund = await processShipmentCancellationRefund({
+      userId: testUserId,
+      orderId: "ORD-DUP-01",
+      awbNumber: "SF-DUP-AWB-01",
+      shippingChargePaise,
+      shipmentCreatedAt: new Date(),
+    });
+    expect(duplicateRefund.ok).toBe(false);
+    expect(duplicateRefund.message).toContain("already been processed");
+  });
+
+  // Test 17: COD Settlement Credit to Wallet
+  it("Scenario 19: Credits wallet upon confirmed COD settlement", async () => {
+    const { processCodSettlementCredit } = await import("./wallet-service");
+    const settlementPaise = toPaise(2400); // ₹2,400
+
+    const creditRes = await processCodSettlementCredit({
+      userId: testUserId,
+      settlementId: "set-live-01",
+      netSettlementPaise: settlementPaise,
+      awbNumber: "SF-COD-SETTLE-01",
+    });
+
+    expect(creditRes.ok).toBe(true);
+    expect(creditRes.message).toContain("Credited ₹2400.00");
+  });
 });
