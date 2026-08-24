@@ -318,8 +318,35 @@ export async function bookShipmentForOrder(
 
     const firstItem = (order as any).items?.[0];
 
+    // 1.2 Calculate Dynamic Volumetric & Chargeable Weight
+    const deadWeightKg = Number(order.total_weight_kg) || 0.5;
+    const lengthCm = Number(order.length_cm) || 10;
+    const widthCm = Number(order.width_cm) || 10;
+    const heightCm = Number(order.height_cm) || 10;
+    const volumetricKg = (lengthCm * widthCm * heightCm) / 5000;
+    const chargeableWeightKg = Math.max(deadWeightKg, volumetricKg);
+
+    // 1.3 Get Dynamic Courier Rate Quote
+    const rateQuote = await courier.calculateRate(
+      {
+        pickupPincode: (order as any).warehouse?.pincode || order.pickup_pincode || "110020",
+        deliveryPincode: (order as any).customer?.pincode || order.delivery_pincode || "400001",
+        paymentMode: order.payment_mode,
+        declaredValue: Number(order.order_amount) || 500,
+        isCod: order.payment_mode === "COD",
+      },
+      {
+        deadWeightKg,
+        volumetricWeightKg: volumetricKg,
+        chargeableWeightKg,
+        isOverweight: chargeableWeightKg > 0.5,
+      },
+    );
+
+    const dynamicShippingCost = rateQuote ? rateQuote.totalShippingCost : 49;
+    const freightPaise = toPaise(dynamicShippingCost);
+
     // 1.5 Atomic Two-Phase Wallet Fund Reservation
-    const freightPaise = toPaise(42.5);
     const reservationRes = await reserveShippingFunds({
       userId: user.id,
       orderId: order.id,
@@ -327,7 +354,10 @@ export async function bookShipmentForOrder(
     });
 
     if (!reservationRes.ok) {
-      return { ok: false, message: reservationRes.message };
+      return {
+        ok: false,
+        message: `${reservationRes.message} (Shipping Charge: ₹${dynamicShippingCost.toFixed(2)} for ${chargeableWeightKg.toFixed(2)} kg)`,
+      };
     }
 
     let bookingResult;
@@ -351,10 +381,10 @@ export async function bookShipmentForOrder(
         paymentMode: order.payment_mode,
         orderAmount: Number(order.order_amount),
         codAmount: Number(order.cod_amount),
-        weightKg: Number(order.total_weight_kg) || 0.5,
-        lengthCm: Number(order.length_cm) || 10,
-        widthCm: Number(order.width_cm) || 10,
-        heightCm: Number(order.height_cm) || 10,
+        weightKg: chargeableWeightKg,
+        lengthCm,
+        widthCm,
+        heightCm,
         warehouseName: (order as any).warehouse?.warehouse_name || "Central Warehouse",
         warehouseAddress: (order as any).warehouse?.address_line1 || "Plot 12, Industrial Area",
         warehouseCity: (order as any).warehouse?.city || "New Delhi",
