@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
 import { AuthShell } from "@/components/auth-shell";
 
@@ -16,7 +17,9 @@ export default function LoginPage() {
         </>
       }
     >
-      <AuthForm mode="login" />
+      <Suspense fallback={<div className="py-8 text-center text-xs text-slate-500">Loading sign in form…</div>}>
+        <AuthForm mode="login" />
+      </Suspense>
     </AuthShell>
   );
 }

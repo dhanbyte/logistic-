@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AlertTriangle,
   Banknote,
@@ -32,6 +33,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: kpis.totalOrders.toLocaleString(),
       subtext: "Lifetime processed",
       icon: Package,
+      href: "/orders?status=ALL",
       color: "text-indigo-600 bg-indigo-50",
     },
     {
@@ -39,6 +41,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: kpis.readyToShip.toLocaleString(),
       subtext: "Awaiting courier pickup",
       icon: Clock,
+      href: "/orders?status=TO_SHIP",
       color: "text-blue-600 bg-blue-50",
     },
     {
@@ -46,6 +49,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: kpis.inTransit.toLocaleString(),
       subtext: "Live on road / air",
       icon: Truck,
+      href: "/orders?status=IN_TRANSIT",
       color: "text-amber-600 bg-amber-50",
     },
     {
@@ -53,6 +57,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: kpis.delivered.toLocaleString(),
       subtext: "Successful handovers",
       icon: CheckCircle2,
+      href: "/orders?status=DELIVERED",
       color: "text-emerald-600 bg-emerald-50",
     },
     {
@@ -60,6 +65,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: kpis.ndr.toLocaleString(),
       subtext: "Action required",
       icon: AlertTriangle,
+      href: "/ndr",
       color: "text-rose-600 bg-rose-50",
       highlight: kpis.ndr > 0,
     },
@@ -68,6 +74,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: kpis.rto.toLocaleString(),
       subtext: "Returned to warehouse",
       icon: RotateCcw,
+      href: "/rto",
       color: "text-orange-600 bg-orange-50",
     },
     {
@@ -75,6 +82,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: formatINR(kpis.codPending),
       subtext: "To be remitted",
       icon: Banknote,
+      href: "/cod",
       color: "text-teal-600 bg-teal-50",
     },
     {
@@ -82,6 +90,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: formatINR(kpis.walletBalance),
       subtext: "Available freight balance",
       icon: Wallet,
+      href: "/wallet",
       color: "text-emerald-700 bg-emerald-50",
     },
     {
@@ -89,6 +98,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: formatINR(kpis.totalShippingSpend),
       subtext: "Courier freight costs",
       icon: IndianRupee,
+      href: "/analytics",
       color: "text-slate-700 bg-slate-100",
     },
     {
@@ -96,6 +106,7 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       value: `${kpis.deliverySuccessRate}%`,
       subtext: "Industry benchmark > 90%",
       icon: TrendingUp,
+      href: "/analytics",
       color: "text-indigo-700 bg-indigo-50",
     },
   ];
@@ -105,23 +116,26 @@ export function EcommerceKpiGrid({ kpis }: { kpis: KpiData }) {
       {cards.map((card) => {
         const Icon = card.icon;
         return (
-          <div
+          <Link
             key={card.label}
-            className={`rounded-xl border p-4 shadow-xs transition-all ${
+            href={card.href}
+            className={`rounded-xl border p-4 shadow-xs transition-all hover:shadow-md hover:border-indigo-300 block group ${
               card.highlight
                 ? "border-rose-300 bg-rose-50/40"
-                : "border-slate-200/80 bg-white"
+                : "border-slate-200/80 bg-white hover:bg-slate-50/50"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 truncate">{card.label}</span>
+              <span className="text-xs font-medium text-slate-500 group-hover:text-slate-900 transition-colors truncate">
+                {card.label}
+              </span>
               <span className={`grid size-7 place-items-center rounded-lg ${card.color}`}>
                 <Icon size={15} aria-hidden="true" />
               </span>
             </div>
             <p className="mt-2 text-xl font-bold text-slate-900 tracking-tight">{card.value}</p>
             <p className="mt-0.5 text-[11px] text-slate-500 truncate">{card.subtext}</p>
-          </div>
+          </Link>
         );
       })}
     </div>

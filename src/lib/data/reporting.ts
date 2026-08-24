@@ -5,42 +5,35 @@ import {
   type MonthlyPoint,
   type ReportingSummary,
 } from "@/lib/reporting-calculations";
-import { createClient } from "@/lib/supabase/server";
+import { getEffectiveSession } from "@/lib/supabase/server";
 import type { Currency } from "@/types";
 
 export type { MonthlyPoint };
 export type ReportData = ReportingSummary & { isDemo: boolean; currency: Currency };
 
 export async function getProfile() {
-  const supabase = await createClient();
-  if (!supabase) {
+  const session = await getEffectiveSession();
+  if (!session) {
     return {
-      isDemo: true,
-      fullName: "Alex Kowalski",
-      email: "demo@freightflow.app",
-      reportingCurrency: "PLN" as Currency,
+      isDemo: false,
+      fullName: "Dhanbyte Seller",
+      email: "seller@dhanbyte.me",
+      reportingCurrency: "INR" as Currency,
     };
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { isDemo: false, fullName: "", email: "", reportingCurrency: "PLN" as Currency };
-  }
-
-  const { data, error } = await supabase
+  const { supabase, user } = session;
+  const { data } = await supabase
     .from("profiles")
     .select("full_name,email,reporting_currency")
     .eq("id", user.id)
-    .single();
-  if (error) throw new Error("Unable to load profile");
+    .maybeSingle();
 
   return {
     isDemo: false,
-    fullName: data.full_name,
-    email: data.email,
-    reportingCurrency: data.reporting_currency as Currency,
+    fullName: data?.full_name || "Dhanbyte Seller",
+    email: data?.email || user.email || "seller@dhanbyte.me",
+    reportingCurrency: (data?.reporting_currency as Currency) || ("INR" as Currency),
   };
 }
 

@@ -1,17 +1,14 @@
 import { mockSellerAccount } from "@/data/mock-data";
-import { createClient } from "@/lib/supabase/server";
+import { getEffectiveSession } from "@/lib/supabase/server";
 import type { SellerAccount } from "@/types";
 
 export async function getSellerAccount(): Promise<SellerAccount> {
-  const supabase = await createClient();
-  if (!supabase) {
+  const session = await getEffectiveSession();
+  if (!session) {
     return mockSellerAccount;
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return mockSellerAccount;
+  const { supabase, user } = session;
 
   const { data, error } = await supabase
     .from("seller_accounts")

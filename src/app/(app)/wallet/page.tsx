@@ -1,13 +1,19 @@
+import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowDownLeft,
   ArrowUpRight,
   Banknote,
   Clock,
   CreditCard,
   Download,
+  Gift,
   IndianRupee,
+  Lock,
   Plus,
+  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -26,59 +32,98 @@ export default async function WalletPage({
   return (
     <>
       <PageHeader
-        title="Prepaid Freight Wallet & Remittance"
-        description="Monitor your prepaid shipping balance, auto-debits on label creation, and COD remittances."
+        title="Prepaid Freight Wallet & Credit System"
+        description="Recharge your shipping cash balance, utilize promotional credit, and track double-entry transaction ledgers."
       >
         <WalletRechargeModal />
       </PageHeader>
 
-      {/* Top 3 Financial Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-indigo-200 bg-linear-to-br from-indigo-50/70 to-white p-5 shadow-xs">
+      {/* Low Balance Warning Banner */}
+      {summary.isLowBalance && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs animate-in fade-in">
+          <ShieldAlert size={20} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs">
+            <h4 className="font-bold text-amber-900">Low Wallet Balance Alert</h4>
+            <p className="mt-0.5 text-amber-800">
+              Your available cash balance is below ₹200. Recharge now to prevent courier booking interruptions.
+            </p>
+          </div>
+          <WalletRechargeModal />
+        </div>
+      )}
+
+      {/* 5 Financial Asset Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Card 1: Total Available Shipping Funds */}
+        <div className="rounded-xl border border-indigo-300 bg-linear-to-br from-indigo-50 to-white p-5 shadow-xs lg:col-span-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
-              Prepaid Balance
-            </span>
-            <span className="grid size-8 place-items-center rounded-lg bg-indigo-600 text-white">
-              <Wallet size={16} />
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 block">
+                Total Available Shipping Funds
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">Cash + Usable Credit</span>
+            </div>
+            <span className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+              <Wallet size={18} />
             </span>
           </div>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
-            {formatINR(summary.currentBalance)}
+          <p className="mt-2 text-3xl font-black text-slate-900 tracking-tight">
+            {formatINR(summary.totalAvailableFunds)}
           </p>
-          <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
-            <ShieldCheck size={13} className="text-emerald-600" /> Auto-debit on label generation
-          </p>
+          <div className="mt-2 pt-2 border-t border-indigo-100 flex items-center justify-between text-[11px]">
+            <span className="text-slate-600">Liquid Cash: <strong>{formatINR(summary.cashBalance)}</strong></span>
+            <span className="text-emerald-700 font-semibold">Credit: <strong>{formatINR(summary.freeCredit)}</strong></span>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-teal-200 bg-linear-to-br from-teal-50/70 to-white p-5 shadow-xs">
+        {/* Card 2: Free Shipping Credit */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-              COD Pending Remittance
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+              Free Credit
+            </span>
+            <span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white">
+              <Gift size={16} />
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-black text-emerald-700 tracking-tight">
+            {formatINR(summary.freeCredit)}
+          </p>
+          <span className="mt-1 inline-block text-[10px] text-emerald-800 font-semibold bg-emerald-100/80 px-1.5 py-0.2 rounded">
+            Non-withdrawable
+          </span>
+        </div>
+
+        {/* Card 3: Reserved In-Transit */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+              Reserved Funds
+            </span>
+            <span className="grid size-8 place-items-center rounded-lg bg-amber-600 text-white">
+              <Lock size={16} />
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-black text-amber-700 tracking-tight">
+            {formatINR(summary.reservedBalance)}
+          </p>
+          <p className="mt-1 text-[10px] text-amber-800">Locked for labels</p>
+        </div>
+
+        {/* Card 4: Pending COD Receivables */}
+        <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800">
+              Pending COD
             </span>
             <span className="grid size-8 place-items-center rounded-lg bg-teal-600 text-white">
               <Banknote size={16} />
             </span>
           </div>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
+          <p className="mt-2 text-2xl font-black text-teal-800 tracking-tight">
             {formatINR(summary.codPending)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">Scheduled next payout cycle (T+2 Days)</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Shipping Spend
-            </span>
-            <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-700">
-              <IndianRupee size={16} />
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
-            {formatINR(summary.totalShippingSpend)}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">Lifetime courier freight costs</p>
+          <p className="mt-1 text-[10px] text-teal-700">T+2 payout cycle</p>
         </div>
       </div>
 
@@ -86,41 +131,41 @@ export default async function WalletPage({
       <div className="mt-8 space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Wallet Transactions Ledger</h3>
-            <p className="text-xs text-slate-500">Complete audit trail of all credits and deductions</p>
+            <h3 className="text-base font-bold text-slate-900">Wallet Transactions &amp; Audit Ledger</h3>
+            <p className="text-xs text-slate-500">Immutable double-entry audit record for every rupee movement</p>
           </div>
 
           <div className="flex items-center gap-2">
-            <a
+            <Link
               href="/wallet"
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 !params.type || params.type === "ALL"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-slate-900 text-white shadow-xs"
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              All
-            </a>
-            <a
+              All Entries
+            </Link>
+            <Link
               href="/wallet?type=CREDIT"
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 params.type === "CREDIT"
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-emerald-600 text-white shadow-xs"
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              Credits
-            </a>
-            <a
+              Credits (+)
+            </Link>
+            <Link
               href="/wallet?type=DEBIT"
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 params.type === "DEBIT"
-                  ? "bg-rose-600 text-white"
+                  ? "bg-rose-600 text-white shadow-xs"
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              Debits
-            </a>
+              Debits (−)
+            </Link>
           </div>
         </div>
 
@@ -129,9 +174,9 @@ export default async function WalletPage({
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-700">
                 <tr>
-                  <th className="py-3 px-4">Transaction ID & Date</th>
+                  <th className="py-3 px-4">Transaction ID &amp; Time</th>
                   <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Description / Reference</th>
+                  <th className="py-3 px-4">Description &amp; Reference</th>
                   <th className="py-3 px-4 text-right">Amount</th>
                   <th className="py-3 px-4 text-right">Balance After</th>
                 </tr>
@@ -153,7 +198,7 @@ export default async function WalletPage({
 
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                          className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
                             isCredit
                               ? "bg-emerald-100 text-emerald-800"
                               : "bg-slate-100 text-slate-800"
@@ -174,15 +219,15 @@ export default async function WalletPage({
 
                       <td className="py-3 px-4 text-right">
                         <span
-                          className={`font-extrabold text-sm flex items-center justify-end gap-0.5 ${
-                            isCredit ? "text-emerald-600" : "text-rose-600"
+                          className={`font-black text-sm flex items-center justify-end gap-0.5 ${
+                            isCredit ? "text-emerald-700" : "text-rose-700"
                           }`}
                         >
-                          {isCredit ? "+" : "-"} {formatINR(t.amount)}
+                          {isCredit ? "+" : "−"} {formatINR(t.amount)}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-bold text-slate-900">
+                      <td className="py-3 px-4 text-right font-black text-slate-900">
                         {formatINR(t.balanceAfter)}
                       </td>
                     </tr>

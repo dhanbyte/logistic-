@@ -1,17 +1,14 @@
 import { mockWarehouses } from "@/data/mock-data";
-import { createClient } from "@/lib/supabase/server";
+import { getEffectiveSession } from "@/lib/supabase/server";
 import type { Warehouse } from "@/types";
 
 export async function getWarehouses(): Promise<Warehouse[]> {
-  const supabase = await createClient();
-  if (!supabase) {
+  const session = await getEffectiveSession();
+  if (!session) {
     return mockWarehouses;
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return mockWarehouses;
+  const { supabase, user } = session;
 
   const { data, error } = await supabase
     .from("warehouses")

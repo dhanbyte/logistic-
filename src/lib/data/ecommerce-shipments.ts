@@ -4,7 +4,7 @@ import {
   mockNdrCases,
   mockRtoShipments,
 } from "@/data/mock-data";
-import { createClient } from "@/lib/supabase/server";
+import { getEffectiveSession } from "@/lib/supabase/server";
 import type {
   EcommerceShipment,
   NdrCase,
@@ -39,8 +39,8 @@ export async function getEcommerceShipments(
   const courierFilter = query?.courier ?? "ALL";
   const paymentFilter = query?.paymentMode ?? "ALL";
 
-  const supabase = await createClient();
-  if (!supabase) {
+  const session = await getEffectiveSession();
+  if (!session) {
     let filtered = [...mockEcommerceShipments];
 
     if (searchTerm) {
@@ -81,12 +81,7 @@ export async function getEcommerceShipments(
     };
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { shipments: [], total: 0, page: 1, pageCount: 1, isDemo: false };
-  }
+  const { supabase, user } = session;
 
   let dbQuery = supabase
     .from("ecommerce_shipments")
@@ -107,6 +102,11 @@ export async function getEcommerceShipments(
     dbQuery = dbQuery.eq("shipment_status", statusFilter as any);
   }
 
+  if (courierFilter !== "ALL") {
+    // If courier filter is active, filter by courier provider code or ID
+    dbQuery = dbQuery.ilike("courier_provider.code", `%${courierFilter}%`);
+  }
+
   if (paymentFilter !== "ALL") {
     dbQuery = dbQuery.eq("payment_mode", paymentFilter as any);
   }
@@ -115,13 +115,14 @@ export async function getEcommerceShipments(
   const to = from + pageSize - 1;
   const { data, count, error } = await dbQuery.range(from, to);
 
-  if (error || !data || data.length === 0) {
+  if (error || !data) {
+    console.error("[getEcommerceShipments.error]", error);
     return {
-      shipments: mockEcommerceShipments,
-      total: mockEcommerceShipments.length,
+      shipments: [],
+      total: 0,
       page: 1,
       pageCount: 1,
-      isDemo: true,
+      isDemo: false,
     };
   }
 
@@ -220,96 +221,44 @@ export async function getEcommerceShipmentById(
   ndrCase: NdrCase | null;
   rtoShipment: RtoShipment | null;
 }> {
-  const supabase = await createClient();
-  if (!supabase) {
+  const session = await getEffectiveSession();
+  if (!session) {
     const shipment = mockEcommerceShipments.find((s) => s.id === shipmentId) ?? mockEcommerceShipments[0];
     const ndr = mockNdrCases.find((n) => n.shipmentId === shipment.id) ?? null;
     const rto = mockRtoShipments.find((r) => r.originalShipmentId === shipment.id) ?? null;
 
-    const mockEvents: TrackingEvent[] = [
-      {
-        id: "evt-1",
-        shipmentId: shipment.id,
-        userId: "usr-demo",
-        status: "DELIVERED",
-        activity: "Shipment successfully delivered to consignee",
-        location: "Koramangala DC, Bengaluru",
-        scanDatetime: "2026-08-22T17:30:00Z",
-        courierStatusCode: "DL",
-        createdAt: "2026-08-22T17:30:00Z",
-      },
-      {
-        id: "evt-2",
-        shipmentId: shipment.id,
-        userId: "usr-demo",
-        status: "OUT_FOR_DELIVERY",
-        activity: "Out for delivery with courier rider (Ramesh Kumar - +91 9887766554)",
-        location: "Bengaluru South Hub",
-        scanDatetime: "2026-08-22T08:15:00Z",
-        courierStatusCode: "OFD",
-        createdAt: "2026-08-22T08:15:00Z",
-      },
-      {
-        id: "evt-3",
-        shipmentId: shipment.id,
-        userId: "usr-demo",
-        status: "IN_TRANSIT",
-        activity: "Arrived at destination gateway hub",
-        location: "Bommasandra Hub, Bengaluru",
-        scanDatetime: "2026-08-21T22:00:00Z",
-        courierStatusCode: "ARV",
-        createdAt: "2026-08-21T22:00:00Z",
-      },
-      {
-        id: "evt-4",
-        shipmentId: shipment.id,
-        userId: "usr-demo",
-        status: "PICKED_UP",
-        activity: "Shipment picked up from Seller Warehouse",
-        location: "Noida Hub",
-        scanDatetime: "2026-08-20T18:00:00Z",
-        courierStatusCode: "PU",
-        createdAt: "2026-08-20T18:00:00Z",
-      },
-      {
-        id: "evt-5",
-        shipmentId: shipment.id,
-        userId: "usr-demo",
-        status: "MANIFESTED",
-        activity: "AWB and Shipping Label created by Seller",
-        location: "ShopWave Order System",
-        scanDatetime: "2026-08-20T09:00:00Z",
-        courierStatusCode: "MAN",
-        createdAt: "2026-08-20T09:00:00Z",
-      },
-    ];
-
     return {
       shipment,
-      trackingEvents: mockEvents,
+      trackingEvents: [],
       ndrCase: ndr,
       rtoShipment: rto,
     };
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { shipment: null, trackingEvents: [], ndrCase: null, rtoShipment: null };
-  }
+  const { supabase, user } = session;
 
-  const { data: row, error } = await supabase
+  let query = supabase
     .from("ecommerce_shipments")
     .select(
       "*, order:orders(*, customer:customers(*), items:order_items(*)), warehouse:warehouses(*), courier_provider:courier_providers(*)",
     )
-    .eq("id", shipmentId)
-    .eq("user_id", user.id)
-    .single();
+    .eq("user_id", user.id);
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shipmentId);
+  if (isUuid) {
+    query = query.or(`id.eq.${shipmentId},order_id.eq.${shipmentId}`);
+  } else {
+    query = query.or(`awb_number.eq.${shipmentId},id.eq.${shipmentId}`);
+  }
+
+  const { data: rows, error } = await query.limit(1);
+  const row = rows?.[0];
 
   if (error || !row) {
-    const fallback = mockEcommerceShipments.find((s) => s.id === shipmentId) ?? null;
+    const fallback =
+      mockEcommerceShipments.find(
+        (s) => s.id === shipmentId || s.awbNumber === shipmentId || s.orderId === shipmentId,
+      ) ?? null;
     return {
       shipment: fallback,
       trackingEvents: [],
@@ -322,11 +271,40 @@ export async function getEcommerceShipmentById(
     supabase
       .from("tracking_events")
       .select("*")
-      .eq("shipment_id", shipmentId)
+      .eq("shipment_id", row.id)
       .order("scan_datetime", { ascending: false }),
-    supabase.from("ndr_cases").select("*").eq("shipment_id", shipmentId).maybeSingle(),
-    supabase.from("rto_shipments").select("*").eq("original_shipment_id", shipmentId).maybeSingle(),
+    supabase.from("ndr_cases").select("*").eq("shipment_id", row.id).maybeSingle(),
+    supabase.from("rto_shipments").select("*").eq("original_shipment_id", row.id).maybeSingle(),
   ]);
+
+  let trackingEventsList = (eventsResult.data ?? []).map((e: any) => ({
+    id: e.id,
+    shipmentId: e.shipment_id,
+    userId: e.user_id,
+    status: e.status,
+    activity: e.activity,
+    location: e.location,
+    scanDatetime: e.scan_datetime,
+    courierStatusCode: e.courier_status_code,
+    rawPayload: e.raw_payload,
+    createdAt: e.created_at,
+  }));
+
+  if (trackingEventsList.length === 0) {
+    trackingEventsList = [
+      {
+        id: `evt-${row.id}`,
+        shipmentId: row.id,
+        userId: row.user_id,
+        status: "MANIFESTED",
+        activity: `AWB ${row.awb_number} generated & registered with ${row.courier_provider?.name || "Shadowfax"}`,
+        location: (row as any).warehouse?.city || "Origin Fulfillment Hub",
+        scanDatetime: row.created_at,
+        courierStatusCode: "MAN",
+        createdAt: row.created_at,
+      },
+    ];
+  }
 
   return {
     shipment: {
@@ -367,18 +345,7 @@ export async function getEcommerceShipmentById(
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     },
-    trackingEvents: (eventsResult.data ?? []).map((e: any) => ({
-      id: e.id,
-      shipmentId: e.shipment_id,
-      userId: e.user_id,
-      status: e.status,
-      activity: e.activity,
-      location: e.location,
-      scanDatetime: e.scan_datetime,
-      courierStatusCode: e.courier_status_code,
-      rawPayload: e.raw_payload,
-      createdAt: e.created_at,
-    })),
+    trackingEvents: trackingEventsList,
     ndrCase: ndrResult.data
       ? {
           id: ndrResult.data.id,
@@ -416,13 +383,81 @@ export async function getEcommerceShipmentById(
 }
 
 export async function getDashboardKpis() {
-  return mockEcommerceKpis;
+  const session = await getEffectiveSession();
+  if (!session) return mockEcommerceKpis;
+
+  const { supabase, user } = session;
+
+  const [
+    profileRes,
+    ordersRes,
+    shipmentsRes,
+    ndrRes,
+    rtoRes,
+  ] = await Promise.all([
+    supabase.from("profiles").select("wallet_balance").eq("id", user.id).maybeSingle(),
+    supabase.from("orders").select("id, order_status, cod_amount, payment_mode").eq("user_id", user.id),
+    supabase.from("ecommerce_shipments").select("id, shipment_status, shipping_charge, cod_amount, payment_mode").eq("user_id", user.id),
+    supabase.from("ndr_cases").select("id").eq("user_id", user.id),
+    supabase.from("rto_shipments").select("id").eq("user_id", user.id),
+  ]);
+
+  const orders = ordersRes.data || [];
+  const shipments = shipmentsRes.data || [];
+  const ndrCases = ndrRes.data || [];
+  const rtoShipments = rtoRes.data || [];
+
+  const totalOrders = orders.length;
+  const readyToShip = orders.filter((o: any) => o.order_status === "READY_TO_SHIP").length;
+  const inTransit = shipments.filter((s: any) =>
+    ["MANIFESTED", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(s.shipment_status),
+  ).length;
+  const delivered = shipments.filter((s: any) => s.shipment_status === "DELIVERED").length;
+  const ndr = ndrCases.length;
+  const rto = rtoShipments.length;
+
+  const codPendingAmount = shipments
+    .filter((s: any) => s.payment_mode === "COD" && s.shipment_status !== "DELIVERED")
+    .reduce((sum: number, s: any) => sum + Number(s.cod_amount || 0), 0);
+
+  const totalShippingSpend = shipments.reduce(
+    (sum: number, s: any) => sum + Number(s.shipping_charge || 0),
+    0,
+  );
+  const walletBalance = Number(profileRes.data?.wallet_balance || 0);
+
+  const deliverySuccessRate =
+    shipments.length > 0 ? Math.round((delivered / shipments.length) * 100) : 0;
+
+  return {
+    totalOrders,
+    readyToShip,
+    inTransit,
+    delivered,
+    ndr,
+    rto,
+    codPending: codPendingAmount,
+    codPendingAmount,
+    walletBalance,
+    totalShippingSpend,
+    deliverySuccessRate,
+  };
 }
 
 export async function getNdrCases(): Promise<NdrCase[]> {
-  return mockNdrCases;
+  const session = await getEffectiveSession();
+  if (!session) return [];
+  const { supabase, user } = session;
+
+  const { data } = await supabase.from("ndr_cases").select("*").eq("user_id", user.id);
+  return (data || []) as any;
 }
 
 export async function getRtoShipments(): Promise<RtoShipment[]> {
-  return mockRtoShipments;
+  const session = await getEffectiveSession();
+  if (!session) return [];
+  const { supabase, user } = session;
+
+  const { data } = await supabase.from("rto_shipments").select("*").eq("user_id", user.id);
+  return (data || []) as any;
 }

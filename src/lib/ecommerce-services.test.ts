@@ -143,7 +143,9 @@ describe("ShopWave Logistics — Mock Courier Provider & Registry", () => {
     );
 
     expect(quotes.length).toBeGreaterThanOrEqual(1);
-    expect(quotes[0].courierCode).toBe("xpressbees");
+    const courierCodes = quotes.map((q) => q.courierCode);
+    expect(courierCodes).toContain("xpressbees");
+    expect(courierCodes).toContain("shadowfax");
     // Verified sorted order
     expect(quotes[0].totalShippingCost).toBeLessThanOrEqual(quotes[quotes.length - 1].totalShippingCost);
   });

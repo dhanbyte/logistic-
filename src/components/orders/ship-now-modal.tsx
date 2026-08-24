@@ -88,7 +88,7 @@ export function ShipNowModal({
       const selectedQuote = quotes.find((q) => q.courierCode === selectedCourier);
       const courierName = selectedQuote?.courierName || selectedCourier.toUpperCase();
       const awb = res.data.awbNumber;
-      const labelUrl = `/shipments/${res.data.shipmentId}/label`;
+      const labelUrl = res.data.labelUrl || `/shipments/${res.data.shipmentId}/label`;
 
       toast.success(`AWB ${awb} generated successfully with ${courierName}!`);
       setBookingSuccess({
@@ -153,7 +153,7 @@ export function ShipNowModal({
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <a
-                href={`/shipments/${bookingSuccess.shipmentId}/label`}
+                href={bookingSuccess.labelUrl || `/shipments/${bookingSuccess.shipmentId}/label`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full sm:w-auto rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 flex items-center justify-center gap-1.5 shadow-xs"
@@ -200,15 +200,15 @@ export function ShipNowModal({
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {[...quotes]
                     .sort((a, b) => {
-                      const aLive = isCourierConfigured(a.courierCode) ? 1 : 0;
-                      const bLive = isCourierConfigured(b.courierCode) ? 1 : 0;
-                      if (bLive !== aLive) return bLive - aLive;
+                      const aLive = a.isLive ?? (isCourierConfigured(a.courierCode) ? 1 : 0);
+                      const bLive = b.isLive ?? (isCourierConfigured(b.courierCode) ? 1 : 0);
+                      if (bLive !== aLive) return Number(bLive) - Number(aLive);
                       return a.totalShippingCost - b.totalShippingCost;
                     })
                     .map((q, idx) => {
                       const isSelected = selectedCourier === q.courierCode;
-                      const isLive = isCourierConfigured(q.courierCode);
-                      const isTest = isCourierTestMode(q.courierCode);
+                      const isLive = q.isLive !== undefined ? q.isLive : isCourierConfigured(q.courierCode);
+                      const isTest = q.isTestMode !== undefined ? q.isTestMode : isCourierTestMode(q.courierCode);
 
                       return (
                         <div
@@ -273,19 +273,31 @@ export function ShipNowModal({
 
             <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
               <p className="text-xs text-slate-500">
-                {isCourierConfigured(selectedCourier) && !isCourierTestMode(selectedCourier) ? (
-                  <>
-                    Amount will be deducted from your <strong className="text-slate-800">Prepaid Wallet</strong> upon live AWB generation.
-                  </>
-                ) : isCourierConfigured(selectedCourier) && isCourierTestMode(selectedCourier) ? (
-                  <>
-                    <span className="font-semibold text-amber-700">Test Mode:</span> Real courier booking disabled.
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold text-slate-700">Simulator Mode:</span> Generates mock test tracking AWB.
-                  </>
-                )}
+                {(() => {
+                  const selQuote = quotes.find((q) => q.courierCode === selectedCourier);
+                  const isLive = selQuote?.isLive !== undefined ? selQuote.isLive : isCourierConfigured(selectedCourier);
+                  const isTest = selQuote?.isTestMode !== undefined ? selQuote.isTestMode : isCourierTestMode(selectedCourier);
+
+                  if (isLive && !isTest) {
+                    return (
+                      <>
+                        Amount will be deducted from your <strong className="text-slate-800">Prepaid Wallet</strong> upon live AWB generation.
+                      </>
+                    );
+                  }
+                  if (isLive && isTest) {
+                    return (
+                      <>
+                        <span className="font-semibold text-amber-700">Test Mode:</span> Real courier booking disabled.
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      <span className="font-semibold text-slate-700">Simulator Mode:</span> Generates mock test tracking AWB.
+                    </>
+                  );
+                })()}
               </p>
               <div className="flex items-center gap-2">
                 <button

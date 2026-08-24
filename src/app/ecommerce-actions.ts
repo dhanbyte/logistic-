@@ -5,7 +5,13 @@ import { z } from "zod";
 import { calculateChargeableWeight } from "@/lib/calculations";
 import { compareAllCourierRates, getCourierProvider } from "@/lib/couriers/registry";
 import type { CourierRateQuote } from "@/lib/couriers/types";
-import { createClient } from "@/lib/supabase/server";
+import { toPaise } from "@/lib/finance/money";
+import {
+  commitShippingReservation,
+  releaseShippingReservation,
+  reserveShippingFunds,
+} from "@/lib/finance/wallet-service";
+import { getEffectiveSession } from "@/lib/supabase/server";
 import { orderFormSchema } from "@/lib/validation/order";
 import { sellerProfileSchema } from "@/lib/validation/seller";
 import { warehouseFormSchema } from "@/lib/validation/warehouse";
@@ -17,14 +23,7 @@ export type ActionResult<T = unknown> =
 const idSchema = z.string().uuid();
 
 async function auth() {
-  const supabase = await createClient();
-  if (!supabase) return null;
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error) console.error("[auth] failed", error.message);
-  return user ? { supabase, user } : null;
+  return getEffectiveSession();
 }
 
 function refreshEcommerceData() {
@@ -244,7 +243,7 @@ export async function createBulkOrders(
 export async function bookShipmentForOrder(
   orderId: string,
   courierCode: string,
-): Promise<ActionResult<{ awbNumber: string; shipmentId: string }>> {
+): Promise<ActionResult<{ awbNumber: string; shipmentId: string; labelUrl: string }>> {
   try {
     const session = await auth();
     const courier = getCourierProvider(courierCode);
@@ -276,7 +275,11 @@ export async function bookShipmentForOrder(
       refreshEcommerceData();
       return {
         ok: true,
-        data: { awbNumber: mockResult.awbNumber, shipmentId: "shp-" + Date.now() },
+        data: {
+          awbNumber: mockResult.awbNumber,
+          shipmentId: "shp-" + Date.now(),
+          labelUrl: mockResult.labelUrl,
+        },
       };
     }
 
@@ -293,14 +296,18 @@ export async function bookShipmentForOrder(
     if (existingShipment) {
       return {
         ok: true,
-        data: { awbNumber: existingShipment.awb_number, shipmentId: existingShipment.id },
+        data: {
+          awbNumber: existingShipment.awb_number,
+          shipmentId: existingShipment.id,
+          labelUrl: existingShipment.label_url,
+        },
       };
     }
 
     // 1. Fetch Order and Warehouse details
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("*, customer:customers(*), warehouse:warehouses(*)")
+      .select("*, customer:customers(*), warehouse:warehouses(*), items:order_items(*)")
       .eq("id", orderId)
       .eq("user_id", user.id)
       .single();
@@ -309,34 +316,60 @@ export async function bookShipmentForOrder(
       return { ok: false, message: "Order not found." };
     }
 
-    // 2. Call Courier Abstraction Layer
-    const bookingResult = await courier.createShipment({
+    const firstItem = (order as any).items?.[0];
+
+    // 1.5 Atomic Two-Phase Wallet Fund Reservation
+    const freightPaise = toPaise(42.5);
+    const reservationRes = await reserveShippingFunds({
+      userId: user.id,
       orderId: order.id,
-      orderNumber: order.order_number,
-      warehouseId: order.warehouse_id,
-      courierCode,
-      pickupPincode: (order as any).warehouse?.pincode || "110001",
-      deliveryPincode: (order as any).customer?.pincode || "400001",
-      customerName: (order as any).customer?.full_name || "Customer",
-      customerPhone: (order as any).customer?.phone || "9876543210",
-      customerAddress: (order as any).customer?.address_line1 || "",
-      customerCity: (order as any).customer?.city || "",
-      customerState: (order as any).customer?.state || "",
-      productName: "E-Commerce Package",
-      quantity: 1,
-      paymentMode: order.payment_mode,
-      orderAmount: Number(order.order_amount),
-      codAmount: Number(order.cod_amount),
-      weightKg: Number(order.total_weight_kg),
-      lengthCm: Number(order.length_cm),
-      widthCm: Number(order.width_cm),
-      heightCm: Number(order.height_cm),
-      warehouseName: (order as any).warehouse?.warehouse_name,
-      warehouseAddress: (order as any).warehouse?.address_line1,
-      warehouseCity: (order as any).warehouse?.city,
-      warehouseState: (order as any).warehouse?.state,
-      warehousePhone: (order as any).warehouse?.contact_phone,
+      amountPaise: freightPaise,
     });
+
+    if (!reservationRes.ok) {
+      return { ok: false, message: reservationRes.message };
+    }
+
+    let bookingResult;
+    try {
+      // 2. Call Courier Abstraction Layer
+      bookingResult = await courier.createShipment({
+        orderId: order.id,
+        orderNumber: order.order_number,
+        warehouseId: order.warehouse_id,
+        courierCode,
+        pickupPincode: (order as any).warehouse?.pincode || order.pickup_pincode || "110020",
+        deliveryPincode: (order as any).customer?.pincode || order.delivery_pincode || "400001",
+        customerName: (order as any).customer?.full_name || "Customer",
+        customerPhone: (order as any).customer?.phone || "9876543210",
+        customerAddress: (order as any).customer?.address_line1 || "Customer Address",
+        customerCity: (order as any).customer?.city || "New Delhi",
+        customerState: (order as any).customer?.state || "Delhi",
+        productName: firstItem?.product_name || "E-Commerce Package",
+        productSku: firstItem?.sku || "SKU-001",
+        quantity: firstItem?.quantity || 1,
+        paymentMode: order.payment_mode,
+        orderAmount: Number(order.order_amount),
+        codAmount: Number(order.cod_amount),
+        weightKg: Number(order.total_weight_kg) || 0.5,
+        lengthCm: Number(order.length_cm) || 10,
+        widthCm: Number(order.width_cm) || 10,
+        heightCm: Number(order.height_cm) || 10,
+        warehouseName: (order as any).warehouse?.warehouse_name || "Central Warehouse",
+        warehouseAddress: (order as any).warehouse?.address_line1 || "Plot 12, Industrial Area",
+        warehouseCity: (order as any).warehouse?.city || "New Delhi",
+        warehouseState: (order as any).warehouse?.state || "Delhi",
+        warehousePhone: (order as any).warehouse?.contact_phone || "9876543210",
+      });
+    } catch (err: any) {
+      if (reservationRes.reservationId) {
+        await releaseShippingReservation({
+          reservationId: reservationRes.reservationId,
+          reason: "Courier booking failure",
+        });
+      }
+      throw err;
+    }
 
     // 3. Find courier provider ID
     const { data: providerRow } = await supabase
@@ -381,7 +414,12 @@ export async function bookShipmentForOrder(
       .single();
 
     if (shipError || !shipmentRow) {
-      console.error("[bookShipmentForOrder.shipment]", shipError);
+      if (reservationRes.reservationId) {
+        await releaseShippingReservation({
+          reservationId: reservationRes.reservationId,
+          reason: "Shipment database record error",
+        });
+      }
       return { ok: false, message: "Could not generate shipment record." };
     }
 
@@ -399,7 +437,7 @@ export async function bookShipmentForOrder(
     // 6. Update Order Status
     await supabase
       .from("orders")
-      .update({ order_status: "READY_TO_SHIP" })
+      .update({ order_status: "PENDING_PICKUP" })
       .eq("id", order.id);
 
     // 7. Record Initial Tracking Event
@@ -412,21 +450,23 @@ export async function bookShipmentForOrder(
       courier_status_code: "MANIFEST",
     });
 
-    // 8. Debit Wallet
-    await supabase.from("wallet_transactions").insert({
-      user_id: user.id,
-      transaction_type: "DEBIT",
-      category: "SHIPPING_DEDUCTION",
-      amount: bookingResult.shippingCharge,
-      balance_after: 5000 - bookingResult.shippingCharge,
-      reference_id: bookingResult.awbNumber,
-      description: `Freight charges for Order ${order.order_number} (${courier.name})`,
-    });
+    // 8. Commit Two-Phase Reservation and record ledger
+    if (reservationRes.reservationId) {
+      await commitShippingReservation({
+        reservationId: reservationRes.reservationId,
+        shipmentId: shipmentRow.id,
+        awbNumber: bookingResult.awbNumber,
+      });
+    }
 
     refreshEcommerceData();
     return {
       ok: true,
-      data: { awbNumber: bookingResult.awbNumber, shipmentId: shipmentRow.id },
+      data: {
+        awbNumber: bookingResult.awbNumber,
+        shipmentId: shipmentRow.id,
+        labelUrl: bookingResult.labelUrl,
+      },
     };
   } catch (error: any) {
     console.error("[bookShipmentForOrder] unexpected", error);
@@ -777,4 +817,232 @@ export async function fetchCourierRatesAction(params: {
     },
     weightCalc,
   );
+}
+
+/**
+ * Update an existing customer order
+ */
+export async function updateOrderAction(
+  orderId: string,
+  payload: {
+    customerName: string;
+    customerPhone: string;
+    customerEmail?: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    pincode: string;
+    paymentMode: "PREPAID" | "COD";
+    orderAmount: number;
+    codAmount: number;
+    weightKg: number;
+    lengthCm: number;
+    widthCm: number;
+    heightCm: number;
+    productName?: string;
+    quantity?: number;
+    sku?: string;
+  },
+): Promise<ActionResult> {
+  const session = await getEffectiveSession();
+  if (!session) return { ok: false, message: "Authentication required." };
+  const { supabase, user } = session;
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, customer_id, order_status")
+    .eq("id", orderId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!order) return { ok: false, message: "Order not found." };
+
+  const volumetricWeightKg = (payload.lengthCm * payload.widthCm * payload.heightCm) / 5000;
+  const chargeableWeightKg = Math.max(payload.weightKg, volumetricWeightKg);
+
+  if (order.customer_id) {
+    await supabase
+      .from("customers")
+      .update({
+        full_name: payload.customerName,
+        phone: payload.customerPhone,
+        email: payload.customerEmail || null,
+        address_line1: payload.addressLine1,
+        city: payload.city,
+        state: payload.state,
+        pincode: payload.pincode,
+      })
+      .eq("id", order.customer_id);
+  }
+
+  const { error: orderError } = await supabase
+    .from("orders")
+    .update({
+      payment_mode: payload.paymentMode,
+      order_amount: payload.orderAmount,
+      cod_amount: payload.paymentMode === "COD" ? payload.codAmount : 0,
+      total_weight_kg: payload.weightKg,
+      length_cm: payload.lengthCm,
+      width_cm: payload.widthCm,
+      height_cm: payload.heightCm,
+      volumetric_weight_kg: volumetricWeightKg,
+      chargeable_weight_kg: chargeableWeightKg,
+    })
+    .eq("id", orderId);
+
+  if (orderError) {
+    console.error("[updateOrderAction.error]", orderError);
+    return { ok: false, message: "Failed to update order details." };
+  }
+
+  if (payload.productName) {
+    await supabase
+      .from("order_items")
+      .update({
+        product_name: payload.productName,
+        quantity: payload.quantity || 1,
+        sku: payload.sku || null,
+        unit_price: payload.orderAmount,
+        total_amount: payload.orderAmount,
+      })
+      .eq("order_id", orderId);
+  }
+
+  refreshEcommerceData();
+  return { ok: true, message: "Order updated successfully." };
+}
+
+/**
+ * Cancel an unfulfilled or manifested order and void courier AWB
+ */
+export async function cancelOrderAction(orderId: string): Promise<ActionResult> {
+  const session = await getEffectiveSession();
+  if (!session) return { ok: false, message: "Authentication required." };
+  const { supabase, user } = session;
+
+  // 1. Fetch any linked shipment
+  const { data: shipment } = await supabase
+    .from("ecommerce_shipments")
+    .select("id, awb_number, courier_provider:courier_providers(code)")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  if (shipment && shipment.awb_number) {
+    try {
+      const courierCode = (shipment.courier_provider as any)?.code || (shipment.awb_number.startsWith("SF") ? "shadowfax" : "xpressbees");
+      const provider = getCourierProvider(courierCode);
+      if (provider) {
+        await provider.cancelShipment(shipment.awb_number, "Cancelled by Seller");
+      }
+    } catch (e: any) {
+      console.warn("[cancelOrderAction.courierCancel]", e.message);
+    }
+
+    // Update shipment status
+    await supabase
+      .from("ecommerce_shipments")
+      .update({ shipment_status: "CANCELLED" })
+      .eq("id", shipment.id);
+
+    // Record tracking event
+    await supabase.from("tracking_events").insert({
+      shipment_id: shipment.id,
+      user_id: user.id,
+      status: "CANCELLED",
+      activity: `Shipment & AWB ${shipment.awb_number} cancelled with courier partner`,
+      location: "Fulfillment Hub",
+      scan_datetime: new Date().toISOString(),
+    });
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ order_status: "CANCELLED" })
+    .eq("id", orderId)
+    .eq("user_id", user.id);
+
+  if (error) return { ok: false, message: "Failed to cancel order." };
+
+  refreshEcommerceData();
+  return { ok: true, message: "Order and Courier AWB cancelled successfully." };
+}
+
+/**
+ * Delete a draft/unfulfilled order permanently
+ */
+export async function deleteOrderAction(orderId: string): Promise<ActionResult> {
+  const session = await getEffectiveSession();
+  if (!session) return { ok: false, message: "Authentication required." };
+  const { supabase, user } = session;
+
+  await supabase.from("order_items").delete().eq("order_id", orderId);
+  await supabase.from("ecommerce_shipments").delete().eq("order_id", orderId);
+  const { error } = await supabase.from("orders").delete().eq("id", orderId).eq("user_id", user.id);
+
+  if (error) return { ok: false, message: "Failed to delete order." };
+
+  refreshEcommerceData();
+  return { ok: true, message: "Order deleted successfully." };
+}
+
+/**
+ * Bulk cancel multiple orders and void courier AWBs
+ */
+export async function bulkCancelOrdersAction(orderIds: string[]): Promise<ActionResult> {
+  const session = await getEffectiveSession();
+  if (!session) return { ok: false, message: "Authentication required." };
+  const { supabase, user } = session;
+
+  for (const id of orderIds) {
+    await cancelOrderAction(id);
+  }
+
+  refreshEcommerceData();
+  return { ok: true, message: `Successfully cancelled ${orderIds.length} orders on both platform and courier systems.` };
+}
+
+/**
+ * Bulk delete multiple orders
+ */
+export async function bulkDeleteOrdersAction(orderIds: string[]): Promise<ActionResult> {
+  const session = await getEffectiveSession();
+  if (!session) return { ok: false, message: "Authentication required." };
+  const { supabase, user } = session;
+
+  await supabase.from("order_items").delete().in("order_id", orderIds);
+  await supabase.from("ecommerce_shipments").delete().in("order_id", orderIds);
+  const { error } = await supabase.from("orders").delete().in("id", orderIds).eq("user_id", user.id);
+
+  if (error) return { ok: false, message: "Failed to delete selected orders." };
+
+  refreshEcommerceData();
+  return { ok: true, message: `Successfully deleted ${orderIds.length} orders.` };
+}
+
+/**
+ * Bulk generate AWBs for selected orders
+ */
+export async function bulkShipOrdersAction(
+  orderIds: string[],
+  courierCode = "shadowfax",
+): Promise<{ ok: boolean; count: number; failed: number; message: string }> {
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const id of orderIds) {
+    const res = await bookShipmentForOrder(id, courierCode);
+    if (res.ok) {
+      successCount++;
+    } else {
+      failedCount++;
+    }
+  }
+
+  refreshEcommerceData();
+  return {
+    ok: successCount > 0,
+    count: successCount,
+    failed: failedCount,
+    message: `Generated AWBs for ${successCount} orders.${failedCount > 0 ? ` (${failedCount} failed)` : ""}`,
+  };
 }

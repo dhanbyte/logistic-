@@ -9,11 +9,13 @@ export function AppShell({
   children,
   fullName,
   email,
+  walletBalance = 0,
   isDemo,
 }: {
   children: React.ReactNode;
   fullName: string;
   email: string;
+  walletBalance?: number;
   isDemo: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -31,7 +33,12 @@ export function AppShell({
 
   return (
     <div className="min-h-screen">
-      <AppSidebar open={open} close={close} isDemo={isDemo} />
+      <AppSidebar
+        open={open}
+        close={close}
+        walletBalance={walletBalance}
+        isDemo={isDemo}
+      />
       <div className="lg:pl-64 print:pl-0">
         <header className="sticky top-0 z-20 flex h-20 items-center border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-8 print:hidden">
           <button

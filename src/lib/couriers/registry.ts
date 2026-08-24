@@ -5,11 +5,14 @@ import type {
   ICourierProvider,
   ServiceabilityRequest,
 } from "./types";
+import { ShadowfaxClient } from "./shadowfax/client";
+import { ShadowfaxProvider } from "./shadowfax/provider";
 import { XpressbeesClient } from "./xpressbees/client";
 import { XpressbeesProvider } from "./xpressbees/provider";
 
 export const SUPPORTED_COURIERS = [
   "xpressbees",
+  "shadowfax",
 ] as const;
 
 export type SupportedCourierCode = (typeof SUPPORTED_COURIERS)[number];
@@ -22,7 +25,13 @@ const courierCache = new Map<string, ICourierProvider>();
 export function isCourierConfigured(code: string): boolean {
   const normalized = code.toLowerCase().trim();
   if (normalized === "xpressbees") {
+    if (process.env.NEXT_PUBLIC_XPRESSBEES_CONFIGURED === "true") return true;
     const client = new XpressbeesClient();
+    return client.isConfigured();
+  }
+  if (normalized === "shadowfax") {
+    if (process.env.NEXT_PUBLIC_SHADOWFAX_CONFIGURED === "true") return true;
+    const client = new ShadowfaxClient();
     return client.isConfigured();
   }
   return false;
@@ -37,6 +46,12 @@ export function isCourierTestMode(code: string): boolean {
     return (
       process.env.NEXT_PUBLIC_XPRESSBEES_TEST_MODE === "true" ||
       process.env.XPRESSBEES_TEST_MODE === "true"
+    );
+  }
+  if (normalized === "shadowfax") {
+    return (
+      process.env.NEXT_PUBLIC_SHADOWFAX_TEST_MODE === "true" ||
+      process.env.SHADOWFAX_TEST_MODE === "true"
     );
   }
   return false;
@@ -56,6 +71,13 @@ export function getCourierProvider(code: string): ICourierProvider {
     const client = new XpressbeesClient();
     if (client.isConfigured()) {
       provider = new XpressbeesProvider(client);
+    } else {
+      provider = new MockCourierProvider(normalized);
+    }
+  } else if (normalized === "shadowfax") {
+    const client = new ShadowfaxClient();
+    if (client.isConfigured()) {
+      provider = new ShadowfaxProvider(client);
     } else {
       provider = new MockCourierProvider(normalized);
     }

@@ -186,6 +186,7 @@ export interface Order {
   ewayBillNumber?: string | null;
   notes?: string | null;
   items?: OrderItem[];
+  shipment?: EcommerceShipment;
   createdAt: string;
   updatedAt: string;
 }

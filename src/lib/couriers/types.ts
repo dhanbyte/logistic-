@@ -48,6 +48,8 @@ export interface CourierRateQuote {
   estimatedDeliveryDays: number;
   rating: number;
   isRecommended?: boolean;
+  isLive?: boolean;
+  isTestMode?: boolean;
 }
 
 export interface CreateShipmentInput {

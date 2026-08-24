@@ -149,6 +149,8 @@ export class XpressbeesProvider implements ICourierProvider {
                   : 4,
         rating: 4.8,
         isRecommended: true,
+        isLive: this.isConfigured(),
+        isTestMode: this.isTestMode(),
       };
     } catch (error) {
       console.error("[XpressbeesProvider.calculateRate] error", error);

@@ -5,12 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
-  Banknote,
   BarChart3,
-  Boxes,
-  Building2,
-  CheckCircle2,
-  HelpCircle,
+  FileText,
   IndianRupee,
   LayoutDashboard,
   Package,
@@ -23,13 +19,15 @@ import {
   Waves,
   X,
 } from "lucide-react";
+import { formatINR } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/orders", label: "Orders", icon: Package },
   { href: "/shipments", label: "Shipments", icon: Truck },
-  { href: "/ndr", label: "NDR", icon: AlertTriangle, badge: "5" },
+  { href: "/manifest", label: "Manifest", icon: FileText },
+  { href: "/ndr", label: "NDR", icon: AlertTriangle },
   { href: "/rto", label: "RTO", icon: RotateCcw },
   { href: "/returns", label: "Returns", icon: Undo2 },
   { href: "/cod", label: "COD Remittance", icon: IndianRupee },
@@ -42,10 +40,12 @@ const navigationItems = [
 export function AppSidebar({
   open,
   close,
+  walletBalance = 0,
   isDemo,
 }: {
   open: boolean;
   close: () => void;
+  walletBalance?: number;
   isDemo: boolean;
 }) {
   const path = usePathname();
@@ -131,11 +131,20 @@ export function AppSidebar({
           </button>
         </div>
 
+        {/* Dynamic Real Prepaid Wallet Balance */}
         <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-medium">Prepaid Wallet</span>
-            <span className="font-bold text-emerald-700">₹8,420.50</span>
-          </div>
+          <Link
+            href="/wallet"
+            onClick={close}
+            className="flex items-center justify-between text-xs hover:opacity-80 transition-opacity"
+          >
+            <span className="text-slate-500 font-medium flex items-center gap-1.5">
+              <Wallet size={13} className="text-slate-400" /> Prepaid Wallet
+            </span>
+            <span className="font-bold text-emerald-700">
+              {formatINR(walletBalance)}
+            </span>
+          </Link>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3 py-3 overflow-y-auto" aria-label="Workspace">
@@ -166,24 +175,10 @@ export function AppSidebar({
                   />
                   <span>{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
         </nav>
-
-        {isDemo && (
-          <div className="p-3 border-t border-slate-100">
-            <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800 flex items-start gap-2">
-              <span className="font-semibold">Demo Sandbox:</span>
-              <span>Indian Couriers simulated with live mock rates.</span>
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );

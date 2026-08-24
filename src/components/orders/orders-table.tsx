@@ -1,21 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Download,
+  Edit3,
+  ExternalLink,
   Eye,
-  Filter,
+  FileText,
+  MapPin,
   Package,
+  Plus,
+  Printer,
+  RotateCcw,
   Search,
+  Trash2,
   Truck,
   Upload,
+  XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { formatINR } from "@/lib/calculations";
+import { cancelOrderAction, deleteOrderAction } from "@/app/ecommerce-actions";
 import type { Order, Warehouse } from "@/types";
+import type { OrderStatusCounts } from "@/lib/data/orders";
+import { BulkActionBar } from "./bulk-action-bar";
 import { BulkOrderModal } from "./bulk-order-modal";
+import { ConfirmDialog } from "./confirm-dialog";
+import { EditOrderModal } from "./edit-order-modal";
 import { ShipNowModal } from "./ship-now-modal";
 
 export function OrdersTable({
@@ -23,21 +41,45 @@ export function OrdersTable({
   total,
   page,
   pageCount,
+  counts,
   warehouses,
 }: {
   orders: Order[];
   total: number;
   page: number;
   pageCount: number;
+  counts?: OrderStatusCounts;
   warehouses: Warehouse[];
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Selection State
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [selectedOrderForShip, setSelectedOrderForShip] = useState<Order | null>(null);
+  const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<Order | null>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Single Action Confirm Dialog
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    tone: "danger" | "warning" | "primary";
+    label: string;
+    onConfirm: () => Promise<void>;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+    tone: "danger",
+    label: "Confirm",
+    onConfirm: async () => {},
+  });
+
+  const currentStatus = searchParams.get("status") || "ALL";
 
   function updateQuery(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -47,7 +89,7 @@ export function OrdersTable({
       params.delete(key);
     }
     params.set("page", "1");
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`/orders?${params.toString()}`);
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
@@ -55,8 +97,173 @@ export function OrdersTable({
     updateQuery("q", searchTerm);
   }
 
+  // Checkbox handlers
+  const allCurrentIds = orders.map((o) => o.id);
+  const isAllSelected = allCurrentIds.length > 0 && allCurrentIds.every((id) => selectedOrderIds.includes(id));
+
+  function toggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(allCurrentIds);
+    }
+  }
+
+  function toggleSelectRow(id: string) {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  const selectedOrdersList = orders.filter((o) => selectedOrderIds.includes(o.id));
+
+  // Single Cancel
+  function handleSingleCancel(order: Order) {
+    setConfirmState({
+      open: true,
+      title: `Cancel Order ${order.orderNumber}?`,
+      description: "This will mark the order as Cancelled and remove it from active shipping queues.",
+      tone: "warning",
+      label: "Cancel Order",
+      onConfirm: async () => {
+        setActionLoading(true);
+        const res = await cancelOrderAction(order.id);
+        setActionLoading(false);
+        if (res.ok) {
+          toast.success(`Order ${order.orderNumber} cancelled.`);
+        } else {
+          toast.error(res.message);
+        }
+      },
+    });
+  }
+
+  // Single Delete
+  function handleSingleDelete(order: Order) {
+    setConfirmState({
+      open: true,
+      title: `Delete Order ${order.orderNumber}?`,
+      description: "Permanently delete this order record and items from your account. This action cannot be undone.",
+      tone: "danger",
+      label: "Delete Order",
+      onConfirm: async () => {
+        setActionLoading(true);
+        const res = await deleteOrderAction(order.id);
+        setActionLoading(false);
+        if (res.ok) {
+          toast.success(`Order ${order.orderNumber} deleted.`);
+        } else {
+          toast.error(res.message);
+        }
+      },
+    });
+  }
+
+  // Export Filtered View to CSV
+  function handleExportAllFiltered() {
+    const headers = [
+      "Order ID",
+      "Channel",
+      "Order Date",
+      "Customer Name",
+      "Phone",
+      "Address",
+      "City",
+      "State",
+      "Pincode",
+      "Item Name",
+      "Qty",
+      "SKU",
+      "Weight (kg)",
+      "Payment Mode",
+      "Order Amount (INR)",
+      "COD Amount (INR)",
+      "Status",
+      "AWB Number",
+      "Courier",
+    ];
+
+    const rows = orders.map((o) => [
+      `"${o.orderNumber}"`,
+      `"${o.channelName}"`,
+      `"${o.createdAt.slice(0, 10)}"`,
+      `"${o.customer?.fullName || ""}"`,
+      `"${o.customer?.phone || ""}"`,
+      `"${o.customer?.addressLine1 || ""}"`,
+      `"${o.customer?.city || ""}"`,
+      `"${o.customer?.state || ""}"`,
+      `"${o.customer?.pincode || ""}"`,
+      `"${o.items?.[0]?.productName || ""}"`,
+      o.items?.[0]?.quantity || 1,
+      `"${o.items?.[0]?.sku || ""}"`,
+      o.totalWeightKg || 0.5,
+      `"${o.paymentMode}"`,
+      o.orderAmount || 0,
+      o.codAmount || 0,
+      `"${o.orderStatus}"`,
+      `"${o.shipment?.awbNumber || ""}"`,
+      `"${o.shipment?.courierProvider?.name || ""}"`,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `orders_filtered_${currentStatus}_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`Exported ${orders.length} orders to CSV.`);
+  }
+
+  const tabs = [
+    { key: "ALL", label: "All Orders", count: counts?.all ?? total, icon: Package },
+    { key: "TO_SHIP", label: "To Ship / New", count: counts?.toShip ?? 0, icon: Clock },
+    { key: "MANIFESTED", label: "Manifested / Ready for Pickup", count: counts?.manifested ?? 0, icon: FileText },
+    { key: "IN_TRANSIT", label: "In Transit", count: counts?.inTransit ?? 0, icon: Truck },
+    { key: "OUT_FOR_DELIVERY", label: "Out for Delivery (OFD)", count: counts?.ofd ?? 0, icon: MapPin },
+    { key: "DELIVERED", label: "Delivered", count: counts?.delivered ?? 0, icon: CheckCircle2 },
+    { key: "NDR", label: "NDR Exceptions", count: counts?.ndr ?? 0, icon: AlertTriangle },
+    { key: "RTO", label: "RTO", count: counts?.rto ?? 0, icon: RotateCcw },
+  ];
+
   return (
     <div className="space-y-4">
+      {/* Status Segmented Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+        {tabs.map((tab) => {
+          const isActive = currentStatus === tab.key;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => updateQuery("status", tab.key)}
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                isActive
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <Icon size={14} className={isActive ? "text-white" : "text-slate-400"} />
+              <span>{tab.label}</span>
+              <span
+                className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search & Filter Header */}
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
@@ -74,23 +281,6 @@ export function OrdersTable({
         </form>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Status Filter */}
-          <select
-            value={searchParams.get("status") || "ALL"}
-            onChange={(e) => updateQuery("status", e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="DRAFT">Draft</option>
-            <option value="READY_TO_SHIP">Ready to Ship</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
-            <option value="DELIVERED">Delivered</option>
-            <option value="NDR">NDR</option>
-            <option value="RTO_INITIATED">RTO</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-
           {/* Payment Mode Filter */}
           <select
             value={searchParams.get("paymentMode") || "ALL"}
@@ -115,10 +305,30 @@ export function OrdersTable({
           </select>
 
           <button
+            type="button"
             onClick={() => setShowBulkModal(true)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer"
+            title="Import orders in bulk via CSV"
           >
-            <Upload size={14} /> Bulk CSV
+            <Upload size={14} className="text-indigo-600" /> Bulk CSV
+          </button>
+
+          <Link
+            href="/manifest"
+            target="_blank"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer"
+            title="Open Courier Handover Manifest"
+          >
+            <FileText size={14} className="text-indigo-600" /> Manifest
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleExportAllFiltered}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer"
+            title="Export filtered list to CSV"
+          >
+            <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
@@ -129,20 +339,48 @@ export function OrdersTable({
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-700">
               <tr>
+                <th className="py-3 px-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    className="size-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
                 <th className="py-3 px-4">Order Details</th>
                 <th className="py-3 px-4">Customer & Destination</th>
                 <th className="py-3 px-4">Product Info</th>
                 <th className="py-3 px-4">Package</th>
                 <th className="py-3 px-4">Payment</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Status & AWB</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-600">
               {orders.map((order) => {
-                const isReady = order.orderStatus === "READY_TO_SHIP" || order.orderStatus === "DRAFT";
+                const isSelected = selectedOrderIds.includes(order.id);
+                const hasShipment = Boolean(order.shipment || ["PENDING_PICKUP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "NDR", "RTO_INITIATED"].includes(order.orderStatus));
+                const shipmentAwb = order.shipment?.awbNumber;
+                const courierName = order.shipment?.courierProvider?.name || (shipmentAwb?.startsWith("SF") ? "Shadowfax" : shipmentAwb ? "Xpressbees" : null);
+                const isManifested = order.orderStatus === "PENDING_PICKUP" || Boolean(order.shipment && order.shipment.shipmentStatus === "MANIFESTED");
+                const isDraftOrToShip = order.orderStatus === "READY_TO_SHIP" || order.orderStatus === "DRAFT";
+
                 return (
-                  <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
+                  <tr
+                    key={order.id}
+                    className={`transition-colors ${
+                      isSelected ? "bg-indigo-50/50" : "hover:bg-slate-50/70"
+                    }`}
+                  >
+                    <td className="py-3 px-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectRow(order.id)}
+                        className="size-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </td>
+
                     <td className="py-3 px-4">
                       <Link
                         href={`/orders/${order.id}`}
@@ -212,30 +450,98 @@ export function OrdersTable({
                                   ? "bg-orange-100 text-orange-800"
                                   : order.orderStatus === "IN_TRANSIT"
                                     ? "bg-amber-100 text-amber-800"
-                                    : "bg-slate-100 text-slate-800"
+                                    : isManifested
+                                      ? "bg-indigo-100 text-indigo-800"
+                                      : "bg-slate-100 text-slate-700"
                         }`}
                       >
-                        {order.orderStatus.replace(/_/g, " ")}
+                        {isManifested
+                          ? "MANIFESTED (PICKUP PENDING)"
+                          : isDraftOrToShip
+                            ? "TO SHIP (PENDING AWB)"
+                            : order.orderStatus.replace(/_/g, " ")}
                       </span>
+
+                      {shipmentAwb && (
+                        <div className="mt-1 flex items-center gap-1 text-[11px]">
+                          <span className="font-mono font-bold text-indigo-600">{shipmentAwb}</span>
+                          {courierName && (
+                            <span className="text-[10px] text-slate-400">({courierName})</span>
+                          )}
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {isReady && (
-                          <button
-                            onClick={() => setSelectedOrderForShip(order)}
-                            className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs flex items-center gap-1"
-                          >
-                            <Truck size={13} /> Ship Now
-                          </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {!hasShipment ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderForShip(order)}
+                              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs flex items-center gap-1 cursor-pointer"
+                            >
+                              <Truck size={13} /> Ship Now
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderForEdit(order)}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+                              title="Edit order details"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSingleCancel(order)}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 cursor-pointer"
+                              title="Cancel order"
+                            >
+                              <XCircle size={14} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSingleDelete(order)}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                              title="Delete draft order"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Link
+                              href={`/shipments/${order.shipment?.id || order.id}`}
+                              className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1"
+                              title="Track Live Shipment"
+                            >
+                              <Truck size={12} /> Track
+                            </Link>
+
+                            {order.shipment?.labelUrl && (
+                              <a
+                                href={order.shipment.labelUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                                title="Print Official Shipping Label"
+                              >
+                                <Printer size={13} />
+                              </a>
+                            )}
+
+                            <Link
+                              href={`/orders/${order.id}`}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                              title="View order details"
+                            >
+                              <Eye size={14} />
+                            </Link>
+                          </>
                         )}
-                        <Link
-                          href={`/orders/${order.id}`}
-                          className="rounded-lg border border-slate-200 p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                          title="View order"
-                        >
-                          <Eye size={15} />
-                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -244,11 +550,11 @@ export function OrdersTable({
 
               {!orders.length && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
                     <Package className="mx-auto size-8 text-slate-300 mb-2" />
-                    <p className="text-sm font-semibold">No customer orders found</p>
+                    <p className="text-sm font-semibold">No customer orders found in this view</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Create your first single order or upload bulk CSV.
+                      Create your first single order or upload bulk CSV spreadsheet.
                     </p>
                   </td>
                 </tr>
@@ -286,6 +592,12 @@ export function OrdersTable({
         )}
       </div>
 
+      {/* Floating Multi-Select Bulk Action Dock */}
+      <BulkActionBar
+        selectedOrders={selectedOrdersList}
+        onClearSelection={() => setSelectedOrderIds([])}
+      />
+
       {/* Modals */}
       <ShipNowModal
         order={selectedOrderForShip}
@@ -293,10 +605,30 @@ export function OrdersTable({
         onClose={() => setSelectedOrderForShip(null)}
       />
 
+      <EditOrderModal
+        order={selectedOrderForEdit}
+        open={!!selectedOrderForEdit}
+        onClose={() => setSelectedOrderForEdit(null)}
+      />
+
       <BulkOrderModal
         open={showBulkModal}
         warehouses={warehouses}
         onClose={() => setShowBulkModal(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        description={confirmState.description}
+        confirmLabel={confirmState.label}
+        confirmTone={confirmState.tone}
+        loading={actionLoading}
+        onConfirm={async () => {
+          await confirmState.onConfirm();
+          setConfirmState((prev) => ({ ...prev, open: false }));
+        }}
+        onClose={() => setConfirmState((prev) => ({ ...prev, open: false }))}
       />
     </div>
   );

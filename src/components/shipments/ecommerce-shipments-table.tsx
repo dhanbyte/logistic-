@@ -4,12 +4,18 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   Eye,
   FileText,
+  MapPin,
+  Package,
   Printer,
+  RotateCcw,
   Search,
   Truck,
 } from "lucide-react";
@@ -31,6 +37,7 @@ export function EcommerceShipmentsTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+  const currentStatus = searchParams.get("status") || "ALL";
 
   function updateQuery(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -48,8 +55,41 @@ export function EcommerceShipmentsTable({
     updateQuery("q", searchTerm);
   }
 
+  const tabs = [
+    { key: "ALL", label: "All Shipments", icon: Package },
+    { key: "MANIFESTED", label: "Manifested", icon: Clock },
+    { key: "IN_TRANSIT", label: "In Transit", icon: Truck },
+    { key: "OUT_FOR_DELIVERY", label: "Out for Delivery (OFD)", icon: MapPin },
+    { key: "DELIVERED", label: "Delivered", icon: CheckCircle2 },
+    { key: "NDR", label: "NDR Exceptions", icon: AlertTriangle },
+    { key: "RTO_INITIATED", label: "RTO", icon: RotateCcw },
+  ];
+
   return (
     <div className="space-y-4">
+      {/* Top Segmented Status Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+        {tabs.map((tab) => {
+          const isActive = currentStatus === tab.key;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => updateQuery("status", tab.key)}
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                isActive
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <Icon size={14} className={isActive ? "text-white" : "text-slate-400"} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search & Filter Header */}
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
@@ -67,23 +107,6 @@ export function EcommerceShipmentsTable({
         </form>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Status Filter */}
-          <select
-            value={searchParams.get("status") || "ALL"}
-            onChange={(e) => updateQuery("status", e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="MANIFESTED">Manifested</option>
-            <option value="PICKUP_SCHEDULED">Pickup Scheduled</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
-            <option value="DELIVERED">Delivered</option>
-            <option value="NDR">NDR Exception</option>
-            <option value="RTO_INITIATED">RTO Initiated</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-
           {/* Courier Filter */}
           <select
             value={searchParams.get("courier") || "ALL"}
@@ -91,11 +114,11 @@ export function EcommerceShipmentsTable({
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none"
           >
             <option value="ALL">All Couriers</option>
+            <option value="shadowfax">Shadowfax</option>
+            <option value="xpressbees">Xpressbees</option>
             <option value="delhivery">Delhivery</option>
             <option value="bluedart">Blue Dart</option>
-            <option value="xpressbees">Xpressbees</option>
             <option value="ekart">Ekart</option>
-            <option value="shadowfax">Shadowfax</option>
             <option value="dtdc">DTDC</option>
           </select>
 
@@ -135,7 +158,7 @@ export function EcommerceShipmentsTable({
                   <td className="py-3 px-4">
                     <Link
                       href={`/shipments/${s.id}`}
-                      className="font-bold text-sm text-indigo-600 hover:underline"
+                      className="font-bold text-sm text-indigo-600 hover:underline font-mono"
                     >
                       {s.awbNumber}
                     </Link>
@@ -148,23 +171,26 @@ export function EcommerceShipmentsTable({
                     <span className="font-semibold text-slate-900">
                       {s.order?.orderNumber || "Order"}
                     </span>
-                    <p className="text-[11px] text-slate-400">
-                      {s.order?.customer?.fullName || "Buyer"}
+                    <p className="text-[11px] text-slate-500">
+                      {s.order?.customer?.fullName || "Consignee"}
                     </p>
                   </td>
 
                   <td className="py-3 px-4">
-                    <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-800">
-                      {s.courierProvider?.name?.split(" ")[0] || "Courier"}
+                    <span className="font-semibold text-slate-900">
+                      {s.courierProvider?.name || (s.awbNumber.startsWith("SF") ? "Shadowfax Express" : "Xpressbees")}
+                    </span>
+                    <span className="block text-[10px] text-slate-400 font-mono">
+                      Routing: {s.routingCode || `${s.deliveryPincode.slice(0, 3)}`}
                     </span>
                   </td>
 
                   <td className="py-3 px-4">
-                    <p className="font-medium text-slate-800">
+                    <p className="font-semibold text-slate-800">
                       {s.pickupPincode} &rarr; {s.deliveryPincode}
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      Est. {s.estimatedDeliveryDate || "2-4 days"}
+                      Est. {s.estimatedDeliveryDate ? s.estimatedDeliveryDate.slice(0, 10) : "2-3 Days"}
                     </p>
                   </td>
 
@@ -181,8 +207,13 @@ export function EcommerceShipmentsTable({
                           : "bg-emerald-100 text-emerald-800"
                       }`}
                     >
-                      {s.paymentMode} {s.paymentMode === "COD" ? `(${formatINR(s.codAmount)})` : ""}
+                      {s.paymentMode}
                     </span>
+                    {s.paymentMode === "COD" && (
+                      <p className="text-[10px] font-bold text-slate-700 mt-0.5">
+                        {formatINR(s.codAmount)}
+                      </p>
+                    )}
                   </td>
 
                   <td className="py-3 px-4">
@@ -203,7 +234,7 @@ export function EcommerceShipmentsTable({
                                 ? "bg-orange-100 text-orange-800"
                                 : s.shipmentStatus === "IN_TRANSIT"
                                   ? "bg-amber-100 text-amber-800"
-                                  : "bg-slate-100 text-slate-800"
+                                  : "bg-indigo-100 text-indigo-800"
                       }`}
                     >
                       {s.shipmentStatus.replace(/_/g, " ")}
@@ -214,10 +245,30 @@ export function EcommerceShipmentsTable({
                     <div className="flex items-center justify-end gap-1.5">
                       <Link
                         href={`/shipments/${s.id}`}
-                        className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                        title="View Shipment Details"
+                        className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1"
+                        title="Live Tracking Details"
                       >
-                        <Eye size={15} />
+                        <Truck size={12} /> Track
+                      </Link>
+
+                      {s.labelUrl && (
+                        <a
+                          href={s.labelUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                          title="Print Official Shipping Label"
+                        >
+                          <Printer size={13} />
+                        </a>
+                      )}
+
+                      <Link
+                        href={`/shipments/${s.id}`}
+                        className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                        title="View Full Shipment"
+                      >
+                        <Eye size={14} />
                       </Link>
                     </div>
                   </td>
@@ -228,9 +279,9 @@ export function EcommerceShipmentsTable({
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-500">
                     <Truck className="mx-auto size-8 text-slate-300 mb-2" />
-                    <p className="text-sm font-semibold">No shipments booked yet</p>
+                    <p className="text-sm font-semibold">No shipments found in this view</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Go to Orders and click &quot;Ship Now&quot; to book your first courier AWB.
+                      Go to Orders and click &quot;Ship Now&quot; to book your courier AWB.
                     </p>
                   </td>
                 </tr>

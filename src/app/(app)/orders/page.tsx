@@ -49,6 +49,7 @@ export default async function OrdersPage({
         total={ordersResult.total}
         page={ordersResult.page}
         pageCount={ordersResult.pageCount}
+        counts={ordersResult.counts}
         warehouses={warehouses}
       />
     </>

@@ -25,23 +25,31 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isDemoSession = request.cookies.get("shopwave_demo")?.value === "true";
 
+  // Allow all API and webhook requests
+  if (path.startsWith("/api")) {
+    return response;
+  }
+
   const guestOnly =
     path.startsWith("/login") ||
     path.startsWith("/register") ||
     path.startsWith("/forgot-password");
   const authFlow = path.startsWith("/auth/callback") || path.startsWith("/reset-password");
 
-  // If neither logged in nor in demo mode, redirect to /login
+  // If neither logged in nor in demo mode, redirect to /login with next parameter
   if (!user && !isDemoSession && !guestOnly && !authFlow) {
     const target = request.nextUrl.clone();
     target.pathname = "/login";
+    target.searchParams.set("next", path);
     return NextResponse.redirect(target);
   }
 
-  // If logged in via Supabase and trying to access login/register, redirect to dashboard
+  // If logged in via Supabase and trying to access login/register, redirect to dashboard or next
   if (user && guestOnly) {
+    const nextPath = request.nextUrl.searchParams.get("next") || "/dashboard";
     const target = request.nextUrl.clone();
-    target.pathname = "/dashboard";
+    target.pathname = nextPath;
+    target.searchParams.delete("next");
     return NextResponse.redirect(target);
   }
 

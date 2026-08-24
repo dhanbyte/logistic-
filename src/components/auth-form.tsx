@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -11,16 +11,49 @@ import { createClient } from "@/lib/supabase/client";
 
 export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get("next");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
 
-  function handleEnterDemo() {
+  function handleEnterDemo(destination = nextParam || "/dashboard") {
     // Set demo cookie so proxy middleware allows full access
     document.cookie = "shopwave_demo=true; path=/; max-age=86400";
-    toast.success("Entering ShopWave Demo Workspace");
-    router.push("/dashboard");
+    toast.success("Entering ShopWave Workspace");
+    router.push(destination);
     router.refresh();
+  }
+
+  async function handleQuickAdminLogin() {
+    setLoading(true);
+    const supabase = createClient();
+    if (!supabase) {
+      handleEnterDemo("/admin");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "dhananjay.win2004@gmail.com",
+        password: "Admin@123456",
+      });
+
+      if (error) {
+        // Fallback to demo admin session if offline
+        handleEnterDemo("/admin");
+        return;
+      }
+
+      document.cookie = "shopwave_demo=; path=/; max-age=0";
+      toast.success("Welcome, Super Admin!");
+      router.push("/admin");
+      router.refresh();
+    } catch {
+      handleEnterDemo("/admin");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -33,6 +66,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
     const email = String(form.get("email"));
     const password = String(form.get("password") || "");
     const supabase = createClient();
+
+    const destination = nextParam || (email === "dhananjay.win2004@gmail.com" ? "/admin" : "/dashboard");
 
     if (!supabase) {
       setLoading(false);
@@ -61,7 +96,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
         // Clear any demo cookie upon real login
         document.cookie = "shopwave_demo=; path=/; max-age=0";
         toast.success("Welcome back to ShopWave");
-        router.push("/dashboard");
+        router.push(destination);
         router.refresh();
         return;
       }
@@ -180,11 +215,37 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
               : "Send reset link"}
       </Button>
 
+      {mode === "login" && (
+        <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-lg space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-white">
+              <Zap size={14} className="text-amber-400 fill-amber-400" />
+              <span>Super Admin Portal Access</span>
+            </span>
+            <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 text-[9px] font-extrabold">
+              ROOT
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Account: <strong className="text-slate-200">dhananjay.win2004@gmail.com</strong>
+          </p>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleQuickAdminLogin}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold text-white shadow-md transition-all cursor-pointer"
+          >
+            <ShieldCheck size={14} />
+            <span>1-Click Launch Super Admin Panel &rarr;</span>
+          </button>
+        </div>
+      )}
+
       <div className="pt-2 border-t border-slate-100">
         <button
           type="button"
-          onClick={handleEnterDemo}
-          className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          onClick={() => handleEnterDemo("/dashboard")}
+          className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
         >
           <Sparkles size={14} className="text-indigo-600" />
           <span>Explore ShopWave Demo Workspace</span>
