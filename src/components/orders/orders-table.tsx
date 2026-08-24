@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   Download,
   Edit3,
   ExternalLink,
@@ -27,7 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR } from "@/lib/calculations";
-import { cancelOrderAction, deleteOrderAction } from "@/app/ecommerce-actions";
+import { cancelOrderAction, cloneOrderAction, deleteOrderAction } from "@/app/ecommerce-actions";
 import type { Order, Warehouse } from "@/types";
 import type { OrderStatusCounts } from "@/lib/data/orders";
 import { BulkActionBar } from "./bulk-action-bar";
@@ -159,6 +160,20 @@ export function OrdersTable({
     });
   }
 
+  // Single Clone / Re-Ship
+  async function handleCloneOrder(order: Order) {
+    setActionLoading(true);
+    toast.info(`Cloning order ${order.orderNumber}…`);
+    const res = await cloneOrderAction(order.id);
+    setActionLoading(false);
+    if (res.ok) {
+      toast.success(res.message || `Order ${order.orderNumber} cloned successfully!`);
+      router.refresh();
+    } else {
+      toast.error(res.message);
+    }
+  }
+
   // Export Filtered View to CSV
   function handleExportAllFiltered() {
     const headers = [
@@ -228,6 +243,7 @@ export function OrdersTable({
     { key: "DELIVERED", label: "Delivered", count: counts?.delivered ?? 0, icon: CheckCircle2 },
     { key: "NDR", label: "NDR Exceptions", count: counts?.ndr ?? 0, icon: AlertTriangle },
     { key: "RTO", label: "RTO", count: counts?.rto ?? 0, icon: RotateCcw },
+    { key: "CANCELLED", label: "Cancelled", count: counts?.cancelled ?? 0, icon: XCircle },
   ];
 
   return (
@@ -446,13 +462,15 @@ export function OrdersTable({
                               ? "bg-blue-100 text-blue-800"
                               : order.orderStatus === "NDR"
                                 ? "bg-rose-100 text-rose-800"
-                                : order.orderStatus === "RTO_INITIATED"
+                                : order.orderStatus === "RTO_INITIATED" || order.orderStatus === "RTO_DELIVERED"
                                   ? "bg-orange-100 text-orange-800"
-                                  : order.orderStatus === "IN_TRANSIT"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : isManifested
-                                      ? "bg-indigo-100 text-indigo-800"
-                                      : "bg-slate-100 text-slate-700"
+                                  : order.orderStatus === "CANCELLED"
+                                    ? "bg-rose-100 text-rose-800"
+                                    : order.orderStatus === "IN_TRANSIT"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : isManifested
+                                        ? "bg-indigo-100 text-indigo-800"
+                                        : "bg-slate-100 text-slate-700"
                         }`}
                       >
                         {isManifested
@@ -474,7 +492,37 @@ export function OrdersTable({
 
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {!hasShipment ? (
+                        {order.orderStatus === "CANCELLED" ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => handleCloneOrder(order)}
+                              className="rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 flex items-center gap-1 shadow-2xs cursor-pointer disabled:opacity-50"
+                              title="Clone and re-ship this cancelled order"
+                            >
+                              <Copy size={12} className="text-indigo-600" />
+                              <span>Clone / Re-Ship</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSingleDelete(order)}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                              title="Delete order permanently"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+
+                            <Link
+                              href={`/orders/${order.id}`}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                              title="View order details"
+                            >
+                              <Eye size={14} />
+                            </Link>
+                          </>
+                        ) : !hasShipment ? (
                           <>
                             <button
                               type="button"
@@ -491,6 +539,16 @@ export function OrdersTable({
                               title="Edit order details"
                             >
                               <Edit3 size={14} />
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => handleCloneOrder(order)}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 cursor-pointer"
+                              title="Clone order"
+                            >
+                              <Copy size={14} />
                             </button>
 
                             <button
@@ -532,6 +590,16 @@ export function OrdersTable({
                                 <Printer size={13} />
                               </a>
                             )}
+
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => handleCloneOrder(order)}
+                              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 cursor-pointer"
+                              title="Clone and Re-Ship order"
+                            >
+                              <Copy size={13} />
+                            </button>
 
                             <Link
                               href={`/orders/${order.id}`}

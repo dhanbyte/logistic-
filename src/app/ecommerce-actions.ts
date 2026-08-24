@@ -1039,6 +1039,82 @@ export async function bulkCancelOrdersAction(orderIds: string[]): Promise<Action
 }
 
 /**
+ * Clone an existing or cancelled order into a new READY_TO_SHIP order
+ */
+export async function cloneOrderAction(
+  orderId: string,
+): Promise<ActionResult<{ orderId: string; orderNumber: string }>> {
+  const session = await getEffectiveSession();
+  if (!session) return { ok: false, message: "Authentication required." };
+  const { supabase, user } = session;
+
+  // 1. Fetch original order
+  const { data: original, error: fetchErr } = await supabase
+    .from("orders")
+    .select("*, customer:customers(*), items:order_items(*)")
+    .eq("id", orderId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (fetchErr || !original) {
+    return { ok: false, message: "Original order not found." };
+  }
+
+  // 2. Generate new unique order number
+  const newOrderNumber = `ORD-${Date.now().toString().slice(-6)}`;
+
+  // 3. Insert cloned order with READY_TO_SHIP status
+  const { data: newOrder, error: insertErr } = await supabase
+    .from("orders")
+    .insert({
+      user_id: user.id,
+      customer_id: original.customer_id,
+      warehouse_id: original.warehouse_id,
+      order_number: newOrderNumber,
+      channel_name: original.channel_name || "MANUAL",
+      order_status: "READY_TO_SHIP",
+      payment_mode: original.payment_mode,
+      order_amount: original.order_amount,
+      cod_amount: original.cod_amount,
+      total_weight_kg: original.total_weight_kg,
+      length_cm: original.length_cm,
+      width_cm: original.width_cm,
+      height_cm: original.height_cm,
+      chargeable_weight_kg: original.chargeable_weight_kg,
+      pickup_pincode: original.pickup_pincode,
+      delivery_pincode: original.delivery_pincode,
+      notes: `Cloned from ${original.order_number}`,
+    })
+    .select("id, order_number")
+    .single();
+
+  if (insertErr || !newOrder) {
+    return { ok: false, message: "Failed to clone order." };
+  }
+
+  // 4. Duplicate items
+  if (original.items && original.items.length > 0) {
+    const itemsToInsert = original.items.map((item: any) => ({
+      order_id: newOrder.id,
+      product_name: item.product_name,
+      quantity: item.quantity,
+      sku: item.sku,
+      unit_price: item.unit_price,
+      total_amount: item.total_amount,
+      weight_kg: item.weight_kg,
+    }));
+    await supabase.from("order_items").insert(itemsToInsert);
+  }
+
+  refreshEcommerceData();
+  return {
+    ok: true,
+    data: { orderId: newOrder.id, orderNumber: newOrder.order_number },
+    message: `Order successfully cloned as ${newOrder.order_number}! Ready to ship.`,
+  };
+}
+
+/**
  * Bulk delete multiple orders
  */
 export async function bulkDeleteOrdersAction(orderIds: string[]): Promise<ActionResult> {

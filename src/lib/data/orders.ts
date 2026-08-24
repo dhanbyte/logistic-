@@ -23,6 +23,7 @@ export interface OrderStatusCounts {
   delivered: number;
   ndr: number;
   rto: number;
+  cancelled: number;
 }
 
 export interface OrdersQueryResult {
@@ -98,6 +99,7 @@ export async function getOrders(query?: OrderQuery): Promise<OrdersQueryResult> 
       delivered: mockOrders.filter((o) => o.orderStatus === "DELIVERED").length,
       ndr: mockOrders.filter((o) => o.orderStatus === "NDR").length,
       rto: mockOrders.filter((o) => ["RTO_INITIATED", "RTO_DELIVERED"].includes(o.orderStatus)).length,
+      cancelled: mockOrders.filter((o) => o.orderStatus === "CANCELLED").length,
     };
 
     return {
@@ -128,6 +130,7 @@ export async function getOrders(query?: OrderQuery): Promise<OrdersQueryResult> 
     delivered: rawAll.filter((o: any) => o.order_status === "DELIVERED").length,
     ndr: rawAll.filter((o: any) => o.order_status === "NDR").length,
     rto: rawAll.filter((o: any) => ["RTO_INITIATED", "RTO_DELIVERED"].includes(o.order_status)).length,
+    cancelled: rawAll.filter((o: any) => o.order_status === "CANCELLED").length,
   };
 
   let dbQuery = supabase

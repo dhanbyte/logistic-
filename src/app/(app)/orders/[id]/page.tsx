@@ -10,6 +10,7 @@ import {
   Truck,
   User,
 } from "lucide-react";
+import { CloneOrderButton } from "@/components/orders/clone-order-button";
 import { PageHeader } from "@/components/page-header";
 import { buttonClassName } from "@/components/ui/button";
 import { formatINR } from "@/lib/calculations";
@@ -42,19 +43,24 @@ export default async function OrderDetailPage({
         title={`Order ${order.orderNumber}`}
         description={`Channel: ${order.channelName} &bull; Created on ${order.createdAt.slice(0, 10)}`}
       >
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${
-            order.orderStatus === "DELIVERED"
-              ? "bg-emerald-100 text-emerald-800"
-              : order.orderStatus === "OUT_FOR_DELIVERY"
-                ? "bg-blue-100 text-blue-800"
-                : order.orderStatus === "NDR"
-                  ? "bg-rose-100 text-rose-800"
-                  : "bg-amber-100 text-amber-800"
-          }`}
-        >
-          {order.orderStatus.replace(/_/g, " ")}
-        </span>
+        <div className="flex items-center gap-2">
+          <CloneOrderButton orderId={order.id} orderNumber={order.orderNumber} />
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              order.orderStatus === "DELIVERED"
+                ? "bg-emerald-100 text-emerald-800"
+                : order.orderStatus === "OUT_FOR_DELIVERY"
+                  ? "bg-blue-100 text-blue-800"
+                  : order.orderStatus === "NDR"
+                    ? "bg-rose-100 text-rose-800"
+                    : order.orderStatus === "CANCELLED"
+                      ? "bg-rose-100 text-rose-800"
+                      : "bg-amber-100 text-amber-800"
+            }`}
+          >
+            {order.orderStatus.replace(/_/g, " ")}
+          </span>
+        </div>
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
