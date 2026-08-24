@@ -596,11 +596,20 @@ export async function recordLedgerEntry(
   const session = await getEffectiveSession();
   if (session) {
     try {
+      const dbCategory =
+        record.transactionType === "SHIPPING_CHARGE" || record.transactionType === "SHIPPING_DEBIT"
+          ? "SHIPPING_DEDUCTION"
+          : record.transactionType === "CANCELLATION_REFUND" || record.transactionType === "FULL_REFUND"
+          ? "REFUND"
+          : record.transactionType === "COD_SETTLEMENT"
+          ? "COD_REMITTANCE"
+          : "WALLET_RECHARGE";
+
       await session.supabase.from("wallet_transactions").insert({
-        id: record.id,
+        id: crypto.randomUUID(),
         user_id: record.userId,
         transaction_type: record.direction,
-        category: record.transactionType,
+        category: dbCategory,
         amount: toRupees(record.amountPaise),
         balance_after: toRupees(record.balanceAfterPaise),
         reference_id: record.referenceId || record.id,

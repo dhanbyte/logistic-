@@ -42,7 +42,7 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
         .order("created_at", { ascending: false }),
       supabase
         .from("ecommerce_shipments")
-        .select("shipping_charge, cod_amount, payment_mode, shipment_status, awb_number, created_at, order:orders(order_number)")
+        .select("id, shipping_charge, cod_amount, payment_mode, shipment_status, awb_number, created_at, order:orders(order_number)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false }),
     ]);
@@ -54,11 +54,19 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
   // Also query in-memory ledger entries
   const inMemoryTxns = await getWalletLedgerHistory(userId);
 
+  function normalizeCategory(cat: string, type: string) {
+    if (cat === "SHIPPING_DEDUCTION" || cat === "SHIPPING_DEBIT") return "SHIPPING_CHARGE";
+    if (cat === "REFUND") return "CANCELLATION_REFUND";
+    if (cat === "COD_REMITTANCE") return "COD_SETTLEMENT";
+    if (cat) return cat;
+    return type === "CREDIT" ? "WALLET_RECHARGE" : "SHIPPING_CHARGE";
+  }
+
   let mappedTxns: WalletTransaction[] = rawTxns.map((t: any) => ({
     id: t.id,
     userId: t.user_id,
     transactionType: t.transaction_type,
-    category: t.category || (t.transaction_type === "CREDIT" ? "WALLET_RECHARGE" : "SHIPPING_CHARGE"),
+    category: normalizeCategory(t.category, t.transaction_type) as any,
     amount: Number(t.amount),
     balanceAfter: Number(t.balance_after),
     referenceId: t.reference_id,
@@ -73,44 +81,50 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
 
   // Merge in-memory transactions if not already in DB
   const existingIds = new Set(mappedTxns.map((m) => m.id));
+  const existingAwbs = new Set(mappedTxns.map((m) => m.awbNumber).filter(Boolean));
+
   for (const im of inMemoryTxns) {
     if (!existingIds.has(im.id)) {
+      const awb =
+        im.referenceId?.startsWith("SF") || im.referenceId?.startsWith("XB") ? im.referenceId : null;
+      if (awb) existingAwbs.add(awb);
+
       mappedTxns.push({
         id: im.id,
         userId: im.userId,
         transactionType: im.direction,
-        category: im.transactionType as any,
+        category: normalizeCategory(im.transactionType, im.direction) as any,
         amount: toRupees(im.amountPaise),
         balanceAfter: toRupees(im.balanceAfterPaise),
         referenceId: im.referenceId,
         description: im.description,
-        awbNumber:
-          im.referenceId?.startsWith("SF") || im.referenceId?.startsWith("XB") ? im.referenceId : null,
+        awbNumber: awb,
         createdAt: im.createdAt,
       });
       existingIds.add(im.id);
     }
   }
 
-  // If shipments exist with charges but no transaction was recorded, synthesize ledger rows
-  if (mappedTxns.length === 0 && shipments.length > 0) {
-    shipments.forEach((s: any, idx: number) => {
-      if (s.shipping_charge && Number(s.shipping_charge) > 0) {
-        mappedTxns.push({
-          id: `tx-shp-${s.awb_number || idx}`,
-          userId,
-          transactionType: "DEBIT",
-          category: "SHIPPING_CHARGE",
-          amount: Number(s.shipping_charge),
-          balanceAfter: Math.max(0, toRupees(computed.cashBalancePaise)),
-          referenceId: s.awb_number,
-          awbNumber: s.awb_number,
-          orderNumber: s.order?.order_number,
-          description: `Freight deduction for AWB ${s.awb_number}`,
-          createdAt: s.created_at || new Date().toISOString(),
-        });
-      }
-    });
+  // Merge every shipment that has a freight charge and isn't already logged
+  for (const s of shipments) {
+    const awb = s.awb_number;
+    const charge = Number(s.shipping_charge || 0);
+    if (awb && charge > 0 && !existingAwbs.has(awb)) {
+      mappedTxns.push({
+        id: `tx-shp-${awb}`,
+        userId,
+        transactionType: "DEBIT",
+        category: "SHIPPING_CHARGE",
+        amount: charge,
+        balanceAfter: toRupees(computed.cashBalancePaise),
+        referenceId: awb,
+        awbNumber: awb,
+        orderNumber: s.order?.order_number,
+        description: `Shipping Charge for AWB ${awb}`,
+        createdAt: s.created_at || new Date().toISOString(),
+      });
+      existingAwbs.add(awb);
+    }
   }
 
   const availableBalance = toRupees(computed.cashBalancePaise);

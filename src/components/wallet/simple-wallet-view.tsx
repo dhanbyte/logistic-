@@ -400,39 +400,114 @@ export function SimpleWalletView({
                 </span>
               </div>
 
-              {selectedTxn.awbNumber && (
-                <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                  <span className="text-slate-500">AWB Number:</span>
-                  <span className="font-mono font-bold text-indigo-600">{selectedTxn.awbNumber}</span>
+              {/* 1. SHIPPING CHARGE (Itemized Courier Freight Breakdown) */}
+              {(selectedTxn.category === "SHIPPING_CHARGE" || selectedTxn.category === "SHIPPING_DEDUCTION") && (
+                <>
+                  {selectedTxn.awbNumber && (
+                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                      <span className="text-slate-500">AWB Number:</span>
+                      <span className="font-mono font-bold text-indigo-600">{selectedTxn.awbNumber}</span>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-white">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Base Freight Charge:</span>
+                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.65)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Weight Slab &amp; Fuel Surcharge:</span>
+                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.15)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>COD Collection / Handling Fee:</span>
+                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.05)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>GST (18% Freight Tax):</span>
+                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.15)}</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-slate-900 text-sm">
+                      <span>Total Freight Deducted:</span>
+                      <span className="text-rose-700">− {formatINR(selectedTxn.amount)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 2. WALLET RECHARGE (Topup Details) */}
+              {(selectedTxn.category === "WALLET_RECHARGE" || selectedTxn.category === "FREE_CREDIT_GRANTED" || selectedTxn.category === "PROMO_CREDIT_GRANTED") && (
+                <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-emerald-50/40">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Payment Mode:</span>
+                    <span className="font-semibold text-slate-800">Instant UPI / NetBanking</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Topup Type:</span>
+                    <span className="font-semibold text-slate-800">Prepaid Shipping Balance</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Tax on Topup:</span>
+                    <span className="font-semibold text-slate-500">₹0.00 (Tax applied per shipment)</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Reference / PG ID:</span>
+                    <span className="font-mono text-slate-700">{selectedTxn.referenceId || selectedTxn.id}</span>
+                  </div>
+
+                  <div className="pt-2 border-t border-emerald-200/60 flex justify-between font-bold text-emerald-800 text-sm">
+                    <span>Amount Credited:</span>
+                    <span>+ {formatINR(selectedTxn.amount)}</span>
+                  </div>
                 </div>
               )}
 
-              {/* Standard Itemized Freight Breakup */}
-              <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-white">
-                <div className="flex justify-between text-slate-600">
-                  <span>Base Freight Charge:</span>
-                  <span className="font-semibold">{formatINR(selectedTxn.amount * 0.65)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Weight Slab / Fuel Surcharge:</span>
-                  <span className="font-semibold">{formatINR(selectedTxn.amount * 0.15)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>COD / Service Fee:</span>
-                  <span className="font-semibold">{formatINR(selectedTxn.amount * 0.05)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>GST (18% Applicable):</span>
-                  <span className="font-semibold">{formatINR(selectedTxn.amount * 0.15)}</span>
-                </div>
+              {/* 3. CANCELLATION REFUND (Refund Details) */}
+              {(selectedTxn.category === "CANCELLATION_REFUND" || selectedTxn.category === "REFUND" || selectedTxn.category === "FULL_REFUND" || selectedTxn.category === "PARTIAL_REFUND") && (
+                <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-indigo-50/40">
+                  {selectedTxn.awbNumber && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Cancelled AWB:</span>
+                      <span className="font-mono font-bold text-indigo-600">{selectedTxn.awbNumber}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-600">
+                    <span>Refund Policy:</span>
+                    <span className="font-semibold text-slate-800">5-Hour Cancellation Protection</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Ledger Status:</span>
+                    <span className="font-bold text-emerald-700">100% Settled to Wallet</span>
+                  </div>
 
-                <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-slate-900 text-sm">
-                  <span>Total Amount:</span>
-                  <span className={selectedTxn.transactionType === "CREDIT" ? "text-emerald-700" : "text-slate-900"}>
-                    {selectedTxn.transactionType === "CREDIT" ? "+" : "−"} {formatINR(selectedTxn.amount)}
-                  </span>
+                  <div className="pt-2 border-t border-indigo-200/60 flex justify-between font-bold text-indigo-900 text-sm">
+                    <span>Refund Credited:</span>
+                    <span className="text-emerald-700">+ {formatINR(selectedTxn.amount)}</span>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* 4. COD SETTLEMENT (Remittance Details) */}
+              {(selectedTxn.category === "COD_SETTLEMENT" || selectedTxn.category === "COD_REMITTANCE") && (
+                <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-teal-50/40">
+                  {selectedTxn.awbNumber && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Delivery AWB:</span>
+                      <span className="font-mono font-bold text-teal-700">{selectedTxn.awbNumber}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-600">
+                    <span>Payout Cycle:</span>
+                    <span className="font-semibold text-slate-800">T+2 Courier Settlement</span>
+                  </div>
+
+                  <div className="pt-2 border-t border-teal-200/60 flex justify-between font-bold text-teal-900 text-sm">
+                    <span>Net COD Credited:</span>
+                    <span className="text-emerald-700">+ {formatINR(selectedTxn.amount)}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between items-center text-slate-500 text-[11px] pt-1">
                 <span>Balance After Transaction:</span>
