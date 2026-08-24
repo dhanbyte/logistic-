@@ -1208,7 +1208,7 @@ export async function registerSellerAction(payload: {
       full_name: payload.fullName,
       company_name: payload.companyName,
       phone: payload.phone,
-      wallet_balance: 500, // ₹500 welcome credit for shipping!
+      wallet_balance: 0, // Zero initial balance for new sellers (must recharge to use)
       kyc_status: "VERIFIED",
       updated_at: new Date().toISOString(),
     });

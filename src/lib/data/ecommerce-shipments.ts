@@ -424,7 +424,8 @@ export async function getDashboardKpis() {
     (sum: number, s: any) => sum + Number(s.shipping_charge || 0),
     0,
   );
-  const walletBalance = typeof profileRes.data?.wallet_balance === "number" ? profileRes.data.wallet_balance : 5000;
+  const walletBalance =
+    typeof profileRes.data?.wallet_balance === "number" ? profileRes.data.wallet_balance : 0;
 
   const totalDispatched = shipments.length || totalOrders || 1;
   const deliveryRatio = shipments.length > 0 ? Number(((delivered / totalDispatched) * 100).toFixed(1)) : 0;
