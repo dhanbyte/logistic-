@@ -27,14 +27,18 @@ async function auth() {
 }
 
 function refreshEcommerceData() {
-  revalidatePath("/dashboard");
-  revalidatePath("/orders");
-  revalidatePath("/shipments");
-  revalidatePath("/wallet");
-  revalidatePath("/warehouses");
-  revalidatePath("/settings");
-  revalidatePath("/ndr");
-  revalidatePath("/rto");
+  try {
+    revalidatePath("/dashboard");
+    revalidatePath("/orders");
+    revalidatePath("/shipments");
+    revalidatePath("/wallet");
+    revalidatePath("/warehouses");
+    revalidatePath("/settings");
+    revalidatePath("/ndr");
+    revalidatePath("/rto");
+  } catch {
+    // Ignore outside active HTTP request context
+  }
 }
 
 /**
@@ -401,7 +405,7 @@ export async function bookShipmentForOrder(
           reason: "Courier booking failure",
         });
       }
-      throw err;
+      return { ok: false, message: err.message || "Courier booking failed." };
     }
 
     // 3. Find courier provider ID

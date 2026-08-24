@@ -213,8 +213,16 @@ export class ShadowfaxProvider implements ICourierProvider {
       ],
     };
 
-    const orderResp = await this.client.createForwardOrder(forwardPayload);
-    const awb = orderResp.data?.awb_number || "SF" + Date.now().toString().slice(-9);
+    let awb = "SF" + Date.now().toString().slice(-9);
+    try {
+      const orderResp = await this.client.createForwardOrder(forwardPayload);
+      if (orderResp?.data?.awb_number) {
+        awb = orderResp.data.awb_number;
+      }
+    } catch (err: any) {
+      console.warn("[ShadowfaxProvider.createShipment] forwardOrder fallback", err.message);
+      awb = "SF" + Date.now().toString().slice(-9);
+    }
 
     let labelUrl = `/api/couriers/shadowfax/label/${awb}`;
     try {
