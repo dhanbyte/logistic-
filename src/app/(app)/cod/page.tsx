@@ -88,7 +88,10 @@ export default async function CodPage() {
                     </td>
 
                     <td className="py-3 px-4 text-rose-600 font-medium">
-                      −{formatINR((s.shippingChargePaise + s.codFeePaise + s.taxPaise) / 100)}
+                      <p className="font-bold">−{formatINR((s.shippingChargePaise + s.codFeePaise + s.taxPaise) / 100)}</p>
+                      <p className="text-[10px] text-slate-500 font-normal mt-0.5">
+                        Freight: {formatINR(s.shippingChargePaise / 100)} &bull; COD Fee: {formatINR((s.codFeePaise + s.taxPaise) / 100)}
+                      </p>
                     </td>
 
                     <td className="py-3 px-4 font-black text-emerald-700 text-sm">
