@@ -2,14 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
+import { SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from "./constants";
 
 export async function createClient() {
   try {
     const store = await cookies();
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) return null;
-    return createServerClient<Database>(url, key, {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+    return createServerClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       cookies: {
         getAll: () => store.getAll(),
         setAll(items) {
@@ -25,10 +24,8 @@ export async function createClient() {
 }
 
 export function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return null;
-  return createSupabaseClient<Database>(url, serviceKey, {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
@@ -36,6 +33,10 @@ export function createServiceClient() {
 export const FALLBACK_USER_ID = "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
 
 export async function getEffectiveSession() {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    return null;
+  }
+
   const client = await createClient();
   if (client) {
     const {

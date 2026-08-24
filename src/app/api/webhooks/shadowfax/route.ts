@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { mapShadowfaxStatus } from "@/lib/couriers/shadowfax/status-mapping";
 import type { ShadowfaxWebhookPayload } from "@/lib/couriers/shadowfax/types";
 import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from "@/lib/supabase/constants";
 
 export async function POST(req: Request) {
   try {
@@ -16,11 +17,8 @@ export async function POST(req: Request) {
 
     const mappedStatus = mapShadowfaxStatus(payload.status || payload.event);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (supabaseUrl && supabaseServiceKey) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
       // Find the shipment by AWB or orderNumber
       const { data: shipment } = await supabase

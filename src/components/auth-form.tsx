@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Building2, Phone, ShieldCheck, Sparkles, User, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { registerSellerAction } from "@/app/ecommerce-actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -15,10 +16,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
   const nextParam = searchParams.get("next");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
-  const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
 
   function handleEnterDemo(destination = nextParam || "/dashboard") {
-    // Set demo cookie so proxy middleware allows full access
     document.cookie = "shopwave_demo=true; path=/; max-age=86400";
     toast.success("Entering ShopWave Workspace");
     router.push(destination);
@@ -40,7 +39,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
       });
 
       if (error) {
-        // Fallback to demo admin session if offline
         handleEnterDemo("/admin");
         return;
       }
@@ -60,90 +58,86 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
     event.preventDefault();
     setLoading(true);
     setFormError("");
-    setIsEmailUnconfirmed(false);
 
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email"));
+    const email = String(form.get("email")).trim();
     const password = String(form.get("password") || "");
+    const fullName = String(form.get("fullName") || "").trim();
+    const companyName = String(form.get("companyName") || "").trim();
+    const phone = String(form.get("phone") || "").trim();
+
     const supabase = createClient();
-
     const destination = nextParam || (email === "dhananjay.win2004@gmail.com" ? "/admin" : "/dashboard");
-
-    if (!supabase) {
-      setLoading(false);
-      const message = "Authentication is unavailable without Supabase credentials. You can explore the demo sandbox below.";
-      setFormError(message);
-      toast.info(message);
-      return;
-    }
 
     try {
       if (mode === "login") {
+        if (!supabase) {
+          handleEnterDemo(destination);
+          return;
+        }
+
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          if (error.message?.toLowerCase().includes("email not confirmed")) {
-            setIsEmailUnconfirmed(true);
-            setFormError("Email not confirmed. Please click the confirmation link in your email, or turn off 'Confirm Email' in your Supabase Auth Dashboard.");
-            toast.error("Email not confirmed yet.");
-            return;
-          }
           const message = error.message || "Unable to sign in with these credentials.";
           setFormError(message);
           toast.error(message);
           return;
         }
 
-        // Clear any demo cookie upon real login
         document.cookie = "shopwave_demo=; path=/; max-age=0";
-        toast.success("Welcome back to ShopWave");
+        toast.success("Welcome back to ShopWave!");
         router.push(destination);
         router.refresh();
         return;
       }
 
       if (mode === "register") {
-        const { data, error } = await supabase.auth.signUp({
+        toast.info("Creating and setting up your shipping account…");
+        const regResult = await registerSellerAction({
           email,
           password,
-          options: { emailRedirectTo: `${location.origin}/auth/callback` },
+          fullName: fullName || "Merchant Seller",
+          companyName: companyName || "My Store",
+          phone: phone || "9876543210",
         });
-        if (error) {
-          const message = error.message || "The account could not be created. Check your details and try again.";
-          setFormError(message);
-          toast.error(message);
+
+        if (!regResult.ok) {
+          setFormError(regResult.message);
+          toast.error(regResult.message);
           return;
         }
 
-        if (data.session) {
-          document.cookie = "shopwave_demo=; path=/; max-age=0";
-          toast.success("Account created successfully!");
-          router.push("/dashboard");
-          router.refresh();
-        } else {
-          toast.success("Account registered! Please verify your email or check Supabase Auth settings.");
-          setIsEmailUnconfirmed(true);
+        if (supabase) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (!signInErr) {
+            document.cookie = "shopwave_demo=; path=/; max-age=0";
+            toast.success("Account created! ₹500 welcome shipping credit added.");
+            router.push("/dashboard");
+            router.refresh();
+            return;
+          }
         }
+
+        toast.success("Account created successfully! Please sign in.");
+        router.push("/login");
         return;
       }
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${location.origin}/auth/callback?next=/reset-password`,
-      });
-      if (error) {
-        const message = error.message || "A recovery email could not be sent. Please try again later.";
-        setFormError(message);
-        toast.error(message);
-        return;
+      if (mode === "reset" && supabase) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${location.origin}/auth/callback?next=/reset-password`,
+        });
+        if (error) {
+          setFormError(error.message);
+          toast.error(error.message);
+          return;
+        }
+        toast.success("Check your inbox for the password reset link");
       }
-      toast.success("Check your inbox for the password reset link");
     } catch (err: any) {
       console.error("[AuthForm.submit] Error:", err);
-      const isFetchError = err?.message?.includes("fetch") || err?.name === "TypeError";
-      const message = isFetchError
-        ? "Could not reach the Supabase server. Please verify your internet connection or enter Demo Mode."
-        : "Authentication is temporarily unavailable. Please try again.";
-      setFormError(message);
-      toast.error(message);
+      setFormError(err.message || "Authentication error. Please try again.");
+      toast.error(err.message || "Authentication failed.");
     } finally {
       setLoading(false);
     }
@@ -152,24 +146,49 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       {formError && (
-        <div role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700 space-y-2">
-          <p className="font-semibold">{formError}</p>
-          {isEmailUnconfirmed && (
-            <div className="pt-1 border-t border-red-200">
-              <p className="text-[11px] text-red-600 mb-1">
-                Tip: In Supabase Dashboard &rarr; Auth &rarr; Providers &rarr; Email &rarr; Turn OFF <strong>&quot;Confirm email&quot;</strong> to allow immediate login.
-              </p>
-              <button
-                type="button"
-                onClick={() => handleEnterDemo()}
-                className="text-xs font-bold text-indigo-700 underline hover:text-indigo-900"
-              >
-                Or Continue in Demo Mode &rarr;
-              </button>
-            </div>
-          )}
+        <div role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700 font-semibold">
+          {formError}
         </div>
       )}
+
+      {mode === "register" && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                required
+                placeholder="Rahul Sharma"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                required
+                placeholder="9876543210"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="companyName">Store / Brand Name</Label>
+            <Input
+              id="companyName"
+              name="companyName"
+              type="text"
+              required
+              placeholder="e.g. Trendy Fashions"
+            />
+          </div>
+        </>
+      )}
+
       <div>
         <Label htmlFor="email">Email address</Label>
         <Input
@@ -181,6 +200,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
           placeholder="seller@brand.com"
         />
       </div>
+
       {mode !== "reset" && (
         <div>
           <div className="flex justify-between">
@@ -202,16 +222,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
           />
         </div>
       )}
+
       <Button
         disabled={loading}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs"
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs cursor-pointer"
       >
         {loading
-          ? "Please wait…"
+          ? "Setting up your workspace…"
           : mode === "login"
-            ? "Sign in"
+            ? "Sign in to Shipping Hub"
             : mode === "register"
-              ? "Create Seller Account"
+              ? "Create Seller Account & Get ₹500 Credit"
               : "Send reset link"}
       </Button>
 

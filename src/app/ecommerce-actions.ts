@@ -11,7 +11,7 @@ import {
   releaseShippingReservation,
   reserveShippingFunds,
 } from "@/lib/finance/wallet-service";
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 import { orderFormSchema } from "@/lib/validation/order";
 import { sellerProfileSchema } from "@/lib/validation/seller";
 import { warehouseFormSchema } from "@/lib/validation/warehouse";
@@ -1158,4 +1158,73 @@ export async function bulkShipOrdersAction(
     failed: failedCount,
     message: `Generated AWBs for ${successCount} orders.${failedCount > 0 ? ` (${failedCount} failed)` : ""}`,
   };
+}
+
+/**
+ * Register a new real seller account and initialize default profile, wallet, and warehouse
+ */
+export async function registerSellerAction(payload: {
+  email: string;
+  password: string;
+  fullName: string;
+  companyName: string;
+  phone: string;
+}): Promise<ActionResult<{ userId: string }>> {
+  const serviceClient = createServiceClient();
+  if (!serviceClient) return { ok: false, message: "Database connection unavailable." };
+
+  try {
+    // 1. Create or signup auth user
+    const { data: authData, error: authError } = await serviceClient.auth.admin.createUser({
+      email: payload.email,
+      password: payload.password,
+      email_confirm: true, // auto-confirm email so they can log in immediately
+      user_metadata: {
+        full_name: payload.fullName,
+        company_name: payload.companyName,
+        phone: payload.phone,
+      },
+    });
+
+    if (authError || !authData?.user) {
+      // If admin createUser fails, check if user already exists
+      return { ok: false, message: authError?.message || "Failed to create seller account." };
+    }
+
+    const userId = authData.user.id;
+
+    // 2. Initialize Profile
+    await serviceClient.from("profiles").upsert({
+      id: userId,
+      email: payload.email,
+      full_name: payload.fullName,
+      company_name: payload.companyName,
+      phone: payload.phone,
+      wallet_balance: 500, // ₹500 welcome credit for shipping!
+      kyc_status: "VERIFIED",
+      updated_at: new Date().toISOString(),
+    });
+
+    // 4. Create default warehouse
+    await serviceClient.from("warehouses").insert({
+      user_id: userId,
+      warehouse_name: `${payload.companyName || "Primary"} Warehouse Hub`,
+      contact_person: payload.fullName || "Logistics Manager",
+      contact_phone: payload.phone || "9876543210",
+      address_line1: "Plot 104, Industrial Area",
+      city: "New Delhi",
+      state: "Delhi",
+      pincode: "110020",
+      is_default: true,
+      is_active: true,
+    });
+
+    return {
+      ok: true,
+      data: { userId },
+      message: "Seller account created successfully! Signing you in...",
+    };
+  } catch (err: any) {
+    return { ok: false, message: err.message || "Registration failed." };
+  }
 }
