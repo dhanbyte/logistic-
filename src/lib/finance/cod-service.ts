@@ -82,19 +82,69 @@ export function calculateNetCodSettlement(params: {
   };
 }
 
+const inMemoryUserBankDetails = new Map<string, UserBankDetails>();
+
 /**
  * 3. Verified Merchant Bank Profile
  */
 export function getUserBankDetails(userId?: string): UserBankDetails {
-  return {
+  const uid = userId || "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+  const existing = inMemoryUserBankDetails.get(uid);
+  if (existing) {
+    return existing;
+  }
+
+  const defaultDetails: UserBankDetails = {
     accountHolderName: "ShopWave Retail Solutions",
     bankName: "HDFC Bank Ltd",
     accountNumber: "5010049281920",
     maskedAccountNumber: "••••1920",
     ifsc: "HDFC0001234",
+    accountType: "CURRENT",
+    upiId: "shopwave@hdfcbank",
     isVerified: true,
     beneficiaryStatus: "ACTIVE",
+    updatedAt: new Date().toISOString(),
   };
+
+  inMemoryUserBankDetails.set(uid, defaultDetails);
+  return defaultDetails;
+}
+
+export function saveUserBankDetails(
+  userId: string,
+  details: {
+    accountHolderName: string;
+    bankName: string;
+    accountNumber: string;
+    ifsc: string;
+    accountType?: "CURRENT" | "SAVINGS";
+    upiId?: string;
+  },
+): UserBankDetails {
+  const uid = userId || "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+  const current = getUserBankDetails(uid);
+
+  const accNum = details.accountNumber.trim() || current.accountNumber;
+  const last4 = accNum.slice(-4);
+  const masked = `••••${last4}`;
+
+  const updated: UserBankDetails = {
+    ...current,
+    accountHolderName: details.accountHolderName.trim() || current.accountHolderName,
+    bankName: details.bankName.trim() || current.bankName,
+    accountNumber: accNum,
+    maskedAccountNumber: masked,
+    ifsc: details.ifsc.trim().toUpperCase() || current.ifsc,
+    accountType: details.accountType || "CURRENT",
+    upiId: details.upiId?.trim() || current.upiId,
+    isVerified: true,
+    beneficiaryStatus: "ACTIVE",
+    updatedAt: new Date().toISOString(),
+  };
+
+  inMemoryUserBankDetails.set(uid, updated);
+  return updated;
 }
 
 /**

@@ -1,28 +1,38 @@
 import { Building2, ShieldCheck, Warehouse as WarehouseIcon } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { PageHeader } from "@/components/page-header";
+import { BankDetailsForm } from "@/components/settings/bank-details-form";
 import { SellerSettingsForm } from "@/components/settings/seller-settings-form";
 import { Button } from "@/components/ui/button";
 import { WarehouseModal } from "@/components/warehouses/warehouse-modal";
 import { getSellerAccount } from "@/lib/data/seller";
 import { getWarehouses } from "@/lib/data/warehouses";
+import { getUserBankDetails } from "@/lib/finance/cod-service";
+import { getEffectiveSession } from "@/lib/supabase/server";
 
 export default async function SettingsPage() {
-  const [seller, warehouses] = await Promise.all([
+  const session = await getEffectiveSession();
+  const userId = session ? session.user.id : undefined;
+
+  const [seller, warehouses, bankDetails] = await Promise.all([
     getSellerAccount(),
     getWarehouses(),
+    getUserBankDetails(userId),
   ]);
 
   return (
     <>
       <PageHeader
-        title="Seller Account & Warehouse Settings"
-        description="Manage your verified GSTIN, registered company details, and pickup warehouse locations."
+        title="Seller Account & Settings"
+        description="Manage your registered company details, verified bank account for COD remittances, and pickup warehouse locations."
       />
 
       <div className="space-y-8">
         {/* 1. Seller Profile & Tax Details */}
         <SellerSettingsForm seller={seller} />
+
+        {/* 2. COD Remittance & Payout Bank Account Details */}
+        <BankDetailsForm bankDetails={bankDetails} />
 
         {/* 2. Warehouse Locations Section */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">

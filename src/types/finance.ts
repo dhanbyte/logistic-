@@ -211,8 +211,11 @@ export interface UserBankDetails {
   accountNumber: string;
   maskedAccountNumber: string;
   ifsc: string;
+  accountType?: "CURRENT" | "SAVINGS";
+  upiId?: string;
   isVerified: boolean;
   beneficiaryStatus: "ACTIVE" | "PENDING" | "REJECTED";
+  updatedAt?: string;
 }
 
 export interface RefundRecord {

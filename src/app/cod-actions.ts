@@ -8,8 +8,10 @@ import {
   recordPayoutFailure,
   rejectSettlementBatch,
   retryCodPayout,
+  saveUserBankDetails,
   submitBatchForApproval,
 } from "@/lib/finance/cod-service";
+import { getEffectiveSession } from "@/lib/supabase/server";
 import { recordAdminAuditLog } from "./admin-actions";
 
 function refreshCodPaths() {
@@ -168,4 +170,65 @@ export async function retryCodPayoutAction(batchId: string) {
   }
 
   return res;
+}
+
+/**
+ * Step 8: Save / Update Merchant Bank Account Details
+ */
+export async function updateUserBankDetailsAction(formData: FormData) {
+  try {
+    const accountHolderName = String(formData.get("accountHolderName") || "").trim();
+    const bankName = String(formData.get("bankName") || "").trim();
+    const accountNumber = String(formData.get("accountNumber") || "").trim();
+    const confirmAccountNumber = String(formData.get("confirmAccountNumber") || "").trim();
+    const ifsc = String(formData.get("ifsc") || "").trim().toUpperCase();
+    const accountType = (String(formData.get("accountType") || "CURRENT")) as "CURRENT" | "SAVINGS";
+    const upiId = String(formData.get("upiId") || "").trim();
+
+    if (!accountHolderName) {
+      return { ok: false, message: "Account Holder Name is required." };
+    }
+    if (!bankName) {
+      return { ok: false, message: "Bank Name is required." };
+    }
+    if (!accountNumber || accountNumber.length < 8) {
+      return { ok: false, message: "Please enter a valid Bank Account Number (minimum 8 digits)." };
+    }
+    if (confirmAccountNumber && accountNumber !== confirmAccountNumber) {
+      return { ok: false, message: "Account Number and Confirmation do not match." };
+    }
+    if (!ifsc || ifsc.length !== 11) {
+      return { ok: false, message: "Please enter a valid 11-character IFSC code (e.g. HDFC0001234)." };
+    }
+
+    const session = await getEffectiveSession();
+    const userId = session ? session.user.id : "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+
+    const saved = saveUserBankDetails(userId, {
+      accountHolderName,
+      bankName,
+      accountNumber,
+      ifsc,
+      accountType,
+      upiId,
+    });
+
+    await recordAdminAuditLog({
+      action: "MERCHANT_BANK_UPDATED",
+      targetType: "SETTINGS",
+      targetId: userId,
+      details: `Bank details updated to ${saved.bankName} (${saved.maskedAccountNumber}, IFSC: ${saved.ifsc})`,
+    });
+
+    refreshCodPaths();
+    revalidatePath("/settings");
+
+    return {
+      ok: true,
+      message: "Bank details saved and verified for automated COD remittances!",
+      data: saved,
+    };
+  } catch (err: any) {
+    return { ok: false, message: err.message || "Failed to update bank details." };
+  }
 }

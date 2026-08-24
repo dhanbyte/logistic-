@@ -67,11 +67,11 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
       inMemoryWallets.set(userId, {
         id: `wal-${userId.slice(0, 8)}`,
         userId,
-        cashBalancePaise: toPaise(5000), // ₹5,000 default starter balance
-        freeCreditPaise: toPaise(500),   // ₹500 free shipping credit
+        cashBalancePaise: 0, // ₹0.00 default starter balance for new sellers
+        freeCreditPaise: 0,   // ₹0.00 (No free credit given by default)
         promoCreditPaise: 0,
         reservedBalancePaise: 0,
-        creditLimitPaise: toPaise(2000), // ₹2,000 credit limit
+        creditLimitPaise: 0,
         usedCreditPaise: 0,
         currency: "INR",
         status: "ACTIVE",
@@ -97,7 +97,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
       ? toPaise(profileBal)
       : existing?.balance !== undefined
         ? toPaise(Number(existing.balance))
-        : toPaise(5000);
+        : 0;
 
   if (existing) {
     return {
@@ -107,7 +107,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
       freeCreditPaise: toPaise(Number((existing as any).free_credit || 0)),
       promoCreditPaise: 0,
       reservedBalancePaise: toPaise(Number((existing as any).reserved_balance || 0)),
-      creditLimitPaise: toPaise(Number((existing as any).credit_limit || 2000)),
+      creditLimitPaise: toPaise(Number((existing as any).credit_limit || 0)),
       usedCreditPaise: toPaise(Number((existing as any).used_credit || 0)),
       currency: existing.currency || "INR",
       status: ((existing as any).status as any) || "ACTIVE",
@@ -116,15 +116,15 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
     };
   }
 
-  // Create initial wallet record
+  // Create initial wallet record with 0 balance for new sellers
   const initialWallet: WalletAccount = {
     id: `wal-${userId.slice(0, 8)}`,
     userId,
     cashBalancePaise: currentCashPaise,
-    freeCreditPaise: toPaise(500),
+    freeCreditPaise: 0,
     promoCreditPaise: 0,
     reservedBalancePaise: 0,
-    creditLimitPaise: toPaise(2000),
+    creditLimitPaise: 0,
     usedCreditPaise: 0,
     currency: "INR",
     status: "ACTIVE",
