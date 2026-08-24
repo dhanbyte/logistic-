@@ -31,12 +31,20 @@ export type TransactionType =
 export type ReservationStatus = "PENDING" | "COMMITTED" | "RELEASED" | "EXPIRED";
 
 export type CodSettlementStatus =
-  | "PENDING"
+  | "COD_PENDING"
+  | "DELIVERED"
+  | "SETTLEMENT_SCHEDULED"
+  | "PAYABLE"
   | "PROCESSING"
+  | "AWAITING_APPROVAL"
+  | "APPROVED"
+  | "BANK_PROCESSING"
   | "PAID"
   | "FAILED"
+  | "REVERSED"
   | "ON_HOLD"
-  | "REVERSED";
+  | "PENDING"
+  | "SETTLED";
 
 export type PaymentState =
   | "CREATED"
@@ -113,6 +121,61 @@ export interface WalletReservation {
   createdAt: string;
 }
 
+export interface CodSettlementOrderItem {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  shipmentId: string;
+  awbNumber: string;
+  courierName: string;
+  deliveryDate: string;
+  settlementDate: string;
+  codAmount: number;
+  freightCharge: number;
+  codFee: number;
+  tax: number;
+  otherCharges: number;
+  netPayable: number;
+  status: CodSettlementStatus;
+  bankUtr?: string;
+}
+
+export interface CodSettlementBatch {
+  id: string;
+  batchReference: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  settlementDate: string;
+  orderCount: number;
+  totalCodCollected: number;
+  totalFreight: number;
+  totalCodFees: number;
+  totalTaxes: number;
+  otherCharges: number;
+  totalDeductions: number;
+  netPayable: number;
+  status: CodSettlementStatus;
+  bankAccountLast4: string;
+  bankIfsc: string;
+  bankName: string;
+  accountHolderName: string;
+  isBankVerified: boolean;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  bankUtr?: string;
+  paymentDate?: string;
+  paymentMode?: string;
+  failureReason?: string;
+  isReconciled: boolean;
+  reconciliationDiff?: number;
+  orders: CodSettlementOrderItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CodSettlementRecord {
   id: string;
   userId: string;
@@ -129,13 +192,27 @@ export interface CodSettlementRecord {
   refundAmountPaise: number;
   netSettlementPaise: number;
   status: CodSettlementStatus;
+  deliveryDate?: string;
+  settlementDays?: number;
   paymentReference?: string;
   payoutReference?: string;
   bankAccountLast4?: string;
   bankIfsc?: string;
+  bankName?: string;
+  accountHolderName?: string;
   settlementDate: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UserBankDetails {
+  accountHolderName: string;
+  bankName: string;
+  accountNumber: string;
+  maskedAccountNumber: string;
+  ifsc: string;
+  isVerified: boolean;
+  beneficiaryStatus: "ACTIVE" | "PENDING" | "REJECTED";
 }
 
 export interface RefundRecord {
