@@ -306,21 +306,29 @@ export default async function ShipmentDetailPage({
                 )}
 
                 <div className="flex justify-between pt-1">
-                  <span className="text-slate-500">Seller Shipping Charge:</span>
+                  <span className="text-slate-500">Shipping Freight:</span>
                   <span className="font-bold text-slate-900">
                     {formatINR(shipment.shippingCharge)}
                   </span>
                 </div>
+              </div>
 
-                <div className="flex justify-between text-slate-500">
-                  <span>Courier Cost:</span>
-                  <span>{formatINR(shipment.courierCharge)}</span>
-                </div>
-
-                <div className="flex justify-between text-emerald-700 font-semibold border-t border-slate-100 pt-1.5">
-                  <span>Aggregator Margin:</span>
-                  <span>{formatINR(shipment.sellerMargin)}</span>
-                </div>
+              {/* Live Tracking Link Button */}
+              <div className="pt-3 border-t border-slate-100">
+                <a
+                  href={
+                    shipment.trackingUrl ||
+                    (shipment.courierProvider?.code === "xpressbees"
+                      ? `https://www.xpressbees.com/track/${shipment.awbNumber}`
+                      : `https://track.shadowfax.in/track?orderId=${shipment.awbNumber}`)
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                >
+                  <Truck size={15} /> Track on {shipment.courierProvider?.name || "Courier"}
+                  <ExternalLink size={13} />
+                </a>
               </div>
             </div>
           </div>

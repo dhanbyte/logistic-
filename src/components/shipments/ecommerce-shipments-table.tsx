@@ -218,7 +218,7 @@ export function EcommerceShipmentsTable({
 
                   <td className="py-3 px-4">
                     <p className="font-bold text-slate-900">{formatINR(s.shippingCharge)}</p>
-                    <p className="text-[10px] text-emerald-700">Margin: {formatINR(s.sellerMargin)}</p>
+                    <p className="text-[10px] text-slate-400">Freight (GST Incl.)</p>
                   </td>
 
                   <td className="py-3 px-4">
