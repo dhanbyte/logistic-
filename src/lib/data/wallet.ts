@@ -128,21 +128,6 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     }
   }
 
-  // If still empty and user has available balance, add initial starter/recharge credit entry
-  if (mappedTxns.length === 0 && availableBalance > 0) {
-    mappedTxns.push({
-      id: `tx-init-${userId.slice(0, 6)}`,
-      userId,
-      transactionType: "CREDIT",
-      category: "WALLET_RECHARGE",
-      amount: availableBalance,
-      balanceAfter: availableBalance,
-      referenceId: "STARTER_BALANCE",
-      description: "Initial Available Balance / Starter Credit",
-      createdAt: walletAccount.createdAt || new Date().toISOString(),
-    });
-  }
-
   // 1. Chronological order to guarantee exact historical running balance
   mappedTxns.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 

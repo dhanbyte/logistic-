@@ -91,20 +91,25 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
 
   const existing = walletRes.data;
   const profileBal = profileRes.data?.wallet_balance;
-
-  const currentCashPaise =
+  const rawCashPaise =
     typeof profileBal === "number"
       ? toPaise(profileBal)
       : existing?.balance !== undefined
         ? toPaise(Number(existing.balance))
         : 0;
 
+  // New sellers must start with ₹0.00; reset any legacy ₹500 starter credit
+  const currentCashPaise = rawCashPaise === toPaise(500) ? 0 : rawCashPaise;
+  if (rawCashPaise === toPaise(500) && supabase) {
+    syncDatabaseBalances(supabase, userId, 0);
+  }
+
   if (existing) {
     return {
       id: existing.id,
       userId: existing.user_id,
       cashBalancePaise: currentCashPaise,
-      freeCreditPaise: toPaise(Number((existing as any).free_credit || 0)),
+      freeCreditPaise: 0,
       promoCreditPaise: 0,
       reservedBalancePaise: toPaise(Number((existing as any).reserved_balance || 0)),
       creditLimitPaise: toPaise(Number((existing as any).credit_limit || 0)),
