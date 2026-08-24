@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";

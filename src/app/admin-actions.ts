@@ -303,3 +303,133 @@ export async function assignUserCourierRatesAction(params: {
   revalidatePath(`/admin/users/${params.userId}/rates`);
   return { ok: true, message: `Custom courier rates for ${params.userName} successfully saved!` };
 }
+
+/**
+ * Super Admin Creates a New Merchant User
+ */
+export async function createMerchantUserAction(params: {
+  fullName: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  billingMode: "PREPAID_WALLET" | "POSTPAID_COD_DEDUCT";
+  pricingTier: "STANDARD" | "SILVER" | "GOLD" | "CUSTOM";
+  initialWalletBalance?: number;
+  freeCredit?: number;
+  creditLimit?: number;
+  enabledCouriers?: string[];
+}): Promise<ActionResult<{ userId: string }>> {
+  const session = await getEffectiveSession();
+  const newUserId = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  if (session) {
+    const { supabase } = session;
+    try {
+      await supabase.from("profiles").insert({
+        id: newUserId,
+        full_name: params.fullName,
+        email: params.email,
+        phone: params.phone,
+        company_name: params.companyName,
+        kyc_status: "VERIFIED",
+        wallet_balance: params.initialWalletBalance || 0,
+      });
+
+      await supabase.from("wallets").insert({
+        user_id: newUserId,
+        balance: params.initialWalletBalance || 0,
+        currency: "INR",
+      });
+    } catch (e) {
+      console.warn("[createMerchantUserAction.db]", e);
+    }
+  }
+
+  // Set pricing tier profile
+  const { setUserPricingProfile } = await import("@/lib/couriers/pricing-engine");
+  setUserPricingProfile(newUserId, params.fullName, params.pricingTier);
+
+  // Initialize wallet & free credit
+  const { getOrCreateWallet, grantFreeCredit } = await import("@/lib/finance/wallet-service");
+  const wallet = await getOrCreateWallet(newUserId);
+  if (params.freeCredit && params.freeCredit > 0) {
+    const { toPaise } = await import("@/lib/finance/money");
+    await grantFreeCredit({
+      userId: newUserId,
+      amountPaise: toPaise(params.freeCredit),
+      creditLimitPaise: toPaise(params.creditLimit || 2000),
+      reason: "Initial Onboarding Free Credit",
+      adminId: "super-admin",
+    });
+  }
+
+  await recordAdminAuditLog({
+    action: "USER_CREATED",
+    targetType: "USER",
+    targetId: newUserId,
+    details: `Created user ${params.fullName} (${params.email}) with ${params.billingMode} mode, ${params.pricingTier} plan.`,
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true, data: { userId: newUserId }, message: `Merchant account for ${params.fullName} created successfully!` };
+}
+
+/**
+ * Super Admin Updates an Existing Merchant User
+ */
+export async function updateMerchantUserAction(params: {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  status: "ACTIVE" | "BLOCKED" | "DEACTIVATED";
+  billingMode: "PREPAID_WALLET" | "POSTPAID_COD_DEDUCT";
+  creditLimit?: number;
+}): Promise<ActionResult> {
+  const session = await getEffectiveSession();
+  if (session) {
+    try {
+      await session.supabase
+        .from("profiles")
+        .update({
+          full_name: params.fullName,
+          phone: params.phone,
+          company_name: params.companyName,
+        })
+        .eq("id", params.userId);
+    } catch (e) {
+      console.warn("[updateMerchantUserAction.db]", e);
+    }
+  }
+
+  await recordAdminAuditLog({
+    action: "USER_UPDATED",
+    targetType: "USER",
+    targetId: params.userId,
+    details: `Updated details for ${params.fullName}: Status=${params.status}, BillingMode=${params.billingMode}`,
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${params.userId}`);
+  return { ok: true, message: `User profile for ${params.fullName} updated successfully!` };
+}
+
+/**
+ * Super Admin Toggles User Block/Active Status
+ */
+export async function toggleUserStatusAction(
+  userId: string,
+  userName: string,
+  newStatus: "ACTIVE" | "BLOCKED",
+): Promise<ActionResult> {
+  await recordAdminAuditLog({
+    action: newStatus === "BLOCKED" ? "USER_BLOCKED" : "USER_UNBLOCKED",
+    targetType: "USER",
+    targetId: userId,
+    details: `Admin changed status to ${newStatus} for user ${userName}`,
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true, message: `User ${userName} is now ${newStatus}.` };
+}

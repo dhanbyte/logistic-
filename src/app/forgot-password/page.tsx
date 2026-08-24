@@ -1,17 +1,22 @@
+"use client";
+
 import Link from "next/link";
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
 import { AuthShell } from "@/components/auth-shell";
 
-export default function Forgot() {
+export default function ForgotPasswordPage() {
   return (
     <AuthShell
-      title="Reset your password"
-      description="We will email you a secure recovery link."
+      title="Reset Password"
+      description="Enter your registered email address and we'll send you a password reset link."
       footer={
-        <Link className="font-semibold text-emerald-700" href="/login">
-          Back to sign in
-        </Link>
+        <>
+          Remembered your password?{" "}
+          <Link className="font-semibold text-indigo-600 hover:text-indigo-800" href="/login">
+            Sign in
+          </Link>
+        </>
       }
     >
       <Suspense fallback={<div className="py-8 text-center text-xs text-slate-500">Loading reset form…</div>}>
