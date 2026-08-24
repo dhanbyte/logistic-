@@ -1,7 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { getEffectiveSession } from "@/lib/supabase/server";
-import { computeAvailableFunds, getOrCreateWallet } from "@/lib/finance/wallet-service";
-import { toRupees } from "@/lib/finance/money";
+import { getWalletSummary } from "@/lib/data/wallet";
 
 export default async function ProtectedLayout({
   children,
@@ -12,7 +11,6 @@ export default async function ProtectedLayout({
 
   let fullName = "Seller";
   let email = "seller@shopwave.in";
-  let walletBalance = 5000;
 
   if (session) {
     const { user, supabase } = session;
@@ -20,37 +18,28 @@ export default async function ProtectedLayout({
     fullName = user.email?.split("@")[0] || "Seller";
 
     try {
-      const [profileRes, walletAccount] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("full_name, wallet_balance")
-          .eq("id", user.id)
-          .maybeSingle(),
-        getOrCreateWallet(user.id),
-      ]);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
 
-      if (profileRes.data?.full_name) {
-        fullName = profileRes.data.full_name;
-      }
-
-      const computed = computeAvailableFunds(walletAccount);
-      const computedBal = toRupees(computed.availableCashPaise + computed.freeCreditPaise);
-
-      if (typeof profileRes.data?.wallet_balance === "number" && profileRes.data.wallet_balance > 0) {
-        walletBalance = profileRes.data.wallet_balance;
-      } else {
-        walletBalance = computedBal;
+      if (profile?.full_name) {
+        fullName = profile.full_name;
       }
     } catch (err) {
-      console.warn("[ProtectedLayout.balance]", err);
+      console.warn("[ProtectedLayout.profile]", err);
     }
   }
+
+  // Unified single source of truth for wallet balance
+  const walletSummary = await getWalletSummary();
 
   return (
     <AppShell
       fullName={fullName}
       email={email}
-      walletBalance={walletBalance}
+      walletBalance={walletSummary.availableBalance}
       isDemo={false}
     >
       {children}

@@ -113,7 +113,7 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     });
   }
 
-  const availableBalance = toRupees(computed.availableCashPaise + computed.freeCreditPaise);
+  const availableBalance = toRupees(computed.cashBalancePaise);
 
   // If still empty and user has available balance, add initial starter/recharge credit entry
   if (mappedTxns.length === 0 && availableBalance > 0) {
