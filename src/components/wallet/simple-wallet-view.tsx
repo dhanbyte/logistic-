@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronRight,
   CreditCard,
+  ExternalLink,
   FileText,
   Filter,
   Info,
@@ -330,9 +331,15 @@ export function SimpleWalletView({
 
                   <div className="flex items-center gap-3 text-[11px] text-slate-400">
                     {awbMatch && (
-                      <span className="font-mono font-bold text-indigo-600">
+                      <Link
+                        href={`/shipments?q=${awbMatch}`}
+                        onClick={(e) => e.stopPropagation()}
+                        target="_blank"
+                        className="font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5"
+                      >
                         AWB: {awbMatch}
-                      </span>
+                        <ExternalLink size={10} />
+                      </Link>
                     )}
                     <span>
                       {new Date(t.createdAt).toLocaleDateString("en-IN", {
@@ -404,35 +411,51 @@ export function SimpleWalletView({
               {(selectedTxn.category === "SHIPPING_CHARGE" || selectedTxn.category === "SHIPPING_DEDUCTION") && (
                 <>
                   {selectedTxn.awbNumber && (
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span className="text-slate-500">AWB Number:</span>
-                      <span className="font-mono font-bold text-indigo-600">{selectedTxn.awbNumber}</span>
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">AWB Number:</span>
+                      <Link
+                        href={`/shipments?q=${selectedTxn.awbNumber}`}
+                        target="_blank"
+                        className="font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5 bg-indigo-50/80 px-2.5 py-1 rounded-lg"
+                      >
+                        {selectedTxn.awbNumber}
+                        <ExternalLink size={12} />
+                      </Link>
                     </div>
                   )}
 
-                  <div className="rounded-xl border border-slate-100 p-3 space-y-2 bg-white">
+                  <div className="rounded-xl border border-slate-100 p-3 space-y-2.5 bg-white shadow-2xs">
                     <div className="flex justify-between text-slate-600">
-                      <span>Base Freight Charge:</span>
-                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.65)}</span>
+                      <span>Base Shipping Freight:</span>
+                      <span className="font-semibold text-slate-800">
+                        {formatINR(Math.round((selectedTxn.amount / 1.18) * 100) / 100)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-slate-600">
-                      <span>Weight Slab &amp; Fuel Surcharge:</span>
-                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.15)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-600">
-                      <span>COD Collection / Handling Fee:</span>
-                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.05)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-600">
-                      <span>GST (18% Freight Tax):</span>
-                      <span className="font-semibold">{formatINR(selectedTxn.amount * 0.15)}</span>
+                      <span>GST (18% Applicable Tax):</span>
+                      <span className="font-semibold text-slate-800">
+                        {formatINR(selectedTxn.amount - Math.round((selectedTxn.amount / 1.18) * 100) / 100)}
+                      </span>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-slate-900 text-sm">
                       <span>Total Freight Deducted:</span>
-                      <span className="text-rose-700">− {formatINR(selectedTxn.amount)}</span>
+                      <span className="text-rose-700 font-black">− {formatINR(selectedTxn.amount)}</span>
                     </div>
                   </div>
+
+                  {selectedTxn.awbNumber && (
+                    <div className="pt-1">
+                      <Link
+                        href={`/shipments?q=${selectedTxn.awbNumber}`}
+                        target="_blank"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                      >
+                        <Truck size={14} /> Track Shipment ({selectedTxn.awbNumber})
+                        <ExternalLink size={12} />
+                      </Link>
+                    </div>
+                  )}
                 </>
               )}
 
