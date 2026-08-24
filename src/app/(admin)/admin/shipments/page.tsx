@@ -92,7 +92,7 @@ export default async function AdminShipmentsPage({
                 </td>
 
                 <td className="py-3 px-4">
-                  <p className="font-bold text-slate-900">{formatINR(s.totalShippingCharge)}</p>
+                  <p className="font-bold text-slate-900">{formatINR(s.shippingCharge)}</p>
                 </td>
 
                 <td className="py-3 px-4">

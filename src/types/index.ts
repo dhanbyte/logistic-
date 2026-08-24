@@ -1,3 +1,8 @@
+// Standard action response type
+export type ActionResult<T = unknown> =
+  | { ok: true; data?: T; message?: string }
+  | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
+
 // Legacy Freight types (kept for backwards compatibility until UI phase)
 export const shipmentStatuses = ["New", "Accepted", "In Transit", "Delivered", "Cancelled", "Issue"] as const;
 export const currencies = ["PLN", "EUR", "USD"] as const;
@@ -338,7 +343,21 @@ export interface WalletTransaction {
   id: string;
   userId: string;
   transactionType: "CREDIT" | "DEBIT";
-  category: "WALLET_RECHARGE" | "SHIPPING_DEDUCTION" | "WEIGHT_DISCREPANCY" | "COD_REMITTANCE" | "REFUND" | "PENALTY";
+  category:
+    | "WALLET_RECHARGE"
+    | "SHIPPING_DEDUCTION"
+    | "SHIPPING_CHARGE"
+    | "WEIGHT_DISCREPANCY"
+    | "COD_REMITTANCE"
+    | "COD_SETTLEMENT"
+    | "REFUND"
+    | "PENALTY"
+    | "FREE_CREDIT_GRANTED"
+    | "FREE_CREDIT_USED"
+    | "PROMO_CREDIT_GRANTED"
+    | "REVERSAL"
+    | "PAYOUT"
+    | "ADMIN_ADJUSTMENT";
   amount: number;
   balanceAfter: number;
   referenceId?: string | null;

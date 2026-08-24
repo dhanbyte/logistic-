@@ -17,7 +17,7 @@ import { sellerProfileSchema } from "@/lib/validation/seller";
 import { warehouseFormSchema } from "@/lib/validation/warehouse";
 
 export type ActionResult<T = unknown> =
-  | { ok: true; data?: T }
+  | { ok: true; data?: T; message?: string }
   | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
 
 const idSchema = z.string().uuid();
@@ -194,15 +194,16 @@ export async function createEcommerceOrder(
 export async function createBulkOrders(
   rows: any[],
   warehouseId: string,
-): Promise<ActionResult<{ count: number }>> {
+): Promise<ActionResult<{ count: number; orderIds: string[] }>> {
   try {
     const session = await auth();
     if (!session) {
       refreshEcommerceData();
-      return { ok: true, data: { count: rows.length } };
+      return { ok: true, data: { count: rows.length, orderIds: [] } };
     }
 
     let createdCount = 0;
+    const orderIds: string[] = [];
     for (const row of rows) {
       const formData = new FormData();
       formData.append("orderNumber", String(row.orderNumber || `ORD-${Date.now()}-${createdCount}`));
@@ -226,11 +227,14 @@ export async function createBulkOrders(
       formData.append("heightCm", String(row.heightCm || 10));
 
       const res = await createEcommerceOrder(formData);
-      if (res.ok) createdCount++;
+      if (res.ok) {
+        createdCount++;
+        if (res.data?.orderId) orderIds.push(res.data.orderId);
+      }
     }
 
     refreshEcommerceData();
-    return { ok: true, data: { count: createdCount } };
+    return { ok: true, data: { count: createdCount, orderIds } };
   } catch (error) {
     console.error("[createBulkOrders] unexpected", error);
     return { ok: false, message: "Bulk order import failed." };
@@ -331,15 +335,14 @@ export async function bookShipmentForOrder(
       {
         pickupPincode: (order as any).warehouse?.pincode || order.pickup_pincode || "110020",
         deliveryPincode: (order as any).customer?.pincode || order.delivery_pincode || "400001",
+        weightKg: chargeableWeightKg,
         paymentMode: order.payment_mode,
         declaredValue: Number(order.order_amount) || 500,
-        isCod: order.payment_mode === "COD",
       },
       {
         deadWeightKg,
         volumetricWeightKg: volumetricKg,
         chargeableWeightKg,
-        isOverweight: chargeableWeightKg > 0.5,
       },
     );
 
@@ -962,7 +965,7 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult> 
       const courierCode = (shipment.courier_provider as any)?.code || (shipment.awb_number.startsWith("SF") ? "shadowfax" : "xpressbees");
       const provider = getCourierProvider(courierCode);
       if (provider) {
-        await provider.cancelShipment(shipment.awb_number, "Cancelled by Seller");
+        await provider.cancelShipment(shipment.awb_number);
       }
     } catch (e: any) {
       console.warn("[cancelOrderAction.courierCancel]", e.message);

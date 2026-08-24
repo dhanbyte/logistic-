@@ -56,7 +56,7 @@ export async function getAdminDashboardKpis(): Promise<AdminDashboardKpis> {
   let totalPrepaidValue = 0;
   let totalShippingRevenue = 0;
 
-  (shipments || []).forEach((s) => {
+  (shipments || []).forEach((s: any) => {
     if (s.shipment_status === "DELIVERED") delivered++;
     else if (["IN_TRANSIT", "OUT_FOR_DELIVERY", "PICKED_UP"].includes(s.shipment_status)) inTransit++;
     else if (["MANIFESTED", "PICKUP_SCHEDULED"].includes(s.shipment_status)) pendingOrders++;
@@ -77,7 +77,7 @@ export async function getAdminDashboardKpis(): Promise<AdminDashboardKpis> {
 
   // 4. Fetch wallets total
   const { data: wallets } = await supabase.from("wallets").select("balance");
-  const totalWalletBalance = (wallets || []).reduce((acc, w) => acc + Number(w.balance || 0), 0);
+  const totalWalletBalance = (wallets || []).reduce((acc: number, w: any) => acc + Number(w.balance || 0), 0);
 
   return {
     totalUsers: Math.max(usersCount || 1, 1),

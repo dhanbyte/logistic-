@@ -17,6 +17,25 @@ import { toast } from "sonner";
 import { formatINR } from "@/lib/calculations";
 import { approveRemittanceAction, rejectRemittanceAction } from "@/app/admin-actions";
 
+interface RemittanceRequestItem {
+  id: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  bankAccount: string;
+  ifsc: string;
+  beneficiary: string;
+  processingFee: number;
+  gst: number;
+  netAmount: number;
+  status: string;
+  approvalLevelRequired: string;
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  bankUtr?: string;
+}
+
 export default function AdminRemittancePage() {
   const [loading, setLoading] = useState(false);
   const [utrModal, setUtrModal] = useState<{ open: boolean; requestId: string; utr: string }>({
@@ -25,7 +44,7 @@ export default function AdminRemittancePage() {
     utr: "",
   });
 
-  const [requests, setRequests] = useState([
+  const [requests, setRequests] = useState<RemittanceRequestItem[]>([
     {
       id: "rem-req-01",
       userId: "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5",

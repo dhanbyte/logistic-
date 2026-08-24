@@ -5,7 +5,7 @@ import {
   type MonthlyPoint,
   type ReportingSummary,
 } from "@/lib/reporting-calculations";
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createClient, getEffectiveSession } from "@/lib/supabase/server";
 import type { Currency } from "@/types";
 
 export type { MonthlyPoint };

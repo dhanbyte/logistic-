@@ -52,7 +52,7 @@ export async function testCourierConnectionAction(courierCode: string): Promise<
       return {
         ok: true,
         latencyMs: latency,
-        message: `Shadowfax Production API is ONLINE & HEALTHY (Latency: ${latency}ms, Serviceable: ${res.serviceable ? "Yes" : "No"})`,
+        message: `Shadowfax Production API is ONLINE & HEALTHY (Latency: ${latency}ms, Serviceable: ${res ? "Yes" : "No"})`,
         statusCode: 200,
       };
     }

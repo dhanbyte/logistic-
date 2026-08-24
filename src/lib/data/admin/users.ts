@@ -29,17 +29,17 @@ export async function getAdminUsersList(): Promise<AdminUserListItem[]> {
   const { data: wallets } = await supabase.from("wallets").select("user_id, balance");
   const { data: orders } = await supabase.from("orders").select("user_id, order_amount");
 
-  const walletMap = new Map((wallets || []).map((w) => [w.user_id, w.balance]));
+  const walletMap = new Map((wallets || []).map((w: any) => [w.user_id, w.balance]));
   const orderStats = new Map<string, { count: number; spent: number }>();
 
-  (orders || []).forEach((o) => {
+  (orders || []).forEach((o: any) => {
     const cur = orderStats.get(o.user_id) || { count: 0, spent: 0 };
     cur.count++;
     cur.spent += Number(o.order_amount || 0);
     orderStats.set(o.user_id, cur);
   });
 
-  return (profiles || []).map((p) => {
+  return (profiles || []).map((p: any) => {
     const stats = orderStats.get(p.id) || { count: 4, spent: 4890 };
     return {
       id: p.id,
@@ -61,7 +61,7 @@ export async function getAdminUsersList(): Promise<AdminUserListItem[]> {
 
 export async function getAdminKycRecords(): Promise<AdminKycRecord[]> {
   const users = await getAdminUsersList();
-  return users.map((u) => ({
+  return users.map((u: any) => ({
     id: `kyc-${u.id.slice(0, 8)}`,
     userId: u.id,
     userName: u.name,

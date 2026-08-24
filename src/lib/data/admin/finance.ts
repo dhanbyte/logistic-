@@ -16,7 +16,7 @@ export async function getAdminWalletLedger(): Promise<AdminWalletLedgerItem[]> {
     .order("created_at", { ascending: false });
 
   if (transactions && transactions.length > 0) {
-    return transactions.map((t) => ({
+    return transactions.map((t: any) => ({
       id: t.id,
       userId: t.user_id,
       userName: "Dhananjay",

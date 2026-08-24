@@ -161,7 +161,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
               </p>
               <button
                 type="button"
-                onClick={handleEnterDemo}
+                onClick={() => handleEnterDemo()}
                 className="text-xs font-bold text-indigo-700 underline hover:text-indigo-900"
               >
                 Or Continue in Demo Mode &rarr;
