@@ -44,41 +44,7 @@ export default function AdminRemittancePage() {
     utr: "",
   });
 
-  const [requests, setRequests] = useState<RemittanceRequestItem[]>([
-    {
-      id: "rem-req-01",
-      userId: "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5",
-      userName: "Dhananjay (Dhanbyte Logistics)",
-      amount: 15000,
-      bankAccount: "50200049281920",
-      ifsc: "HDFC0001234",
-      beneficiary: "Dhananjay",
-      processingFee: 15,
-      gst: 2.7,
-      netAmount: 14982.3,
-      status: "PENDING",
-      approvalLevelRequired: "OPERATIONS_ADMIN",
-      requestedAt: "2026-08-24 10:15",
-    },
-    {
-      id: "rem-req-02",
-      userId: "usr-2",
-      userName: "Pooja Sharma (Sharma Apparels)",
-      amount: 8500,
-      bankAccount: "918201920192",
-      ifsc: "SBIN0004910",
-      beneficiary: "Pooja Sharma",
-      processingFee: 10,
-      gst: 1.8,
-      netAmount: 8488.2,
-      status: "SUCCESS",
-      approvalLevelRequired: "AUTO",
-      requestedAt: "2026-08-20 14:00",
-      approvedAt: "2026-08-20 14:05",
-      approvedBy: "System Auto-Approval",
-      bankUtr: "HDFC9821029109",
-    },
-  ]);
+  const [requests, setRequests] = useState<RemittanceRequestItem[]>([]);
 
   async function handleApproveSubmit() {
     setLoading(true);

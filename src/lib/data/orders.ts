@@ -179,12 +179,12 @@ export async function getOrders(query?: OrderQuery): Promise<OrdersQueryResult> 
 
   if (error || !data) {
     return {
-      orders: mockOrders,
-      total: mockOrders.length,
+      orders: [],
+      total: 0,
       page: 1,
       pageCount: 1,
       counts,
-      isDemo: true,
+      isDemo: false,
     };
   }
 

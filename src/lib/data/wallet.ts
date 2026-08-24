@@ -68,44 +68,6 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     createdAt: t.created_at,
   }));
 
-  if (mappedTxns.length === 0) {
-    mappedTxns = [
-      {
-        id: "tx-init-101",
-        userId,
-        transactionType: "CREDIT",
-        category: "WALLET_RECHARGE",
-        amount: 10000,
-        balanceAfter: 15400,
-        referenceId: "PG-RZP-9281920",
-        description: "Prepaid wallet recharge via Razorpay UPI",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "tx-init-102",
-        userId,
-        transactionType: "CREDIT",
-        category: "FREE_CREDIT_GRANTED",
-        amount: 500,
-        balanceAfter: 15400,
-        referenceId: "ADMIN-PROMO",
-        description: "Welcome promotional shipping credit",
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: "tx-init-103",
-        userId,
-        transactionType: "DEBIT",
-        category: "SHIPPING_DEDUCTION",
-        amount: 42.5,
-        balanceAfter: 15357.5,
-        referenceId: "SF37164698496",
-        description: "Freight charges for Order ORD-564240 (Shadowfax Express)",
-        createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-      },
-    ];
-  }
-
   if (filterType && filterType !== "ALL") {
     mappedTxns = mappedTxns.filter((t) => t.transactionType === filterType);
   }
@@ -120,12 +82,12 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
 
   const totalShippingSpend = shipments.reduce(
     (sum, s: any) => sum + Number(s.shipping_charge || 0),
-    1450,
+    0,
   );
 
   const codPending = shipments
     .filter((s: any) => s.payment_mode === "COD" && s.shipment_status !== "DELIVERED")
-    .reduce((sum, s: any) => sum + Number(s.cod_amount || 0), 38450);
+    .reduce((sum, s: any) => sum + Number(s.cod_amount || 0), 0);
 
   return {
     currentBalance: toRupees(computed.cashBalancePaise),
