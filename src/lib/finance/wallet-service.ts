@@ -148,7 +148,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
 
 /**
  * Stage 1: Atomic Shipping Fund Reservation
- * Locks required funds so they cannot be spent twice by concurrent requests.
+ * Locks required funds internally so they cannot be spent twice by concurrent requests.
  */
 export async function reserveShippingFunds(params: {
   userId: string;
@@ -173,9 +173,9 @@ export async function reserveShippingFunds(params: {
     };
   }
 
-  // Allocate from free credit first, then cash
-  const fromCreditPaise = Math.min(computed.availableCreditPaise, params.amountPaise);
-  const fromCashPaise = params.amountPaise - fromCreditPaise;
+  // Allocate from cash Available Balance
+  const fromCashPaise = params.amountPaise;
+  const fromCreditPaise = 0;
 
   const reservationId = `res-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const reservation: WalletReservation = {
@@ -191,29 +191,10 @@ export async function reserveShippingFunds(params: {
     createdAt: new Date().toISOString(),
   };
 
-  // Mutate reserved balance
+  // Mutate internal reserved balance
   wallet.reservedBalancePaise = addPaise(wallet.reservedBalancePaise, fromCashPaise);
-  wallet.usedCreditPaise = addPaise(wallet.usedCreditPaise, fromCreditPaise);
   inMemoryWallets.set(params.userId, wallet);
   inMemoryReservations.set(reservationId, reservation);
-
-  // Record ledger entry
-  await recordLedgerEntry({
-    userId: params.userId,
-    walletId: wallet.id,
-    transactionType: "SHIPPING_RESERVE",
-    amountPaise: params.amountPaise,
-    direction: "DEBIT",
-    balanceBeforePaise: wallet.cashBalancePaise,
-    balanceAfterPaise: wallet.cashBalancePaise,
-    creditBeforePaise: computed.availableCreditPaise,
-    creditAfterPaise: computed.availableCreditPaise - fromCreditPaise,
-    referenceType: "ORDER",
-    referenceId: params.orderId,
-    orderId: params.orderId,
-    status: "SUCCESS",
-    description: `Shipping fund reservation for Order ${params.orderId}`,
-  });
 
   return { ok: true, reservationId, message: "Funds reserved successfully." };
 }
@@ -232,50 +213,28 @@ export async function commitShippingReservation(params: {
   }
 
   const wallet = await getOrCreateWallet(reservation.userId);
+  const prevCash = wallet.cashBalancePaise;
+  const deductAmountPaise = reservation.amountPaise;
 
-  // Deduct from cash balance if portion was reserved from cash
-  if (reservation.fromCashPaise > 0) {
-    const prevCash = wallet.cashBalancePaise;
-    wallet.cashBalancePaise = subPaise(wallet.cashBalancePaise, reservation.fromCashPaise);
-    wallet.reservedBalancePaise = subPaise(wallet.reservedBalancePaise, reservation.fromCashPaise);
+  wallet.cashBalancePaise = Math.max(0, subPaise(wallet.cashBalancePaise, deductAmountPaise));
+  wallet.reservedBalancePaise = Math.max(0, subPaise(wallet.reservedBalancePaise, deductAmountPaise));
 
-    await recordLedgerEntry({
-      userId: reservation.userId,
-      walletId: wallet.id,
-      transactionType: "SHIPPING_DEBIT",
-      amountPaise: reservation.fromCashPaise,
-      direction: "DEBIT",
-      balanceBeforePaise: prevCash,
-      balanceAfterPaise: wallet.cashBalancePaise,
-      creditBeforePaise: wallet.freeCreditPaise,
-      creditAfterPaise: wallet.freeCreditPaise,
-      referenceType: "SHIPMENT",
-      referenceId: params.awbNumber,
-      shipmentId: params.shipmentId,
-      status: "SUCCESS",
-      description: `Freight deduction for AWB ${params.awbNumber}`,
-    });
-  }
-
-  // Free credit usage log
-  if (reservation.fromCreditPaise > 0) {
-    await recordLedgerEntry({
-      userId: reservation.userId,
-      walletId: wallet.id,
-      transactionType: "FREE_CREDIT_USED",
-      amountPaise: reservation.fromCreditPaise,
-      direction: "DEBIT",
-      balanceBeforePaise: wallet.cashBalancePaise,
-      balanceAfterPaise: wallet.cashBalancePaise,
-      creditBeforePaise: wallet.freeCreditPaise,
-      creditAfterPaise: wallet.freeCreditPaise,
-      referenceType: "SHIPMENT",
-      referenceId: params.awbNumber,
-      shipmentId: params.shipmentId,
-      status: "SUCCESS",
-      description: `Free shipping credit utilized for AWB ${params.awbNumber}`,
-    });
-  }
+  await recordLedgerEntry({
+    userId: reservation.userId,
+    walletId: wallet.id,
+    transactionType: "SHIPPING_CHARGE",
+    amountPaise: deductAmountPaise,
+    direction: "DEBIT",
+    balanceBeforePaise: prevCash,
+    balanceAfterPaise: wallet.cashBalancePaise,
+    creditBeforePaise: wallet.freeCreditPaise,
+    creditAfterPaise: wallet.freeCreditPaise,
+    referenceType: "SHIPMENT",
+    referenceId: params.awbNumber,
+    shipmentId: params.shipmentId,
+    status: "SUCCESS",
+    description: `Shipping Charge for AWB ${params.awbNumber}`,
+  });
 
   reservation.status = "COMMITTED";
   inMemoryReservations.set(params.reservationId, reservation);

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Banknote,
@@ -41,6 +42,7 @@ export function ShipNowModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [quotes, setQuotes] = useState<CourierRateQuote[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [selectedCourier, setSelectedCourier] = useState<string>("xpressbees");
@@ -140,6 +142,8 @@ export function ShipNowModal({
         chargeableWeight,
         amountDeducted: requiredAmount,
       });
+
+      router.refresh();
     } else {
       toast.error((res as any).message || "Failed to book shipment.");
     }
