@@ -756,6 +756,86 @@ export async function setDefaultWarehouse(warehouseId: string): Promise<ActionRe
 }
 
 /**
+ * Deletes a Warehouse / Pickup Hub
+ */
+export async function deleteWarehouseAction(warehouseId: string): Promise<ActionResult> {
+  try {
+    const session = await auth();
+    if (!session) {
+      refreshEcommerceData();
+      return { ok: true, message: "Warehouse removed." };
+    }
+
+    const { supabase, user } = session;
+
+    // 1. Find if there is another warehouse to reassign orders to
+    const { data: otherWarehouses } = await supabase
+      .from("warehouses")
+      .select("id, is_default")
+      .neq("id", warehouseId)
+      .eq("user_id", user.id)
+      .order("is_default", { ascending: false });
+
+    if (otherWarehouses && otherWarehouses.length > 0) {
+      const fallbackWhId = otherWarehouses[0].id;
+
+      // Reassign all referencing orders and shipments to the remaining warehouse
+      await supabase
+        .from("orders")
+        .update({ warehouse_id: fallbackWhId })
+        .eq("warehouse_id", warehouseId)
+        .eq("user_id", user.id);
+
+      await supabase
+        .from("ecommerce_shipments")
+        .update({ warehouse_id: fallbackWhId })
+        .eq("warehouse_id", warehouseId)
+        .eq("user_id", user.id);
+
+      // If the deleted warehouse was default, make the other one default
+      const hasDefault = otherWarehouses.some((w: any) => w.is_default);
+      if (!hasDefault) {
+        await supabase
+          .from("warehouses")
+          .update({ is_default: true })
+          .eq("id", fallbackWhId)
+          .eq("user_id", user.id);
+      }
+    } else {
+      // If this was the only warehouse, clean up draft orders that reference it
+      const { data: ordersWithWh } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("warehouse_id", warehouseId)
+        .eq("user_id", user.id);
+
+      if (ordersWithWh && ordersWithWh.length > 0) {
+        const orderIds = ordersWithWh.map((o: any) => o.id);
+        await supabase.from("order_items").delete().in("order_id", orderIds);
+        await supabase.from("ecommerce_shipments").delete().in("order_id", orderIds);
+        await supabase.from("orders").delete().in("id", orderIds).eq("user_id", user.id);
+      }
+    }
+
+    // 2. Safely delete the warehouse
+    const { error } = await supabase
+      .from("warehouses")
+      .delete()
+      .eq("id", warehouseId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      return { ok: false, message: error.message || "Could not delete warehouse." };
+    }
+
+    refreshEcommerceData();
+    return { ok: true, message: "Warehouse deleted successfully." };
+  } catch (error: any) {
+    return { ok: false, message: error.message || "Failed to delete warehouse." };
+  }
+}
+
+/**
  * Updates Seller Profile and Business Details
  */
 export async function updateSellerProfile(formData: FormData): Promise<ActionResult> {

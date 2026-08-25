@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Edit2, Loader2, Plus, X } from "lucide-react";
+import { Building2, Edit2, Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { setDefaultWarehouse, upsertWarehouse } from "@/app/ecommerce-actions";
+import { deleteWarehouseAction, setDefaultWarehouse, upsertWarehouse } from "@/app/ecommerce-actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import type { Warehouse } from "@/types";
@@ -11,6 +11,7 @@ import type { Warehouse } from "@/types";
 export function WarehouseModal({ warehouse }: { warehouse?: Warehouse }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isEditing = !!warehouse;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -43,26 +44,43 @@ export function WarehouseModal({ warehouse }: { warehouse?: Warehouse }) {
     }
   }
 
+  async function handleDelete() {
+    if (!warehouse) return;
+    setLoading(true);
+    const res = await deleteWarehouseAction(warehouse.id);
+    setLoading(false);
+
+    if (res.ok) {
+      toast.success("Warehouse deleted successfully!");
+      setOpen(false);
+      setConfirmDelete(false);
+    } else {
+      toast.error(res.message || "Could not delete warehouse.");
+    }
+  }
+
   return (
     <>
       {isEditing ? (
         <button
+          type="button"
           onClick={() => setOpen(true)}
-          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+          className="text-xs font-semibold text-slate-700 hover:text-indigo-600 flex items-center gap-1 cursor-pointer"
         >
           <Edit2 size={13} /> Edit
         </button>
       ) : (
         <button
+          type="button"
           onClick={() => setOpen(true)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs flex items-center gap-1.5"
+          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs flex items-center gap-1.5 cursor-pointer"
         >
           <Plus size={15} /> Add New Warehouse
         </button>
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
@@ -70,12 +88,16 @@ export function WarehouseModal({ warehouse }: { warehouse?: Warehouse }) {
                   <Building2 size={18} />
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
-                  {isEditing ? "Edit Warehouse" : "Add Pickup Location"}
+                  {isEditing ? "Edit Warehouse Hub" : "Add Pickup Location"}
                 </h3>
               </div>
               <button
-                onClick={() => setOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setConfirmDelete(false);
+                }}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -180,36 +202,79 @@ export function WarehouseModal({ warehouse }: { warehouse?: Warehouse }) {
                   defaultChecked={warehouse?.isDefault}
                   className="size-4 rounded text-indigo-600"
                 />
-                <label htmlFor="isDefault" className="text-xs text-slate-700 font-medium">
+                <label htmlFor="isDefault" className="text-xs text-slate-700 font-medium cursor-pointer">
                   Set as default origin warehouse for new orders
                 </label>
               </div>
 
-              <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                {isEditing && !warehouse?.isDefault ? (
-                  <button
-                    type="button"
-                    onClick={handleSetDefault}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
-                  >
-                    Make Default
-                  </button>
-                ) : (
-                  <span />
-                )}
+              {/* Delete Confirmation Box */}
+              {confirmDelete && (
+                <div className="rounded-xl border border-red-200 bg-red-50/80 p-3.5 space-y-2 mt-3">
+                  <p className="text-xs font-bold text-red-900">
+                    Are you sure you want to delete this warehouse hub?
+                  </p>
+                  <p className="text-[11px] text-red-700">
+                    This location will no longer be available for dispatching new orders.
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleDelete}
+                      className="rounded-lg bg-red-600 hover:bg-red-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs cursor-pointer"
+                    >
+                      Yes, Delete Hub
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div className="flex items-center gap-3">
+                  {isEditing && !warehouse?.isDefault && (
+                    <button
+                      type="button"
+                      onClick={handleSetDefault}
+                      className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      Make Default
+                    </button>
+                  )}
+
+                  {isEditing && !confirmDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(true)}
+                      className="text-xs font-semibold text-red-600 hover:text-red-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete Warehouse</span>
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setOpen(false)}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    onClick={() => {
+                      setOpen(false);
+                      setConfirmDelete(false);
+                    }}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-xs"
                   >
                     {loading && <Loader2 className="size-3.5 animate-spin mr-1" />}
                     {isEditing ? "Save Changes" : "Create Warehouse"}

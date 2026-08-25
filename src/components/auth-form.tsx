@@ -3,19 +3,41 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Building2, Phone, ShieldCheck, Sparkles, User, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { registerSellerAction } from "@/app/ecommerce-actions";
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 
-export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
+export function AuthForm({
+  mode: initialMode = "login",
+  onModeChange,
+  showModeToggle = true,
+}: {
+  mode?: "login" | "register" | "reset";
+  onModeChange?: (mode: "login" | "register") => void;
+  showModeToggle?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
+  const [currentMode, setCurrentMode] = useState<"login" | "register" | "reset">(initialMode);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Sync mode switch
+  function setTab(mode: "login" | "register") {
+    setCurrentMode(mode);
+    setFormError("");
+    onModeChange?.(mode);
+  }
 
   function handleEnterDemo(destination = nextParam || "/dashboard") {
     document.cookie = "shopwave_demo=true; path=/; max-age=86400";
@@ -70,7 +92,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
     const destination = nextParam || (email === "dhananjay.win2004@gmail.com" ? "/admin" : "/dashboard");
 
     try {
-      if (mode === "login") {
+      if (currentMode === "login") {
         if (!supabase) {
           handleEnterDemo(destination);
           return;
@@ -91,7 +113,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
         return;
       }
 
-      if (mode === "register") {
+      if (currentMode === "register") {
         toast.info("Creating and setting up your shipping account…");
         const regResult = await registerSellerAction({
           email,
@@ -119,11 +141,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
         }
 
         toast.success("Account created successfully! Please sign in.");
-        router.push("/login");
+        setTab("login");
         return;
       }
 
-      if (mode === "reset" && supabase) {
+      if (currentMode === "reset" && supabase) {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${location.origin}/auth/callback?next=/reset-password`,
         });
@@ -144,135 +166,239 @@ export function AuthForm({ mode }: { mode: "login" | "register" | "reset" }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      {formError && (
-        <div role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700 font-semibold">
-          {formError}
-        </div>
-      )}
-
-      {mode === "register" && (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                type="text"
-                required
-                placeholder="Rahul Sharma"
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                required
-                placeholder="9876543210"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="companyName">Store / Brand Name</Label>
-            <Input
-              id="companyName"
-              name="companyName"
-              type="text"
-              required
-              placeholder="e.g. Trendy Fashions"
-            />
-          </div>
-        </>
-      )}
-
-      <div>
-        <Label htmlFor="email">Email address</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          placeholder="seller@brand.com"
-        />
-      </div>
-
-      {mode !== "reset" && (
-        <div>
-          <div className="flex justify-between">
-            <Label htmlFor="password">Password</Label>
-            {mode === "login" && (
-              <Link href="/forgot-password" className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
-                Forgot password?
-              </Link>
-            )}
-          </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete={mode === "register" ? "new-password" : "current-password"}
-            required
-            minLength={6}
-            placeholder="At least 6 characters"
-          />
-        </div>
-      )}
-
-      <Button
-        disabled={loading}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs cursor-pointer"
-      >
-        {loading
-          ? "Setting up your workspace…"
-          : mode === "login"
-            ? "Sign in to Shipping Hub"
-            : mode === "register"
-              ? "Create Seller Account & Get ₹500 Credit"
-              : "Send reset link"}
-      </Button>
-
-      {mode === "login" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-lg space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-white">
-              <Zap size={14} className="text-amber-400 fill-amber-400" />
-              <span>Super Admin Portal Access</span>
-            </span>
-            <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 text-[9px] font-extrabold">
-              ROOT
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            Account: <strong className="text-slate-200">dhananjay.win2004@gmail.com</strong>
-          </p>
+    <div className="w-full">
+      {/* 1. SEGMENTED TAB SWITCHER (SIGN IN | SIGN UP) */}
+      {showModeToggle && currentMode !== "reset" && (
+        <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-100/90 p-1 text-xs font-semibold text-slate-600 border border-slate-200/80">
           <button
             type="button"
-            disabled={loading}
-            onClick={handleQuickAdminLogin}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold text-white shadow-md transition-all cursor-pointer"
+            onClick={() => setTab("login")}
+            className={`rounded-lg py-2 transition-all cursor-pointer ${
+              currentMode === "login"
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "hover:text-slate-900"
+            }`}
           >
-            <ShieldCheck size={14} />
-            <span>1-Click Launch Super Admin Panel &rarr;</span>
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("register")}
+            className={`rounded-lg py-2 transition-all cursor-pointer ${
+              currentMode === "register"
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "hover:text-slate-900"
+            }`}
+          >
+            Sign up
           </button>
         </div>
       )}
 
-      <div className="pt-2 border-t border-slate-100">
+      {/* 2. MAIN FORM (EMAIL & PASSWORD) */}
+      <form onSubmit={submit} className="space-y-3.5">
+        {formError && (
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 font-medium">
+            {formError}
+          </div>
+        )}
+
+        {currentMode === "register" && (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  required
+                  placeholder="Rahul Sharma"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  required
+                  placeholder="9876543210"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Store / Brand Name
+              </label>
+              <input
+                id="companyName"
+                name="companyName"
+                type="text"
+                required
+                placeholder="e.g. Trendy Fashions"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+          </>
+        )}
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="you@company.com"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+          />
+        </div>
+
+        {currentMode !== "reset" && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-semibold text-slate-700">
+                Password
+              </label>
+              {currentMode === "login" && (
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete={currentMode === "register" ? "new-password" : "current-password"}
+                required
+                minLength={6}
+                placeholder="At least 6 characters"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-3 pr-10 text-xs outline-none transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 3. SUBMIT BUTTON */}
         <button
-          type="button"
-          onClick={() => handleEnterDemo("/dashboard")}
-          className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-3 px-4 text-xs font-bold text-white shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer mt-2"
         >
-          <Sparkles size={14} className="text-indigo-600" />
-          <span>Explore ShopWave Demo Workspace</span>
-          <ArrowRight size={13} className="text-slate-400" />
+          {loading ? (
+            <span>Setting up your workspace…</span>
+          ) : (
+            <>
+              <span>
+                {currentMode === "login"
+                  ? "Sign in to workspace"
+                  : currentMode === "register"
+                  ? "Create account"
+                  : "Send reset link"}
+              </span>
+              <ArrowRight size={14} />
+            </>
+          )}
         </button>
-      </div>
-    </form>
+
+        {/* 4. SUPER ADMIN QUICK ACCESS CARD */}
+        {currentMode === "login" && (
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-sm space-y-2 mt-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <Zap size={14} className="text-amber-400 fill-amber-400" />
+                <span>Super Admin Portal Access</span>
+              </span>
+              <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 text-[9px] font-extrabold">
+                ROOT
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Account: <strong className="text-slate-200">dhananjay.win2004@gmail.com</strong>
+            </p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleQuickAdminLogin}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
+            >
+              <ShieldCheck size={14} />
+              <span>1-Click Launch Super Admin Panel &rarr;</span>
+            </button>
+          </div>
+        )}
+
+        {/* 5. DEMO EXPLORATION BUTTON */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => handleEnterDemo("/dashboard")}
+            className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <Sparkles size={14} className="text-indigo-600" />
+            <span>Explore ShopWave Demo Workspace</span>
+            <ArrowRight size={13} className="text-slate-400" />
+          </button>
+        </div>
+
+        {/* 6. FOOTER SWITCH LINK */}
+        <div className="pt-2 text-center text-xs text-slate-500">
+          {currentMode === "login" ? (
+            <span>
+              New to ShopWave?{" "}
+              <button
+                type="button"
+                onClick={() => setTab("register")}
+                className="font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer underline-offset-2 hover:underline"
+              >
+                Create account
+              </button>
+            </span>
+          ) : currentMode === "register" ? (
+            <span>
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setTab("login")}
+                className="font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer underline-offset-2 hover:underline"
+              >
+                Sign in
+              </button>
+            </span>
+          ) : (
+            <Link
+              href="/login"
+              className="font-semibold text-indigo-600 hover:text-indigo-800"
+            >
+              Back to Sign in
+            </Link>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }
