@@ -13,7 +13,7 @@ import { compareAllCourierRates, getCourierProvider } from "@/lib/couriers/regis
 import { orderFormSchema } from "@/lib/validation/order";
 import { warehouseFormSchema } from "@/lib/validation/warehouse";
 
-describe("ShopWave Logistics — E-Commerce Weight & Rate Calculations", () => {
+describe("Shipwave Logistics — E-Commerce Weight & Rate Calculations", () => {
   it("calculates volumetric weight correctly using (L x W x H)/5000", () => {
     // 20cm x 15cm x 10cm = 3000 / 5000 = 0.6 kg
     const vol = calculateVolumetricWeight({ lengthCm: 20, widthCm: 15, heightCm: 10 });
@@ -98,7 +98,7 @@ describe("ShopWave Logistics — E-Commerce Weight & Rate Calculations", () => {
   });
 });
 
-describe("ShopWave Logistics — Mock Courier Provider & Registry", () => {
+describe("Shipwave Logistics — Mock Courier Provider & Registry", () => {
   it("provides deterministic rate quotes for Delhivery, Blue Dart, and Xpressbees", async () => {
     const delhivery = getCourierProvider("delhivery");
     expect(delhivery.code).toBe("delhivery");
@@ -191,7 +191,7 @@ describe("ShopWave Logistics — Mock Courier Provider & Registry", () => {
   });
 });
 
-describe("ShopWave Logistics — Validation Schemas", () => {
+describe("Shipwave Logistics — Validation Schemas", () => {
   it("validates valid e-commerce order input data", () => {
     const validData = {
       customerName: "Aarav Sharma",

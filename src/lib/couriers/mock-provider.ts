@@ -254,7 +254,8 @@ export class MockCourierProvider implements ICourierProvider {
       labelUrl: `/api/labels/${awbNumber}.pdf`,
       manifestUrl: `/api/manifests/${awbNumber}.pdf`,
       routingCode,
-      trackingUrl: `https://shopwave.logistics/track/${awbNumber}`,
+      trackingUrl: `https://shipwave.logistics/track/${awbNumber}`,
+
       estimatedDeliveryDate: deliveryDate.toISOString().slice(0, 10),
       pickupScheduledDate: pickupDate.toISOString().slice(0, 10),
     };

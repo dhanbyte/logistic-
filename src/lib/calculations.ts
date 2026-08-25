@@ -25,7 +25,7 @@ export function convertToReportingCurrency(value: number, exchangeRateToBase: nu
 }
 
 // ============================================================================
-// ShopWave Logistics — Indian E-Commerce Shipping Calculations
+// Shipwave Logistics — Indian E-Commerce Shipping Calculations
 // ============================================================================
 
 /**

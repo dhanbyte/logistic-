@@ -25,7 +25,7 @@ describe("Xpressbees Courier Integration — Safe Test Mode & Mock Tests", () =>
       globalThis.fetch = vi.fn();
       process.env.XPRESSBEES_TEST_MODE = "true";
 
-      const client = new XpressbeesClient({ email: "test@shopwave.com", password: "pwd" });
+      const client = new XpressbeesClient({ email: "test@shipwave.com", password: "pwd" });
       const provider = new XpressbeesProvider(client);
 
       await expect(
@@ -85,7 +85,7 @@ describe("Xpressbees Courier Integration — Safe Test Mode & Mock Tests", () =>
         } as Response);
 
       process.env.XPRESSBEES_TEST_MODE = "true";
-      const client = new XpressbeesClient({ email: "test@shopwave.com", password: "pwd" });
+      const client = new XpressbeesClient({ email: "test@shipwave.com", password: "pwd" });
       const provider = new XpressbeesProvider(client);
 
       const quote = await provider.calculateRate(
@@ -108,7 +108,7 @@ describe("Xpressbees Courier Integration — Safe Test Mode & Mock Tests", () =>
       globalThis.fetch = vi.fn();
       process.env.XPRESSBEES_TEST_MODE = "true";
 
-      const client = new XpressbeesClient({ email: "test@shopwave.com", password: "pwd" });
+      const client = new XpressbeesClient({ email: "test@shipwave.com", password: "pwd" });
       const provider = new XpressbeesProvider(client);
 
       const res = await provider.cancelShipment("59632218892");
@@ -131,7 +131,7 @@ describe("Xpressbees Courier Integration — Safe Test Mode & Mock Tests", () =>
       } as Response);
 
       const client = new XpressbeesClient({
-        email: "test@shopwave.com",
+        email: "test@shipwave.com",
         password: "test_password",
       });
 
@@ -155,7 +155,8 @@ describe("Xpressbees Courier Integration — Safe Test Mode & Mock Tests", () =>
       } as Response);
 
       const client = new XpressbeesClient({
-        email: "wrong@shopwave.com",
+        email: "wrong@shipwave.com",
+
         password: "wrong_password",
       });
 
@@ -192,7 +193,7 @@ describe("Xpressbees Courier Integration — Safe Test Mode & Mock Tests", () =>
           }),
         } as Response);
 
-      const client = new XpressbeesClient({ email: "test@shopwave.com", password: "pwd" });
+      const client = new XpressbeesClient({ email: "test@shipwave.com", password: "pwd" });
       const provider = new XpressbeesProvider(client);
 
       const result = await provider.createShipment({

@@ -9,10 +9,11 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: { default: "ShopWave Logistics", template: "%s | ShopWave Logistics" },
+  title: { default: "Shipwave Logistics", template: "%s | Shipwave Logistics" },
   description:
     "Next-generation Indian e-commerce shipping aggregator with multi-courier rate optimization, live AWB tracking, NDR workflows, and instant COD remittance.",
 };
+
 
 export default function RootLayout({
   children,

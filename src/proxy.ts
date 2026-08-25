@@ -22,7 +22,9 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isDemoSession = request.cookies.get("shopwave_demo")?.value === "true";
+  const isDemoSession = request.cookies.get("shipwave_demo")?.value === "true";
+
+
 
   // Allow all API and webhook requests
   if (path.startsWith("/api")) {

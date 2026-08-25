@@ -113,13 +113,14 @@ export function AppSidebar({
             </span>
             <div className="flex flex-col">
               <span className="text-base font-extrabold tracking-tight text-slate-900 leading-tight">
-                ShopWave
+                Shipwave
               </span>
               <span className="text-[10px] font-semibold tracking-wider uppercase text-indigo-600">
-                Logistics
+                Logistics OS
               </span>
             </div>
           </Link>
+
           <button
             ref={closeButton}
             type="button"

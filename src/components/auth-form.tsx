@@ -38,8 +38,9 @@ export function AuthForm({
   }
 
   function handleEnterDemo(destination = nextParam || "/dashboard") {
-    document.cookie = "shopwave_demo=true; path=/; max-age=86400";
-    toast.success("Entering ShopWave Workspace");
+    document.cookie = "shipwave_demo=true; path=/; max-age=86400";
+    toast.success("Entering Shipwave Workspace");
+
     router.push(destination);
     router.refresh();
   }
@@ -76,8 +77,9 @@ export function AuthForm({
           return;
         }
 
-        document.cookie = "shopwave_demo=; path=/; max-age=0";
-        toast.success("Welcome back to ShopWave!");
+        document.cookie = "shipwave_demo=; path=/; max-age=0";
+        toast.success("Welcome back to Shipwave!");
+
         router.push(destination);
         router.refresh();
         return;
@@ -102,7 +104,8 @@ export function AuthForm({
         if (supabase) {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (!signInErr) {
-            document.cookie = "shopwave_demo=; path=/; max-age=0";
+            document.cookie = "shipwave_demo=; path=/; max-age=0";
+
             toast.success("Account created! ₹500 welcome shipping credit added.");
             router.push("/dashboard");
             router.refresh();

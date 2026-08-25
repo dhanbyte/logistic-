@@ -10,11 +10,12 @@ export default async function ProtectedLayout({
   const session = await getEffectiveSession();
 
   let fullName = "Seller";
-  let email = "seller@shopwave.in";
+  let email = "seller@shipwave.in";
 
   if (session) {
     const { user, supabase } = session;
-    email = user.email || "seller@shopwave.in";
+    email = user.email || "seller@shipwave.in";
+
     fullName = user.email?.split("@")[0] || "Seller";
 
     try {

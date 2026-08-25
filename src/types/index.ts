@@ -36,7 +36,7 @@ export interface Client { id: string; companyName: string; taxId: string; contac
 export interface Carrier { id: string; companyName: string; country: string; contactPerson: string; email: string; phone: string; vehicleType: string; rating: number; completedShipments: number; }
 
 // ============================================================================
-// ShopWave Logistics — Indian E-Commerce Shipping Aggregator Domain Types
+// Shipwave Logistics — Indian E-Commerce Shipping Aggregator Domain Types
 // ============================================================================
 
 export const orderStatuses = [

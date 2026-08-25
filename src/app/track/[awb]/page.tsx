@@ -266,7 +266,8 @@ export default async function PublicTrackingPage({
 
       {/* Public Tracking Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
-        <p>© 2026 ShopWave Logistics. Direct Courier Integration &amp; Public Tracking Engine.</p>
+        <p>© 2026 Shipwave Logistics. Direct Courier Integration &amp; Public Tracking Engine.</p>
+
       </footer>
     </div>
   );

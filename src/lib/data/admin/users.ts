@@ -85,3 +85,104 @@ export async function getAdminKycRecords(): Promise<AdminKycRecord[]> {
     reviewedBy: "Super Admin",
   }));
 }
+
+export interface AdminUserDetailData {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  status: "ACTIVE" | "BLOCKED" | "DEACTIVATED";
+  kycStatus: "PENDING" | "VERIFIED" | "REJECTED";
+  billingMode: "PREPAID_WALLET" | "POSTPAID_COD_DEDUCT";
+  creditLimit: number;
+  walletBalance: number;
+  freeCredit: number;
+  totalOrders: number;
+  deliveredOrders: number;
+  deliveryRatePercent: number;
+  ndrExceptions: number;
+  rtoParcels: number;
+  rtoRatePercent: number;
+  totalShippingSpent: number;
+  totalCodCollected: number;
+  netPayableToMerchant: number;
+  pendingRemittance: number;
+  createdAt: string;
+}
+
+export async function getAdminUserDetail(userId: string): Promise<AdminUserDetailData> {
+  const session = await getEffectiveSession();
+  const supabase = createServiceClient() || session?.supabase;
+
+  let profile: any = null;
+  let walletBalance = 0;
+  let orders: any[] = [];
+  let shipments: any[] = [];
+  let ndrCount = 0;
+  let rtoCount = 0;
+
+  if (supabase) {
+    const [profRes, walRes, ordRes, shpRes, ndrRes, rtoRes] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      supabase.from("wallets").select("balance, credit_limit").eq("user_id", userId).maybeSingle(),
+      supabase.from("orders").select("id, order_amount, cod_amount, payment_mode, order_status").eq("user_id", userId),
+      supabase.from("ecommerce_shipments").select("id, shipment_status, shipping_charge, cod_amount, payment_mode").eq("user_id", userId),
+      supabase.from("ndr_cases").select("id").eq("user_id", userId),
+      supabase.from("rto_shipments").select("id").eq("user_id", userId),
+    ]);
+
+    profile = profRes.data;
+    walletBalance = typeof profile?.wallet_balance === "number" ? profile.wallet_balance : Number(walRes.data?.balance || 0);
+    orders = ordRes.data || [];
+    shipments = shpRes.data || [];
+    ndrCount = (ndrRes.data || []).length;
+    rtoCount = (rtoRes.data || []).length;
+  }
+
+  const totalOrders = orders.length || shipments.length;
+  const deliveredOrders = shipments.filter((s: any) => s.shipment_status === "DELIVERED").length;
+  const totalDispatched = shipments.length || totalOrders || 1;
+  const deliveryRatePercent = shipments.length > 0 ? Number(((deliveredOrders / totalDispatched) * 100).toFixed(1)) : 0;
+  const rtoRatePercent = shipments.length > 0 ? Number(((rtoCount / totalDispatched) * 100).toFixed(1)) : 0;
+
+  const totalShippingSpent = shipments.reduce((sum, s: any) => sum + Number(s.shipping_charge || 0), 0);
+  const totalCodCollected = shipments
+    .filter((s: any) => s.payment_mode === "COD" && s.shipment_status === "DELIVERED")
+    .reduce((sum, s: any) => sum + Number(s.cod_amount || 0), 0);
+
+  const pendingRemittance = shipments
+    .filter((s: any) => s.payment_mode === "COD" && s.shipment_status !== "DELIVERED")
+    .reduce((sum, s: any) => sum + Number(s.cod_amount || 0), 0);
+
+  const netPayableToMerchant = Math.max(0, totalCodCollected - totalShippingSpent);
+
+  const email = profile?.email || "seller@shipwave.me";
+  const fullName = profile?.full_name || email.split("@")[0];
+
+  return {
+    userId,
+    fullName,
+    email,
+    phone: profile?.phone || "Not Provided",
+    companyName: profile?.company_name || `${fullName} Store`,
+    status: "ACTIVE",
+    kycStatus: profile?.kyc_status || "VERIFIED",
+    billingMode: "PREPAID_WALLET",
+    creditLimit: 0,
+    walletBalance,
+    freeCredit: 0,
+    totalOrders,
+    deliveredOrders,
+    deliveryRatePercent,
+    ndrExceptions: ndrCount,
+    rtoParcels: rtoCount,
+    rtoRatePercent,
+    totalShippingSpent,
+    totalCodCollected,
+    netPayableToMerchant,
+    pendingRemittance,
+    createdAt: profile?.created_at ? profile.created_at.slice(0, 10) : "2026-08-23",
+  };
+}
+

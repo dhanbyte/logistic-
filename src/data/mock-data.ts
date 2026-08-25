@@ -23,7 +23,7 @@ export const carriers: Carrier[] = [];
 export const monthlyPerformance: any[] = [];
 
 // ============================================================================
-// ShopWave Logistics — Production Live Real-Data Mode (No Mock Data)
+// Shipwave Logistics — Production Live Real-Data Mode (No Mock Data)
 // ============================================================================
 
 export const mockSellerAccount: SellerAccount = {

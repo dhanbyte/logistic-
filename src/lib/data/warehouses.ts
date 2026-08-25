@@ -38,7 +38,7 @@ export interface WarehousesPageData {
 export async function getWarehouses(): Promise<Warehouse[]> {
   const session = await getEffectiveSession();
   if (!session) {
-    return mockWarehouses;
+    return [];
   }
 
   const { supabase, user } = session;
@@ -50,53 +50,10 @@ export async function getWarehouses(): Promise<Warehouse[]> {
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
 
-  // If user has no warehouse yet in Supabase, auto-seed a default primary warehouse
-  if (!error && (!data || data.length === 0)) {
-    const { data: newWh } = await supabase
-      .from("warehouses")
-      .insert({
-        user_id: user.id,
-        warehouse_name: "Primary Fulfillment Hub",
-        contact_person: "Operations Manager",
-        contact_phone: "9876543210",
-        address_line1: "Okhla Industrial Area, Phase III",
-        city: "New Delhi",
-        state: "Delhi",
-        pincode: "110020",
-        is_default: true,
-        is_active: true,
-      })
-      .select("*")
-      .single();
-
-    if (newWh) {
-      return [
-        {
-          id: newWh.id,
-          userId: newWh.user_id,
-          warehouseName: newWh.warehouse_name,
-          contactPerson: newWh.contact_person,
-          contactPhone: newWh.contact_phone,
-          contactEmail: newWh.contact_email,
-          addressLine1: newWh.address_line1,
-          addressLine2: newWh.address_line2,
-          city: newWh.city,
-          state: newWh.state,
-          pincode: newWh.pincode,
-          gstin: newWh.gstin,
-          isDefault: newWh.is_default,
-          isActive: newWh.is_active,
-          createdAt: newWh.created_at,
-          updatedAt: newWh.updated_at,
-        },
-      ];
-    }
-    return mockWarehouses;
-  }
-
   if (error || !data || data.length === 0) {
-    return mockWarehouses;
+    return [];
   }
+
 
   return data.map((w: any) => ({
     id: w.id,

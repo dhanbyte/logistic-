@@ -134,81 +134,97 @@ export default async function WarehousesPage() {
       </div>
 
       {/* 3. REAL WAREHOUSE HUBS CARDS GRID */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {warehouses.map((w) => (
-          <div
-            key={w.id}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs relative flex flex-col justify-between hover:border-indigo-200 transition-all"
-          >
-            <div>
-              {/* Hub Title & Badges */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="grid size-9 place-items-center rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-                    <Building2 size={18} />
-                  </span>
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-900 leading-snug">
-                      {w.warehouseName}
-                    </h3>
-                    <span className="text-[10px] font-bold text-indigo-600">
-                      PIN: {w.pincode}
+      {warehouses.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-xs">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 mb-4 shadow-xs">
+            <Building2 size={26} />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">No Pickup Warehouses Added Yet</h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            Add your primary warehouse or store pickup address and PIN code to enable courier doorstep rider pickups and shipping label generation.
+          </p>
+          <div className="mt-5 flex justify-center">
+            <WarehouseModal />
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {warehouses.map((w) => (
+            <div
+              key={w.id}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs relative flex flex-col justify-between hover:border-indigo-200 transition-all"
+            >
+              <div>
+                {/* Hub Title & Badges */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid size-9 place-items-center rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                      <Building2 size={18} />
                     </span>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-900 leading-snug">
+                        {w.warehouseName}
+                      </h3>
+                      <span className="text-[10px] font-bold text-indigo-600">
+                        PIN: {w.pincode}
+                      </span>
+                    </div>
                   </div>
+
+                  {w.isDefault ? (
+                    <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 shrink-0">
+                      <CheckCircle2 size={11} /> Primary Hub
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-[10px] font-semibold shrink-0">
+                      Secondary
+                    </span>
+                  )}
                 </div>
 
-                {w.isDefault ? (
-                  <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 shrink-0">
-                    <CheckCircle2 size={11} /> Primary Hub
+                {/* Address & Contact */}
+                <div className="mt-3.5 space-y-2 text-xs text-slate-600 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                  <p className="flex items-start gap-1.5">
+                    <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
+                    <span>
+                      {w.addressLine1}
+                      {w.addressLine2 ? `, ${w.addressLine2}` : ""}, {w.city}, {w.state} -{" "}
+                      <strong className="text-slate-900">{w.pincode}</strong>
+                    </span>
+                  </p>
+                  <p className="flex items-center gap-1.5 text-slate-500">
+                    <Phone size={13} className="text-slate-400 shrink-0" />
+                    <span>
+                      {w.contactPerson} &bull; <strong className="text-slate-700">{w.contactPhone}</strong>
+                    </span>
+                  </p>
+                  {w.gstin && (
+                    <p className="text-[11px] text-slate-400 font-mono">GSTIN: {w.gstin}</p>
+                  )}
+                </div>
+
+                {/* Real Hub Telemetry Tag */}
+                <div className="mt-3 flex items-center justify-between text-[11px] px-1">
+                  <span className="text-slate-600 font-medium flex items-center gap-1">
+                    <Package size={13} className="text-indigo-600" />
+                    <span>Dispatches: <strong>{w.totalOrdersCount} orders</strong></span>
                   </span>
-                ) : (
-                  <span className="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-[10px] font-semibold shrink-0">
-                    Secondary
+                  <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 text-[10px]">
+                    ● {w.isActive ? "Active Pickup Node" : "Inactive Node"}
                   </span>
-                )}
+                </div>
               </div>
 
-              {/* Address & Contact */}
-              <div className="mt-3.5 space-y-2 text-xs text-slate-600 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
-                <p className="flex items-start gap-1.5">
-                  <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
-                  <span>
-                    {w.addressLine1}
-                    {w.addressLine2 ? `, ${w.addressLine2}` : ""}, {w.city}, {w.state} -{" "}
-                    <strong className="text-slate-900">{w.pincode}</strong>
-                  </span>
-                </p>
-                <p className="flex items-center gap-1.5 text-slate-500">
-                  <Phone size={13} className="text-slate-400 shrink-0" />
-                  <span>
-                    {w.contactPerson} &bull; <strong className="text-slate-700">{w.contactPhone}</strong>
-                  </span>
-                </p>
-                {w.gstin && (
-                  <p className="text-[11px] text-slate-400 font-mono">GSTIN: {w.gstin}</p>
-                )}
-              </div>
-
-              {/* Real Hub Telemetry Tag */}
-              <div className="mt-3 flex items-center justify-between text-[11px] px-1">
-                <span className="text-slate-600 font-medium flex items-center gap-1">
-                  <Package size={13} className="text-indigo-600" />
-                  <span>Dispatches: <strong>{w.totalOrdersCount} orders</strong></span>
-                </span>
-                <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 text-[10px]">
-                  ● {w.isActive ? "Active Pickup Node" : "Inactive Node"}
-                </span>
+              {/* Bottom Actions Bar */}
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <WarehouseTrackingModal warehouse={w} />
+                <WarehouseModal warehouse={w} />
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Bottom Actions Bar */}
-            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-              <WarehouseTrackingModal warehouse={w} />
-              <WarehouseModal warehouse={w} />
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

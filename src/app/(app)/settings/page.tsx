@@ -82,7 +82,8 @@ export default async function SettingsPage() {
         {/* 3. Account Sign Out */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs flex items-center justify-between">
           <div>
-            <h4 className="text-sm font-bold text-slate-900">Sign Out of ShopWave</h4>
+            <h4 className="text-sm font-bold text-slate-900">Sign Out of Shipwave</h4>
+
             <p className="text-xs text-slate-500">End your active authenticated session</p>
           </div>
           <form action={signOut}>

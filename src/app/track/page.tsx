@@ -65,7 +65,8 @@ export default function TrackSearchPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
-        <p>© 2026 ShopWave Logistics. Public Tracking Engine.</p>
+        <p>© 2026 Shipwave Logistics. Public Tracking Engine.</p>
+
       </footer>
     </div>
   );

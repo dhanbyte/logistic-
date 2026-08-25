@@ -39,7 +39,7 @@ export default async function ShipmentLabelPage({
         <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2">
           <div>
             <h1 className="text-lg font-black tracking-tight uppercase">
-              {shipment.courierProvider?.name || "ShopWave Express"}
+              {shipment.courierProvider?.name || "Shipwave Express"}
             </h1>
             <p className="text-[10px] font-bold text-slate-600">
               E-COMMERCE AIR/SURFACE LOGISTICS
@@ -169,7 +169,7 @@ export default async function ShipmentLabelPage({
             Return To / Shipped By:
           </span>
           <p className="font-bold text-slate-900">
-            {warehouse?.warehouseName || "ShopWave Warehouse"}
+            {warehouse?.warehouseName || "Shipwave Warehouse"}
           </p>
           <p>{warehouse?.addressLine1}</p>
           <p>

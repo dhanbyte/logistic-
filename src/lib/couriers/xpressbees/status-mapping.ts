@@ -1,7 +1,7 @@
 import type { EcommerceShipmentStatus } from "@/types";
 
 /**
- * Maps Xpressbees status codes and status strings to ShopWave domain EcommerceShipmentStatus
+ * Maps Xpressbees status codes and status strings to Shipwave domain EcommerceShipmentStatus
  *
  * Xpressbees Status Codes from API specification PDF & carrier responses:
  * - "MAN", "booked", "created" -> MANIFESTED
@@ -14,6 +14,7 @@ import type { EcommerceShipmentStatus } from "@/types";
  * - "RT-DL", "rto_delivered" -> RTO_DELIVERED
  * - "CAN", "cancelled", "cancelled_by_client" -> CANCELLED
  */
+
 export function mapXpressbeesStatus(
   statusCode?: string,
   generalStatus?: string,
