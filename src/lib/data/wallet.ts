@@ -8,6 +8,7 @@ import { toRupees } from "@/lib/finance/money";
 import type { WalletTransaction } from "@/types";
 
 export interface WalletSummary {
+  userId?: string;
   availableBalance: number; // Actual amount currently available for creating shipments
   pendingCod: number;       // Amount expected from COD settlements
   totalUsed: number;        // Total amount spent on shipping charges
@@ -15,6 +16,7 @@ export interface WalletSummary {
   transactions: WalletTransaction[];
   isDemo: boolean;
 }
+
 
 export async function getWalletSummary(filterType?: string): Promise<WalletSummary> {
   const session = await getEffectiveSession();
@@ -171,6 +173,7 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     .reduce((sum, s: any) => sum + Number(s.cod_amount || 0), 0);
 
   return {
+    userId,
     availableBalance,
     pendingCod,
     totalUsed,
@@ -179,3 +182,4 @@ export async function getWalletSummary(filterType?: string): Promise<WalletSumma
     isDemo: false,
   };
 }
+

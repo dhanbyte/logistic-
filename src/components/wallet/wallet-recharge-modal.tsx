@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Loader2, Plus, Sparkles, Wallet, X } from "lucide-react";
+import { CreditCard, Loader2, Plus, ShieldCheck, Sparkles, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
-import { rechargeWallet } from "@/app/ecommerce-actions";
+import { launchRazorpayRecharge } from "@/lib/finance/razorpay-client";
 import { formatINR } from "@/lib/calculations";
 
 export function WalletRechargeModal() {
@@ -13,19 +13,35 @@ export function WalletRechargeModal() {
   const [amount, setAmount] = useState<number>(2000);
   const [loading, setLoading] = useState(false);
 
-  const presets = [500, 1000, 2000, 5000, 10000];
+  const presets = [1, 500, 1000, 2000, 5000];
 
   async function handleRecharge() {
-    setLoading(true);
-    const res = await rechargeWallet(amount);
-    setLoading(false);
+    if (!amount || isNaN(amount) || amount < 1) {
+      toast.error("Please enter a valid recharge amount (minimum ₹1).");
+      return;
+    }
 
-    if (res.ok) {
-      toast.success(`Successfully recharged ${formatINR(amount)} to your wallet!`);
-      setOpen(false);
-      router.refresh();
-    } else {
-      toast.error(res.message);
+    setLoading(true);
+
+    const launched = await launchRazorpayRecharge({
+      amount,
+      onSuccess: () => {
+        setLoading(false);
+        toast.success(`Successfully recharged ${formatINR(amount)} via Razorpay!`);
+        setOpen(false);
+        router.refresh();
+      },
+      onError: (errMsg) => {
+        setLoading(false);
+        console.error("Razorpay error:", errMsg);
+      },
+      onClose: () => {
+        setLoading(false);
+      },
+    });
+
+    if (!launched) {
+      setLoading(false);
     }
   }
 
@@ -63,13 +79,14 @@ export function WalletRechargeModal() {
                 </label>
                 <input
                   type="number"
-                  min={100}
-                  step={100}
+                  min={1}
+                  step={1}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
                 />
               </div>
+
 
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">

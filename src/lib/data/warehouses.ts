@@ -145,7 +145,7 @@ export async function getWarehousesPageData(): Promise<WarehousesPageData> {
       totalInTransit: 0,
       totalDelivered: 0,
       pickupSuccessSla: "100%",
-      activeCouriers: ["Shadowfax", "Xpressbees"],
+      activeCouriers: ["Shadowfax"],
     };
   }
 
@@ -299,6 +299,6 @@ export async function getWarehousesPageData(): Promise<WarehousesPageData> {
     totalInTransit: globalInTransit,
     totalDelivered: globalDelivered,
     pickupSuccessSla: `${slaPercentage}%`,
-    activeCouriers: couriersSet.size > 0 ? Array.from(couriersSet) : ["Shadowfax", "Xpressbees"],
+    activeCouriers: couriersSet.size > 0 ? Array.from(couriersSet) : ["Shadowfax"],
   };
 }

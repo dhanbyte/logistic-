@@ -11,7 +11,6 @@ import { XpressbeesClient } from "./xpressbees/client";
 import { XpressbeesProvider } from "./xpressbees/provider";
 
 export const SUPPORTED_COURIERS = [
-  "xpressbees",
   "shadowfax",
 ] as const;
 

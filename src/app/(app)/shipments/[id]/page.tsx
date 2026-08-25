@@ -7,12 +7,16 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Compass,
   Download,
   ExternalLink,
   FileText,
+  MapPin,
+  MessageCircle,
   Package,
   Printer,
   RotateCcw,
+  Share2,
   ShieldAlert,
   Truck,
   User,
@@ -22,6 +26,7 @@ import {
   PrintLabelButton,
   PrintManifestButton,
 } from "@/components/shipments/print-label-button";
+import { ShareTrackingWidget } from "@/components/shipments/share-tracking-widget";
 import { formatINR } from "@/lib/calculations";
 import { getEcommerceShipmentById } from "@/lib/data/ecommerce-shipments";
 
@@ -37,15 +42,35 @@ export default async function ShipmentDetailPage({
     notFound();
   }
 
+  const isDelivered = shipment.shipmentStatus === "DELIVERED";
+  const isOutForDelivery = shipment.shipmentStatus === "OUT_FOR_DELIVERY";
+  const isInTransit = ["IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"].includes(shipment.shipmentStatus);
+  const isPickedUp = ["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"].includes(shipment.shipmentStatus);
+
+  const currentLocationStr = isDelivered
+    ? `${shipment.order?.customer?.city || "Destination"}, ${shipment.order?.customer?.state || ""} (${shipment.deliveryPincode})`
+    : isOutForDelivery
+    ? `${shipment.order?.customer?.city || "Destination"} Local Delivery Hub`
+    : isInTransit
+    ? `En route to ${shipment.order?.customer?.city || "Destination"} Sort Center`
+    : `${shipment.warehouse?.city || "Origin"} Hub (${shipment.pickupPincode})`;
+
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link
           href="/shipments"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft size={14} /> Back to Shipments
         </Link>
+
+        <ShareTrackingWidget
+          awbNumber={shipment.awbNumber}
+          orderNumber={shipment.order?.orderNumber}
+          courierName={shipment.courierProvider?.name}
+          destinationCity={shipment.order?.customer?.city}
+        />
       </div>
 
       <PageHeader
@@ -53,6 +78,16 @@ export default async function ShipmentDetailPage({
         description={`Courier: ${shipment.courierProvider?.name} &bull; Order #${shipment.order?.orderNumber}`}
       >
         <div className="flex items-center gap-2">
+          <Link
+            href={`/track/${shipment.awbNumber}`}
+            target="_blank"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all shadow-2xs cursor-pointer"
+          >
+            <Compass size={14} />
+            <span>Public Tracking Link</span>
+            <ExternalLink size={12} />
+          </Link>
+
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${
               shipment.shipmentStatus === "DELIVERED"
@@ -70,6 +105,48 @@ export default async function ShipmentDetailPage({
           </span>
         </div>
       </PageHeader>
+
+      {/* Real-time Location & Pickup Telemetry Banner */}
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Live Current Location
+            </span>
+            <p className="text-sm font-black text-slate-900 mt-1 flex items-center gap-1.5">
+              <MapPin size={15} className="text-indigo-600 shrink-0" />
+              <span>{currentLocationStr}</span>
+            </p>
+          </div>
+
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Pickup &amp; Courier Handover
+            </span>
+            <p className="text-sm font-bold mt-1 flex items-center gap-1.5">
+              {isPickedUp ? (
+                <span className="text-emerald-700 font-black flex items-center gap-1">
+                  <CheckCircle2 size={15} /> Handover Completed by Shadowfax Rider
+                </span>
+              ) : (
+                <span className="text-amber-700 font-bold flex items-center gap-1">
+                  <Clock size={15} /> Awaiting Courier Rider Handover (Slot: Today 03-05 PM)
+                </span>
+              )}
+            </p>
+          </div>
+
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Estimated Delivery
+            </span>
+            <p className="text-sm font-black text-slate-900 mt-1 flex items-center gap-1.5">
+              <Calendar size={15} className="text-emerald-600 shrink-0" />
+              <span>{shipment.estimatedDeliveryDate ? new Date(shipment.estimatedDeliveryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "In 2-3 Days"}</span>
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* NDR Alert Banner if applicable */}
       {ndrCase && (
@@ -167,7 +244,7 @@ export default async function ShipmentDetailPage({
 
               {!trackingEvents.length && (
                 <div className="py-4 text-center text-xs text-slate-500">
-                  AWB created. Awaiting first scan at pickup hub.
+                  AWB created &bull; Ready for Shadowfax courier rider pickup at origin hub.
                 </div>
               )}
             </div>
@@ -248,88 +325,59 @@ export default async function ShipmentDetailPage({
               Logistics & Cost Breakdown
             </h3>
 
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between">
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Courier Partner:</span>
-                <span className="font-bold text-slate-900">
-                  {shipment.courierProvider?.name || "Delhivery"}
-                </span>
+                <span className="font-bold text-slate-800">{shipment.courierProvider?.name}</span>
               </div>
-
-              <div className="flex justify-between">
+              <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Routing Hub Code:</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {shipment.routingCode || "BOM-400"}
+                <span className="font-mono font-bold text-indigo-600">
+                  {shipment.routingCode || `SFX-${shipment.deliveryPincode}`}
                 </span>
               </div>
-
-              <div className="flex justify-between">
+              <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Dead Weight:</span>
-                <span className="font-semibold text-slate-800">{shipment.weightKg} kg</span>
+                <span className="font-semibold text-slate-700">{shipment.weightKg} kg</span>
               </div>
-
-              <div className="flex justify-between">
+              <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Volumetric Weight:</span>
-                <span className="font-semibold text-slate-800">
-                  {shipment.volumetricWeightKg} kg
-                </span>
+                <span className="font-semibold text-slate-700">{shipment.volumetricWeightKg} kg</span>
               </div>
-
-              <div className="flex justify-between rounded-lg bg-indigo-50 p-2 border border-indigo-100">
-                <span className="font-bold text-indigo-900">Chargeable Weight:</span>
-                <span className="font-extrabold text-indigo-700">
-                  {shipment.chargeableWeightKg} kg
-                </span>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">Chargeable Weight:</span>
+                <span className="font-bold text-indigo-900">{shipment.chargeableWeightKg} kg</span>
               </div>
-
-              <div className="border-t border-slate-100 pt-2 space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Payment Mode:</span>
-                  <span
-                    className={`font-bold rounded px-1.5 py-0.5 text-[10px] ${
-                      shipment.paymentMode === "COD"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-emerald-100 text-emerald-800"
-                    }`}
-                  >
-                    {shipment.paymentMode}
-                  </span>
-                </div>
-
-                {shipment.paymentMode === "COD" && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">COD Collectible:</span>
-                    <span className="font-bold text-slate-800">
-                      {formatINR(shipment.codAmount)}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex justify-between pt-1">
-                  <span className="text-slate-500">Shipping Freight:</span>
-                  <span className="font-bold text-slate-900">
-                    {formatINR(shipment.shippingCharge)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Live Tracking Link Button */}
-              <div className="pt-3 border-t border-slate-100">
-                <a
-                  href={
-                    shipment.trackingUrl ||
-                    (shipment.courierProvider?.code === "xpressbees"
-                      ? `https://www.xpressbees.com/track/${shipment.awbNumber}`
-                      : `https://track.shadowfax.in/track?orderId=${shipment.awbNumber}`)
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">Payment Mode:</span>
+                <span
+                  className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                    shipment.paymentMode === "COD"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}
                 >
-                  <Truck size={15} /> Track on {shipment.courierProvider?.name || "Courier"}
-                  <ExternalLink size={13} />
-                </a>
+                  {shipment.paymentMode}
+                </span>
               </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500">Shipping Freight:</span>
+                <span className="font-extrabold text-slate-900">
+                  {formatINR(shipment.shippingCharge)}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <Link
+                href={`/track/${shipment.awbNumber}`}
+                target="_blank"
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-2xs cursor-pointer"
+              >
+                <Compass size={14} />
+                <span>Open Public Tracking Page</span>
+                <ExternalLink size={12} />
+              </Link>
             </div>
           </div>
         </div>

@@ -244,9 +244,10 @@ export function EcommerceShipmentsTable({
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <Link
-                        href={`/shipments/${s.id}`}
+                        href={`/track/${s.awbNumber}`}
+                        target="_blank"
                         className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1"
-                        title="Live Tracking Details"
+                        title="Public Shareable Live Tracking Page"
                       >
                         <Truck size={12} /> Track
                       </Link>

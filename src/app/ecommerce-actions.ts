@@ -8,6 +8,8 @@ import type { CourierRateQuote } from "@/lib/couriers/types";
 import { toPaise, toRupees } from "@/lib/finance/money";
 import {
   commitShippingReservation,
+  computeAvailableFunds,
+  getOrCreateWallet,
   releaseShippingReservation,
   reserveShippingFunds,
 } from "@/lib/finance/wallet-service";
@@ -246,6 +248,25 @@ export async function createBulkOrders(
 }
 
 /**
+ * Gets live user wallet balance
+ */
+export async function getWalletBalanceAction(): Promise<{ balance: number }> {
+  try {
+    const session = await auth();
+    if (!session) {
+      const wallet = await getOrCreateWallet("default-user");
+      const computed = computeAvailableFunds(wallet);
+      return { balance: toRupees(computed.cashBalancePaise) };
+    }
+    const wallet = await getOrCreateWallet(session.user.id);
+    const computed = computeAvailableFunds(wallet);
+    return { balance: toRupees(computed.cashBalancePaise) };
+  } catch {
+    return { balance: 0 };
+  }
+}
+
+/**
  * Books a Courier Shipment for an existing order using the Courier Provider Layer
  */
 export async function bookShipmentForOrder(
@@ -257,6 +278,15 @@ export async function bookShipmentForOrder(
     const courier = getCourierProvider(courierCode);
 
     if (!session) {
+      const wallet = await getOrCreateWallet("default-user");
+      const computed = computeAvailableFunds(wallet);
+      if (computed.totalAvailableFundsPaise <= 0) {
+        return {
+          ok: false,
+          message: "Insufficient wallet balance (₹0.00). Please recharge your wallet before shipping this order.",
+        };
+      }
+
       const mockResult = await courier.createShipment({
         orderId,
         orderNumber: "SW-" + Date.now().toString().slice(-5),
@@ -638,23 +668,28 @@ export async function rechargeWallet(amount: number): Promise<ActionResult<{ new
     }
 
     const session = await auth();
-    if (!session) {
-      refreshEcommerceData();
-      return { ok: true, data: { newBalance: amount } };
-    }
-
-    const { user } = session;
+    const userId = session?.user?.id || "default-user";
     const paymentId = `PAY_RZP_${Date.now().toString().slice(-6)}`;
 
     const { creditWalletRecharge } = await import("@/lib/finance/wallet-service");
     const rechargeRes = await creditWalletRecharge({
-      userId: user.id,
+      userId,
       amountPaise: toPaise(amount),
       paymentId,
       gatewayReference: "Razorpay / UPI Instant Recharge",
     });
 
     refreshEcommerceData();
+    try {
+      revalidatePath("/wallet");
+      revalidatePath("/dashboard");
+      revalidatePath("/orders");
+      revalidatePath("/shipments");
+      revalidatePath("/");
+    } catch {
+      // ignore outside request
+    }
+
     return {
       ok: true,
       message: `Successfully recharged ₹${amount.toFixed(2)} to your wallet!`,

@@ -195,6 +195,38 @@ export default async function OrderDetailPage({
               </div>
             )}
           </div>
+
+          {order.shipment?.awbNumber && (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-5 shadow-xs space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-indigo-100/80 pb-2">
+                <Truck size={16} className="text-indigo-600" /> Courier Shipment
+              </h3>
+
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">AWB Number:</span>
+                  <span className="font-mono font-bold text-indigo-700">{order.shipment.awbNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Courier Partner:</span>
+                  <span className="font-semibold text-slate-800">
+                    {order.shipment.courierProvider?.name || "Shadowfax Forward"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href={`/track/${order.shipment.awbNumber}`}
+                  target="_blank"
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-2xs transition-all"
+                >
+                  <Truck size={14} />
+                  <span>Open Public Tracking Page</span>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

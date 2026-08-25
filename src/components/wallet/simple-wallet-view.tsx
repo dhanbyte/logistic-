@@ -41,10 +41,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { rechargeWallet } from "@/app/ecommerce-actions";
+import { launchRazorpayRecharge } from "@/lib/finance/razorpay-client";
 import { formatINR } from "@/lib/calculations";
 import type { WalletTransaction } from "@/types";
 
 interface SimpleWalletViewProps {
+  userId?: string;
   availableBalance: number;
   pendingCod: number;
   totalUsed: number;
@@ -53,12 +55,14 @@ interface SimpleWalletViewProps {
 }
 
 export function SimpleWalletView({
+  userId,
   availableBalance,
   pendingCod,
   totalUsed,
   isLowBalance,
   transactions,
 }: SimpleWalletViewProps) {
+
   const router = useRouter();
 
   // Optimistic Local States
@@ -177,38 +181,51 @@ export function SimpleWalletView({
 
   async function handleRecharge() {
     const finalAmount = customAmount ? Number(customAmount) : rechargeAmount;
-    if (!finalAmount || isNaN(finalAmount) || finalAmount < 100) {
-      toast.error("Please enter a valid recharge amount (minimum ₹100).");
+    if (!finalAmount || isNaN(finalAmount) || finalAmount < 1) {
+      toast.error("Please enter a valid recharge amount (minimum ₹1).");
       return;
     }
 
     setRechargeLoading(true);
-    const res = await rechargeWallet(finalAmount);
-    setRechargeLoading(false);
 
-    if (res.ok) {
-      const updatedBalance = res.data?.newBalance ?? localBalance + finalAmount;
-      setLocalBalance(updatedBalance);
+    const launched = await launchRazorpayRecharge({
+      amount: finalAmount,
+      userId,
+      onSuccess: (paymentData) => {
+        setRechargeLoading(false);
+        const updatedBalance = localBalance + finalAmount;
+        setLocalBalance(updatedBalance);
 
-      const newTxn: WalletTransaction = {
-        id: `tx-pay-${Date.now().toString().slice(-6)}`,
-        userId: "current-user",
-        transactionType: "CREDIT",
-        category: "WALLET_RECHARGE",
-        amount: finalAmount,
-        balanceAfter: updatedBalance,
-        referenceId: `PG_UPI_${Date.now().toString().slice(-6)}`,
-        description: `Wallet Recharge via ${paymentMethod}`,
-        createdAt: new Date().toISOString(),
-      };
-      setLocalTransactions((prev) => [newTxn, ...prev]);
+        const newTxn: WalletTransaction = {
+          id: paymentData.paymentId,
+          userId: userId || "current-user",
+          transactionType: "CREDIT",
+          category: "WALLET_RECHARGE",
+          amount: finalAmount,
+          balanceAfter: updatedBalance,
+          referenceId: paymentData.orderId || paymentData.paymentId,
+          description: `Razorpay Instant Wallet Recharge (${paymentMethod})`,
+          createdAt: new Date().toISOString(),
+        };
+        setLocalTransactions((prev) => [newTxn, ...prev]);
 
-      setRechargeOpen(false);
-      setCustomAmount("");
-      toast.success(`₹${finalAmount.toLocaleString("en-IN")} added to wallet successfully!`);
-      router.refresh();
-    } else {
-      toast.error(res.message || "Failed to process wallet recharge.");
+
+        setRechargeOpen(false);
+        setCustomAmount("");
+        toast.success(`₹${finalAmount.toLocaleString("en-IN")} added to wallet successfully via Razorpay!`);
+        router.refresh();
+      },
+      onError: (errMsg) => {
+        setRechargeLoading(false);
+        console.error("Razorpay recharge failed:", errMsg);
+      },
+      onClose: () => {
+        setRechargeLoading(false);
+      },
+    });
+
+    if (!launched) {
+      setRechargeLoading(false);
     }
   }
 
@@ -918,11 +935,13 @@ export function SimpleWalletView({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
                   <input
                     type="number"
-                    placeholder="Enter amount (min ₹100)"
+                    min={1}
+                    placeholder="Enter amount (min ₹1)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
                   />
+
                 </div>
               </div>
 
@@ -968,8 +987,8 @@ export function SimpleWalletView({
                 </div>
               </div>
 
-              {/* Recharge Summary */}
-              <div className="rounded-xl bg-slate-50 p-3 text-xs space-y-1 text-slate-600">
+              {/* Recharge Summary & Security Badge */}
+              <div className="rounded-xl bg-slate-50 p-3 text-xs space-y-1.5 text-slate-600 border border-slate-100">
                 <div className="flex justify-between">
                   <span>Recharge Amount:</span>
                   <span className="font-bold text-slate-900">
@@ -978,9 +997,9 @@ export function SimpleWalletView({
                 </div>
                 <div className="flex justify-between">
                   <span>Processing Fee / GST:</span>
-                  <span className="font-semibold text-emerald-700">₹0.00 (Zero Fee)</span>
+                  <span className="font-semibold text-emerald-700">₹0.00 (Zero Surcharge)</span>
                 </div>
-                <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200">
+                <div className="flex justify-between font-bold text-slate-900 pt-1.5 border-t border-slate-200">
                   <span>Estimated New Balance:</span>
                   <span className="text-emerald-700 font-extrabold">
                     {formatINR(
@@ -988,6 +1007,11 @@ export function SimpleWalletView({
                     )}
                   </span>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-50/60 py-1.5 px-2 text-[11px] font-medium text-indigo-700">
+                <ShieldCheck size={14} className="text-indigo-600 shrink-0" />
+                <span>Secured 256-bit Payment via <strong>Razorpay Payment Gateway</strong></span>
               </div>
             </div>
 
@@ -1006,10 +1030,20 @@ export function SimpleWalletView({
                 onClick={handleRecharge}
                 className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
               >
-                {rechargeLoading ? <Loader2 className="animate-spin size-3.5" /> : <Plus size={14} />}
-                Pay &amp; Recharge
+                {rechargeLoading ? (
+                  <>
+                    <Loader2 className="animate-spin size-3.5" />
+                    Opening Razorpay…
+                  </>
+                ) : (
+                  <>
+                    <Plus size={14} />
+                    Proceed with Razorpay ({formatINR(customAmount ? Number(customAmount) || 0 : rechargeAmount)})
+                  </>
+                )}
               </button>
             </div>
+
           </div>
         </div>
       )}

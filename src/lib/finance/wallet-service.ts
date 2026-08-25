@@ -1,4 +1,4 @@
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 import type {
   ComputedWalletBalance,
   TransactionDirection,
@@ -21,10 +21,26 @@ async function syncDatabaseBalances(supabase: any, userId: string, cashBalancePa
   if (!supabase) return;
   const bal = toRupees(cashBalancePaise);
   try {
-    await Promise.allSettled([
-      supabase.from("wallets").update({ balance: bal }).eq("user_id", userId),
-      supabase.from("profiles").update({ wallet_balance: bal }).eq("id", userId),
-    ]);
+    // 1. Update profiles table
+    await supabase.from("profiles").update({ wallet_balance: bal }).eq("id", userId);
+
+    // 2. Update wallets table if exists, or insert
+    const { data: existingWal } = await supabase
+      .from("wallets")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingWal) {
+      await supabase.from("wallets").update({ balance: bal }).eq("user_id", userId);
+    } else {
+      await supabase.from("wallets").insert({
+        id: `wal-${userId.slice(0, 8)}`,
+        user_id: userId,
+        balance: bal,
+        currency: "INR",
+      });
+    }
   } catch (err) {
     console.warn("[syncDatabaseBalances]", err);
   }
@@ -98,11 +114,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
         ? toPaise(Number(existing.balance))
         : 0;
 
-  // New sellers must start with ₹0.00; reset any legacy ₹500 starter credit
-  const currentCashPaise = rawCashPaise === toPaise(500) ? 0 : rawCashPaise;
-  if (rawCashPaise === toPaise(500) && supabase) {
-    syncDatabaseBalances(supabase, userId, 0);
-  }
+  const currentCashPaise = rawCashPaise;
 
   if (existing) {
     return {
@@ -245,14 +257,30 @@ export async function commitShippingReservation(params: {
   inMemoryReservations.set(params.reservationId, reservation);
   inMemoryWallets.set(reservation.userId, wallet);
 
-  // Sync to database if session active
+  // Sync to database
   const session = await getEffectiveSession();
-  if (session) {
-    await syncDatabaseBalances(session.supabase, reservation.userId, wallet.cashBalancePaise);
+  const supabase = session?.supabase || createServiceClient();
+  if (supabase) {
+    await syncDatabaseBalances(supabase, reservation.userId, wallet.cashBalancePaise);
+    try {
+      await supabase.from("wallet_transactions").insert({
+        user_id: reservation.userId,
+        transaction_type: "DEBIT",
+        category: "SHIPPING_DEDUCTION",
+        amount: toRupees(deductAmountPaise),
+        balance_after: toRupees(wallet.cashBalancePaise),
+        reference_id: params.awbNumber,
+        awb_number: params.awbNumber,
+        description: `Shipping Charge for AWB ${params.awbNumber}`,
+      });
+    } catch (err) {
+      console.warn("[commitShippingReservation.insertTxn]", err);
+    }
   }
 
   return { ok: true, message: "Reservation committed and freight deducted." };
 }
+
 
 /**
  * Stage 3: Release Reservation on Failed Dispatch or Cancellation
@@ -328,9 +356,26 @@ export async function creditWalletRecharge(params: {
   });
 
   const session = await getEffectiveSession();
-  if (session) {
-    await syncDatabaseBalances(session.supabase, params.userId, wallet.cashBalancePaise);
+  const supabase = session?.supabase || createServiceClient();
+  if (supabase) {
+    await syncDatabaseBalances(supabase, params.userId, wallet.cashBalancePaise);
+
+    try {
+      await supabase.from("wallet_transactions").insert({
+        user_id: params.userId,
+        transaction_type: "CREDIT",
+        category: "WALLET_RECHARGE",
+        amount: toRupees(params.amountPaise),
+        balance_after: toRupees(wallet.cashBalancePaise),
+        reference_id: params.paymentId,
+        payment_gateway_reference: params.gatewayReference || "Razorpay / UPI Instant Recharge",
+        description: `Prepaid wallet recharge of ₹${toRupees(params.amountPaise).toFixed(2)}`,
+      });
+    } catch (err) {
+      console.warn("[creditWalletRecharge.insertTxn]", err);
+    }
   }
+
 
   return {
     ok: true,
@@ -475,9 +520,29 @@ export async function processShipmentCancellationRefund(params: {
   });
 
   const session = await getEffectiveSession();
-  if (session) {
-    await syncDatabaseBalances(session.supabase, params.userId, wallet.cashBalancePaise);
+  const supabase = session?.supabase || createServiceClient();
+  if (supabase) {
+    await syncDatabaseBalances(supabase, params.userId, wallet.cashBalancePaise);
+    try {
+      await supabase.from("wallet_transactions").insert({
+        user_id: params.userId,
+        transaction_type: "CREDIT",
+        category: "REFUND",
+        amount: toRupees(refundAmountPaise),
+        balance_after: toRupees(wallet.cashBalancePaise),
+        reference_id: params.awbNumber,
+        awb_number: params.awbNumber,
+        description: `Cancellation Refund (${refundPercentage}%) for AWB ${params.awbNumber}${
+          cancellationFeePaise > 0
+            ? ` [₹${toRupees(cancellationFeePaise).toFixed(2)} cancellation fee retained]`
+            : ""
+        }`,
+      });
+    } catch (err) {
+      console.warn("[processShippingCancellation.insertTxn]", err);
+    }
   }
+
 
   return {
     ok: true,

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
     const signature = request.headers.get("x-razorpay-signature") || request.headers.get("x-webhook-signature");
-    const secret = process.env.PAYMENT_WEBHOOK_SECRET || "shipwave_webhook_secret_key";
+    const secret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || "shipwave_webhook_secret_key";
 
     // 1. Signature Verification
     const isValid = verifyWebhookSignature(rawBody, signature, secret);

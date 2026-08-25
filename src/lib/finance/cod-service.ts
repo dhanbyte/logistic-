@@ -88,22 +88,22 @@ const inMemoryUserBankDetails = new Map<string, UserBankDetails>();
  * 3. Verified Merchant Bank Profile
  */
 export function getUserBankDetails(userId?: string): UserBankDetails {
-  const uid = userId || "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+  const uid = userId || "default-user";
   const existing = inMemoryUserBankDetails.get(uid);
   if (existing) {
     return existing;
   }
 
   const defaultDetails: UserBankDetails = {
-    accountHolderName: "ShopWave Retail Solutions",
-    bankName: "HDFC Bank Ltd",
-    accountNumber: "5010049281920",
-    maskedAccountNumber: "••••1920",
-    ifsc: "HDFC0001234",
+    accountHolderName: "Seller Account",
+    bankName: "Bank Account Pending Setup",
+    accountNumber: "",
+    maskedAccountNumber: "••••----",
+    ifsc: "REQUIRED",
     accountType: "CURRENT",
-    upiId: "shopwave@hdfcbank",
-    isVerified: true,
-    beneficiaryStatus: "ACTIVE",
+    upiId: "",
+    isVerified: false,
+    beneficiaryStatus: "PENDING",
     updatedAt: new Date().toISOString(),
   };
 
@@ -218,65 +218,22 @@ export async function getMerchantCodBatches(userId: string): Promise<{
     rawShipments = data || [];
   }
 
-  // Fallback demo shipment records if no database rows exist yet
+  // Real database mode: If user has 0 COD shipments, return empty arrays and zero metrics
   if (rawShipments.length === 0) {
-    rawShipments = [
-      {
-        id: "shp-cod-01",
-        user_id: userId,
-        order_id: "ord-10025",
-        order: { order_number: "ORD-10025", customer_name: "Aakash Sharma" },
-        awb_number: "SF37164698128",
-        courier_provider: { name: "Shadowfax Forward", code: "shadowfax" },
-        payment_mode: "COD",
-        cod_amount: 1999,
-        shipping_charge: 65,
-        shipment_status: "DELIVERED",
-        created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
-        delivered_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    return {
+      batches: [],
+      allOrders: [],
+      bankDetails,
+      summary: {
+        pendingCodInField: 0,
+        upcomingSettlement: 0,
+        payableToday: 0,
+        totalRemitted: 0,
+        totalCodCollected: 0,
+        totalFreightAndFees: 0,
+        nextSettlementDate: "T+3 Daily",
       },
-      {
-        id: "shp-cod-02",
-        user_id: userId,
-        order_id: "ord-10026",
-        order: { order_number: "ORD-10026", customer_name: "Priya Hegde" },
-        awb_number: "XB8892104921",
-        courier_provider: { name: "Xpressbees Surface", code: "xpressbees" },
-        payment_mode: "COD",
-        cod_amount: 3499,
-        shipping_charge: 80,
-        shipment_status: "DELIVERED",
-        created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-        delivered_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-      },
-      {
-        id: "shp-cod-03",
-        user_id: userId,
-        order_id: "ord-10027",
-        order: { order_number: "ORD-10027", customer_name: "Rohan Varma" },
-        awb_number: "SF37164698199",
-        courier_provider: { name: "Shadowfax Forward", code: "shadowfax" },
-        payment_mode: "COD",
-        cod_amount: 1450,
-        shipping_charge: 54,
-        shipment_status: "IN_TRANSIT",
-        created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-      },
-      {
-        id: "shp-cod-04",
-        user_id: userId,
-        order_id: "ord-10028",
-        order: { order_number: "ORD-10028", customer_name: "Sunita Roy" },
-        awb_number: "XB8892104999",
-        courier_provider: { name: "Xpressbees Surface", code: "xpressbees" },
-        payment_mode: "COD",
-        cod_amount: 2200,
-        shipping_charge: 70,
-        shipment_status: "DELIVERED",
-        created_at: new Date(Date.now() - 8 * 86400000).toISOString(),
-        delivered_at: new Date(Date.now() - 7 * 86400000).toISOString(),
-      },
-    ];
+    };
   }
 
   // 1. Process Order-Level Itemized Records

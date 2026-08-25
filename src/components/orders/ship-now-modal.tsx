@@ -24,7 +24,12 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { bookShipmentForOrder, fetchCourierRatesAction } from "@/app/ecommerce-actions";
+import {
+  bookShipmentForOrder,
+  fetchCourierRatesAction,
+  getWalletBalanceAction,
+  rechargeWallet,
+} from "@/app/ecommerce-actions";
 import { formatINR } from "@/lib/calculations";
 import {
   isCourierConfigured,
@@ -45,9 +50,9 @@ export function ShipNowModal({
   const router = useRouter();
   const [quotes, setQuotes] = useState<CourierRateQuote[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
-  const [selectedCourier, setSelectedCourier] = useState<string>("xpressbees");
+  const [selectedCourier, setSelectedCourier] = useState<string>("shadowfax");
   const [booking, setBooking] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number>(5000);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
   const [recharging, setRecharging] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<{
     awbNumber: string;
@@ -73,31 +78,41 @@ export function ShipNowModal({
       return;
     }
 
-    async function loadRates() {
+    async function loadRatesAndWallet() {
       if (!order) return;
       setLoadingQuotes(true);
       setBookingSuccess(null);
 
-      const rates = await fetchCourierRatesAction({
-        pickupPincode: order.warehouse?.pincode || "110020",
-        deliveryPincode: order.customer?.pincode || "400050",
-        weightKg: deadWeight,
-        lengthCm: length,
-        widthCm: width,
-        heightCm: height,
-        paymentMode: order.paymentMode,
-        declaredValue: order.orderAmount,
-      });
+      try {
+        const [rates, balRes] = await Promise.all([
+          fetchCourierRatesAction({
+            pickupPincode: order.warehouse?.pincode || "110020",
+            deliveryPincode: order.customer?.pincode || "400050",
+            weightKg: deadWeight,
+            lengthCm: length,
+            widthCm: width,
+            heightCm: height,
+            paymentMode: order.paymentMode,
+            declaredValue: order.orderAmount,
+          }),
+          getWalletBalanceAction(),
+        ]);
 
-      setQuotes(rates);
-      if (rates.length > 0) {
-        const liveQuote = rates.find((q) => isCourierConfigured(q.courierCode));
-        setSelectedCourier(liveQuote ? liveQuote.courierCode : rates[0].courierCode);
+        setQuotes(rates);
+        setWalletBalance(balRes.balance);
+
+        if (rates.length > 0) {
+          const liveQuote = rates.find((q) => isCourierConfigured(q.courierCode));
+          setSelectedCourier(liveQuote ? liveQuote.courierCode : rates[0].courierCode);
+        }
+      } catch (err) {
+        console.error("Failed to fetch rates:", err);
+      } finally {
+        setLoadingQuotes(false);
       }
-      setLoadingQuotes(false);
     }
 
-    loadRates();
+    loadRatesAndWallet();
   }, [open, order, deadWeight, length, width, height]);
 
   if (!open || !order) return null;
@@ -109,9 +124,13 @@ export function ShipNowModal({
   async function handleQuickRecharge(amount: number) {
     setRecharging(true);
     try {
-      // Direct instant test recharge
-      setWalletBalance((prev) => prev + amount);
-      toast.success(`Wallet topped up by ${formatINR(amount)}! You can now book this shipment.`);
+      const res = await rechargeWallet(amount);
+      if (res.ok && res.data) {
+        setWalletBalance(res.data.newBalance);
+        toast.success(`Wallet recharged with ${formatINR(amount)}! You can now ship this parcel.`);
+      } else {
+        toast.error(res.message || "Recharge failed.");
+      }
     } catch {
       toast.error("Recharge failed.");
     } finally {
@@ -121,8 +140,12 @@ export function ShipNowModal({
 
   async function handleBook() {
     if (!order) return;
-    setBooking(true);
+    if (hasLowBalance) {
+      toast.error(`Insufficient balance (${formatINR(walletBalance)}). Please recharge minimum ${formatINR(requiredAmount)}.`);
+      return;
+    }
 
+    setBooking(true);
     const res = await bookShipmentForOrder(order.id, selectedCourier);
     setBooking(false);
 
@@ -169,6 +192,7 @@ export function ShipNowModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
           >
@@ -178,125 +202,123 @@ export function ShipNowModal({
 
         {bookingSuccess ? (
           /* Post-Booking Success Screen */
-          <div className="py-6 space-y-5 text-center">
-            <div className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-100 text-emerald-600">
-              <CheckCircle size={28} />
+          <div className="mt-6 text-center space-y-4 py-4">
+            <div className="mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-600 animate-bounce">
+              <CheckCircle size={32} />
             </div>
 
             <div>
-              <h4 className="text-lg font-bold text-slate-900">Shipment Booked &amp; Freight Deducted!</h4>
+              <h4 className="text-lg font-black text-slate-900">
+                Shipment Dispatched Successfully!
+              </h4>
               <p className="text-xs text-slate-500 mt-1">
-                AWB generated with <strong className="text-slate-800">{bookingSuccess.courierName}</strong>
+                AWB generated with {bookingSuccess.courierName}. Deducted{" "}
+                <strong className="text-slate-800 font-semibold">{formatINR(bookingSuccess.amountDeducted)}</strong> from prepaid wallet.
               </p>
-              <div className="mt-3 inline-block rounded-xl bg-slate-100 px-5 py-2.5 text-center border border-slate-200">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  AWB Tracking Number
+            </div>
+
+            {/* AWB Card */}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-left font-mono space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
+                  Waybill / AWB Number
                 </span>
-                <span className="text-xl font-mono font-black text-indigo-700">
-                  {bookingSuccess.awbNumber}
+                <span className="rounded bg-emerald-200/80 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
+                  READY FOR RIDER PICKUP
                 </span>
+              </div>
+              <p className="text-xl font-black text-emerald-950 tracking-wider">
+                {bookingSuccess.awbNumber}
+              </p>
+              <div className="flex items-center justify-between text-xs text-emerald-800 pt-1 border-t border-emerald-200">
+                <span>Chargeable: {bookingSuccess.chargeableWeight.toFixed(2)} kg</span>
+                <span>Remaining Wallet: {formatINR(walletBalance)}</span>
               </div>
             </div>
 
-            {/* Deduction Ledger Notice */}
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-900 text-left flex items-start gap-2.5">
-              <Wallet size={16} className="text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">
-                  Deducted {formatINR(bookingSuccess.amountDeducted)} from Prepaid Wallet
-                </p>
-                <p className="text-[11px] text-indigo-700 mt-0.5">
-                  Charged on Chargeable Weight: <strong>{bookingSuccess.chargeableWeight.toFixed(2)} kg</strong>. Recorded in{" "}
-                  <Link href="/wallet" onClick={onClose} className="font-bold underline hover:text-indigo-950">
-                    Wallet Transactions Ledger
-                  </Link>.
-                </p>
-              </div>
-            </div>
-
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <a
+              <Link
                 href={bookingSuccess.labelUrl || `/shipments/${bookingSuccess.shipmentId}/label`}
                 target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 flex items-center justify-center gap-1.5 shadow-md"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm"
               >
-                <Printer size={15} /> Print 4x6 Shipping Label
-              </a>
-
-              <Link
-                href={`/shipments/${bookingSuccess.shipmentId}`}
-                onClick={onClose}
-                className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
-              >
-                <ExternalLink size={14} /> Track Parcel Live
+                <Printer size={15} />
+                <span>Print Shipping Label (4x6)</span>
               </Link>
-            </div>
-
-            <div className="border-t border-slate-100 pt-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="w-full sm:w-auto rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
-                Close &amp; Return to Orders
+                Close &amp; View Orders
               </button>
             </div>
           </div>
         ) : (
-          /* Courier Selection & Dynamic Weight Screen */
           <div className="mt-4 space-y-4">
-            {/* Dynamic Volumetric & Dead Weight Calculation Banner */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs">
+            {/* Weight Calculation Specs */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Scale size={14} className="text-indigo-600" /> Dynamic Weight Calculation (L × B × H)
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Scale size={14} className="text-indigo-600" />
+                  Dynamic Weight Calculation (L &times; B &times; H)
                 </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    isVolumetricHigher
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {isVolumetricHigher ? "Volumetric Weight Applied" : "Dead Weight Applied"}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                  {isVolumetricHigher ? "Volumetric Applied" : "Dead Weight Applied"}
                 </span>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[11px] pt-2 border-t border-slate-200/60">
-                <div className="rounded-lg bg-white p-1.5 border border-slate-100">
-                  <span className="text-slate-400 block text-[10px]">Dead Weight</span>
-                  <span className="font-bold text-slate-800">{deadWeight.toFixed(2)} kg</span>
+
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="rounded-lg bg-white p-2 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block">Dead Weight</span>
+                  <span className="font-bold text-slate-800">{deadWeight} kg</span>
                 </div>
-                <div className="rounded-lg bg-white p-1.5 border border-slate-100">
-                  <span className="text-slate-400 block text-[10px]">Dimensions</span>
-                  <span className="font-bold text-slate-800">{length}×{width}×{height} cm</span>
+                <div className="rounded-lg bg-white p-2 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block">Dimensions</span>
+                  <span className="font-bold text-slate-800">
+                    {length}&times;{width}&times;{height} cm
+                  </span>
                 </div>
-                <div className="rounded-lg bg-indigo-50/80 p-1.5 border border-indigo-200">
-                  <span className="text-indigo-700 block text-[10px] font-bold">Chargeable Weight</span>
-                  <span className="font-black text-indigo-900">{chargeableWeight.toFixed(2)} kg</span>
+                <div className="rounded-lg bg-white p-2 border border-indigo-200 bg-indigo-50/40">
+                  <span className="text-[10px] text-indigo-600 font-semibold block">Chargeable Weight</span>
+                  <span className="font-extrabold text-indigo-950">
+                    {chargeableWeight.toFixed(2)} kg
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Low Wallet Balance Warning & 1-Click Quick Recharge */}
+            {/* Low Balance Warning & Instant Recharge Bar */}
             {hasLowBalance && (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 shadow-xs space-y-2">
-                <div className="flex items-start gap-2">
-                  <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 space-y-2.5 animate-in fade-in">
+                <div className="flex items-start gap-2 text-xs text-rose-900 font-medium">
+                  <ShieldAlert size={16} className="text-rose-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-amber-900">Insufficient Wallet Balance</h4>
-                    <p className="text-[11px] text-amber-800 mt-0.5">
-                      Required for shipping: <strong>{formatINR(requiredAmount)}</strong> &bull; Available in wallet: <strong>{formatINR(walletBalance)}</strong>
-                    </p>
+                    <strong className="font-bold text-rose-950 block">
+                      Insufficient Wallet Balance: {formatINR(walletBalance)}
+                    </strong>
+                    <span>
+                      Shipping charge is <strong>{formatINR(requiredAmount)}</strong>. You must recharge your wallet before generating AWB.
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <span className="text-[11px] font-semibold text-amber-950">1-Click Topup:</span>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-rose-200/80">
+                  <span className="text-[11px] font-bold text-rose-950">Quick Recharge:</span>
+                  <button
+                    type="button"
+                    disabled={recharging}
+                    onClick={() => handleQuickRecharge(200)}
+                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    + ₹200
+                  </button>
                   <button
                     type="button"
                     disabled={recharging}
                     onClick={() => handleQuickRecharge(500)}
-                    className="rounded-lg bg-amber-600 hover:bg-amber-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer"
+                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     + ₹500
                   </button>
@@ -304,7 +326,7 @@ export function ShipNowModal({
                     type="button"
                     disabled={recharging}
                     onClick={() => handleQuickRecharge(1000)}
-                    className="rounded-lg bg-amber-700 hover:bg-amber-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer"
+                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     + ₹1,000
                   </button>
@@ -313,7 +335,7 @@ export function ShipNowModal({
                     target="_blank"
                     className="ml-auto text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
                   >
-                    Custom Recharge &rarr;
+                    Open Wallet &rarr;
                   </Link>
                 </div>
               </div>
@@ -325,7 +347,7 @@ export function ShipNowModal({
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   Select Courier Partner
                 </label>
-                <span className="text-[11px] text-slate-400">Sorted by lowest cost</span>
+                <span className="text-[11px] text-slate-400">Direct Partner Integration</span>
               </div>
 
               {loadingQuotes ? (
@@ -411,12 +433,18 @@ export function ShipNowModal({
                 </button>
                 <button
                   type="button"
-                  disabled={booking || loadingQuotes || quotes.length === 0}
+                  disabled={booking || loadingQuotes || quotes.length === 0 || hasLowBalance}
                   onClick={handleBook}
-                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5 shadow-md cursor-pointer"
+                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   {booking && <Loader2 className="size-3.5 animate-spin" />}
-                  <span>{booking ? "Booking Parcel…" : "Confirm & Generate AWB"}</span>
+                  <span>
+                    {booking
+                      ? "Booking Parcel…"
+                      : hasLowBalance
+                      ? "Insufficient Balance"
+                      : "Confirm & Generate AWB"}
+                  </span>
                 </button>
               </div>
             </div>

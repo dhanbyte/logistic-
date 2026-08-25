@@ -12,6 +12,7 @@ export default async function WalletPage({
 
   return (
     <SimpleWalletView
+      userId={summary.userId}
       availableBalance={summary.availableBalance}
       pendingCod={summary.pendingCod}
       totalUsed={summary.totalUsed}
@@ -19,4 +20,5 @@ export default async function WalletPage({
       transactions={summary.transactions}
     />
   );
+
 }

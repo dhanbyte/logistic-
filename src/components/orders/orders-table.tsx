@@ -482,7 +482,14 @@ export function OrdersTable({
 
                       {shipmentAwb && (
                         <div className="mt-1 flex items-center gap-1 text-[11px]">
-                          <span className="font-mono font-bold text-indigo-600">{shipmentAwb}</span>
+                          <Link
+                            href={`/track/${shipmentAwb}`}
+                            target="_blank"
+                            className="font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                            title="Open Public Tracking Page"
+                          >
+                            {shipmentAwb}
+                          </Link>
                           {courierName && (
                             <span className="text-[10px] text-slate-400">({courierName})</span>
                           )}
@@ -572,7 +579,8 @@ export function OrdersTable({
                         ) : (
                           <>
                             <Link
-                              href={`/shipments/${order.shipment?.id || order.id}`}
+                              href={shipmentAwb ? `/track/${shipmentAwb}` : `/shipments/${order.shipment?.id || order.id}`}
+                              target={shipmentAwb ? "_blank" : undefined}
                               className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1"
                               title="Track Live Shipment"
                             >
