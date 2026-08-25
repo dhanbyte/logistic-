@@ -222,8 +222,9 @@ export function PincodeServiceabilityMatrix() {
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                {activeLocation.city}, {activeLocation.state} &bull; 29,000+ PIN Codes Network
+                {activeLocation.city}, {activeLocation.state} &bull; 10,000+ PIN Codes Network (2,500+ Cities)
               </p>
+
             </div>
           </div>
 

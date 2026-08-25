@@ -429,7 +429,7 @@ export default function LandingPage() {
                   6 Couriers
                 </span>
                 <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 mt-1">
-                  <CheckCircle2 size={12} className="text-emerald-500" /> 29,000+ PINs
+                  <CheckCircle2 size={12} className="text-emerald-500" /> 10,000+ PINs (2,500+ Cities)
                 </span>
               </div>
             </div>
@@ -952,7 +952,7 @@ export default function LandingPage() {
                     <span className="font-bold text-slate-900 text-sm">Delhivery Surface</span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Est. delivery: 2-3 Days &bull; 29,000+ PIN reach
+                    Est. delivery: 2-3 Days &bull; 10,000+ PIN reach
                   </p>
                 </div>
                 <div className="text-right">
@@ -978,7 +978,7 @@ export default function LandingPage() {
               Pincode Serviceability Matrix
             </h2>
             <p className="mt-2 text-xs sm:text-sm text-slate-600">
-              Check 29,000+ Indian PIN codes, COD availability, and reverse pickup coverage across all courier partners.
+              Check 10,000+ Indian PIN codes, COD availability, and reverse pickup coverage across all courier partners.
             </p>
           </div>
 
@@ -1076,7 +1076,7 @@ export default function LandingPage() {
                     We aggregate India&apos;s leading couriers including Shadowfax, Xpressbees, Delhivery, Blue Dart, Ekart, and DTDC under a single unified API and dashboard.
                   </p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>29,000+ serviceable postal pincodes across India</li>
+                    <li>10,000+ serviceable postal pincodes across 2,500+ Indian cities</li>
                     <li>Guaranteed T+3 Days Cash on Delivery (COD) Remittance</li>
                     <li>Automated WhatsApp NDR verification &amp; RTO reduction engine</li>
                   </ul>

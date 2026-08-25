@@ -46,8 +46,9 @@ export default function AdminServiceabilityPage() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">Pan-India Pincode Serviceability Matrix</h1>
         <p className="text-xs text-slate-500">
-          Check 29,000+ Indian PIN codes, COD availability, and reverse pickup coverage by courier partner.
+          Check 10,000+ Shadowfax and Multi-Courier PIN codes, COD availability, and reverse pickup coverage.
         </p>
+
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs max-w-md">
