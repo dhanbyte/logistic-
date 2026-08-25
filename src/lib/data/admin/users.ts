@@ -1,4 +1,4 @@
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 import type { AdminKycRecord } from "@/types/admin";
 
 export interface AdminUserListItem {
@@ -19,17 +19,18 @@ export interface AdminUserListItem {
 
 export async function getAdminUsersList(): Promise<AdminUserListItem[]> {
   const session = await getEffectiveSession();
-  if (!session) return [];
-  const { supabase } = session;
+  const supabase = createServiceClient() || session?.supabase;
+  if (!supabase) return [];
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, company_name, gstin, kyc_status, wallet_balance, created_at");
+    .select("id, full_name, email, phone, company_name, gstin, kyc_status, wallet_balance, created_at")
+    .order("created_at", { ascending: false });
 
   const { data: wallets } = await supabase.from("wallets").select("user_id, balance");
   const { data: orders } = await supabase.from("orders").select("user_id, order_amount");
 
-  const walletMap = new Map((wallets || []).map((w: any) => [w.user_id, w.balance]));
+  const walletMap = new Map((wallets || []).map((w: any) => [w.user_id, Number(w.balance || 0)]));
   const orderStats = new Map<string, { count: number; spent: number }>();
 
   (orders || []).forEach((o: any) => {
@@ -40,24 +41,28 @@ export async function getAdminUsersList(): Promise<AdminUserListItem[]> {
   });
 
   return (profiles || []).map((p: any) => {
-    const stats = orderStats.get(p.id) || { count: 4, spent: 4890 };
+    const stats = orderStats.get(p.id);
+    const balance = walletMap.get(p.id) ?? (p.wallet_balance !== undefined && p.wallet_balance !== null ? Number(p.wallet_balance) : 0);
+    const emailName = p.email ? p.email.split("@")[0] : "Merchant";
+
     return {
       id: p.id,
-      name: p.full_name || "Dhananjay",
-      email: p.email || "dhananjay.win2004@gmail.com",
-      phone: p.phone || "9876543210",
-      companyName: p.company_name || "Dhanbyte Logistics",
+      name: p.full_name || emailName,
+      email: p.email || "seller@shipwave.me",
+      phone: p.phone || "Not Provided",
+      companyName: p.company_name || `${p.full_name || emailName} Store`,
       gstStatus: p.gstin ? "Registered" : "Not Provided",
       kycStatus: (p.kyc_status as any) || "VERIFIED",
-      walletBalance: walletMap.get(p.id) ?? (p.wallet_balance || 15400),
-      totalOrders: stats.count,
-      totalSpent: stats.spent,
+      walletBalance: balance,
+      totalOrders: stats ? stats.count : 0,
+      totalSpent: stats ? stats.spent : 0,
       status: "ACTIVE",
-      createdAt: p.created_at || "2026-08-23",
-      lastLogin: "Today, 03:50 PM",
+      createdAt: p.created_at ? p.created_at.slice(0, 10) : "2026-08-23",
+      lastLogin: "Active",
     };
   });
 }
+
 
 export async function getAdminKycRecords(): Promise<AdminKycRecord[]> {
   const users = await getAdminUsersList();

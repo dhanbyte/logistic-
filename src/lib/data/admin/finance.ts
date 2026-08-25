@@ -1,4 +1,4 @@
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 import type {
   AdminCodSettlement,
   AdminRemittanceRequest,
@@ -7,8 +7,8 @@ import type {
 
 export async function getAdminWalletLedger(): Promise<AdminWalletLedgerItem[]> {
   const session = await getEffectiveSession();
-  if (!session) return [];
-  const { supabase } = session;
+  const supabase = createServiceClient() || session?.supabase;
+  if (!supabase) return [];
 
   const { data: transactions } = await supabase
     .from("wallet_transactions")
@@ -41,8 +41,9 @@ export async function getAdminWalletLedger(): Promise<AdminWalletLedgerItem[]> {
 
 export async function getAdminCodSettlements(): Promise<AdminCodSettlement[]> {
   const session = await getEffectiveSession();
-  if (!session) return [];
-  const { supabase } = session;
+  const supabase = createServiceClient() || session?.supabase;
+  if (!supabase) return [];
+
 
   const { data: shipments } = await supabase
     .from("ecommerce_shipments")

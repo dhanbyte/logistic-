@@ -138,28 +138,45 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
           </div>
         </div>
 
-        {/* Quick Bank Presets */}
-        <div className="mb-5">
-          <Label className="text-xs font-semibold text-slate-600 block mb-1.5">
-            Popular Banks (Click to Select)
-          </Label>
-          <div className="flex flex-wrap gap-1.5">
-            {POPULAR_BANKS.map((b) => (
-              <button
-                key={b}
-                type="button"
-                onClick={() => setBankName(b)}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                  bankName === b
-                    ? "bg-indigo-600 text-white font-bold shadow-2xs"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                {b}
-              </button>
-            ))}
+        {/* Verified Lock Banner */}
+        {isVerified && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900 flex items-start gap-3">
+            <Lock size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-amber-900">Payout Bank Details Locked</h4>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-amber-800">
+                Your bank settlement account is verified and locked for fraud prevention &amp; RBI compliance.
+                To change your bank account, please contact Admin Support with a copy of your cancelled cheque.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Quick Bank Presets */}
+        {!isVerified && (
+          <div className="mb-5">
+            <Label className="text-xs font-semibold text-slate-600 block mb-1.5">
+              Popular Banks (Click to Select)
+            </Label>
+            <div className="flex flex-wrap gap-1.5">
+              {POPULAR_BANKS.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setBankName(b)}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                    bankName === b
+                      ? "bg-indigo-600 text-white font-bold shadow-2xs"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         {/* Form Inputs Grid */}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -170,10 +187,11 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
               id="accountHolderName"
               name="accountHolderName"
               required
+              disabled={isVerified}
               value={accountHolderName}
               onChange={(e) => setAccountHolderName(e.target.value)}
               placeholder="e.g. Bharat Retail Solutions Pvt Ltd"
-              className="mt-1 font-medium"
+              className={`mt-1 font-medium ${isVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200" : ""}`}
             />
             <p className="text-[11px] text-slate-400 mt-1">Must match registered company or GST name</p>
           </div>
@@ -185,10 +203,11 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
               id="bankName"
               name="bankName"
               required
+              disabled={isVerified}
               value={bankName}
               onChange={(e) => setBankName(e.target.value)}
               placeholder="e.g. HDFC Bank Ltd"
-              className="mt-1 font-medium"
+              className={`mt-1 font-medium ${isVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200" : ""}`}
             />
           </div>
 
@@ -210,10 +229,11 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
               name="accountNumber"
               type={showAccountNumber ? "text" : "password"}
               required
+              disabled={isVerified}
               value={accountNumber}
               onChange={(e) => setAccountNumber(e.target.value)}
               placeholder="Enter 9 to 18-digit bank account number"
-              className="mt-1 font-mono font-medium"
+              className={`mt-1 font-mono font-medium ${isVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200" : ""}`}
             />
           </div>
 
@@ -225,10 +245,11 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
               name="confirmAccountNumber"
               type={showAccountNumber ? "text" : "password"}
               required
+              disabled={isVerified}
               value={confirmAccountNumber}
               onChange={(e) => setConfirmAccountNumber(e.target.value)}
               placeholder="Re-enter bank account number"
-              className="mt-1 font-mono font-medium"
+              className={`mt-1 font-mono font-medium ${isVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200" : ""}`}
             />
           </div>
 
@@ -240,10 +261,11 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
               name="ifsc"
               required
               maxLength={11}
+              disabled={isVerified}
               value={ifsc}
               onChange={(e) => setIfsc(e.target.value.toUpperCase())}
               placeholder="e.g. HDFC0001234"
-              className="mt-1 font-mono uppercase font-bold"
+              className={`mt-1 font-mono uppercase font-bold ${isVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200" : ""}`}
             />
             <p className="text-[11px] text-slate-400 mt-1">
               Branch: {ifsc.length === 11 ? `${bankName || "Branch"} (${ifsc})` : "Enter complete IFSC"}
@@ -256,24 +278,26 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
             <div className="grid grid-cols-2 gap-2 mt-1">
               <button
                 type="button"
+                disabled={isVerified}
                 onClick={() => setAccountType("CURRENT")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold ${
                   accountType === "CURRENT"
                     ? "border-indigo-600 bg-indigo-50 text-indigo-700 font-bold"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+                } ${isVerified ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
               >
                 <Building2 size={13} /> Current Account
               </button>
 
               <button
                 type="button"
+                disabled={isVerified}
                 onClick={() => setAccountType("SAVINGS")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold ${
                   accountType === "SAVINGS"
                     ? "border-indigo-600 bg-indigo-50 text-indigo-700 font-bold"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+                } ${isVerified ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
               >
                 <CreditCard size={13} /> Savings Account
               </button>
@@ -288,10 +312,11 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
               <Input
                 id="upiId"
                 name="upiId"
+                disabled={isVerified}
                 value={upiId}
                 onChange={(e) => setUpiId(e.target.value)}
                 placeholder="e.g. merchant@hdfcbank or 9876543210@paytm"
-                className="pl-9 font-medium"
+                className={`pl-9 font-medium ${isVerified ? "bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200" : ""}`}
               />
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
@@ -320,20 +345,26 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isVerifying}
-              onClick={handleVerifyPennyDrop}
-              className="text-xs font-semibold border-emerald-300 text-emerald-800 hover:bg-emerald-100/60"
-            >
-              {isVerifying ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Sparkles size={13} className="text-emerald-700" />
-              )}
-              {isVerifying ? "Verifying…" : "Test Penny Drop (₹1)"}
-            </Button>
+            {!isVerified ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isVerifying}
+                onClick={handleVerifyPennyDrop}
+                className="text-xs font-semibold border-emerald-300 text-emerald-800 hover:bg-emerald-100/60"
+              >
+                {isVerifying ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Sparkles size={13} className="text-emerald-700" />
+                )}
+                {isVerifying ? "Verifying…" : "Test Penny Drop (₹1)"}
+              </Button>
+            ) : (
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-100/70 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <ShieldCheck size={15} /> Locked for Payouts
+              </span>
+            )}
           </div>
         </div>
 
@@ -346,16 +377,19 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
         </div>
 
         {/* Submit Actions */}
-        <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
-          >
-            {loading && <Loader2 className="size-3.5 animate-spin" />}
-            {loading ? "Saving Bank Details…" : "Save & Verify Bank Account"}
-          </Button>
-        </div>
+        {!isVerified && (
+          <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              {loading && <Loader2 className="size-3.5 animate-spin" />}
+              {loading ? "Saving Bank Details…" : "Save & Verify Bank Account"}
+            </Button>
+          </div>
+        )}
+
       </div>
     </form>
   );

@@ -1,21 +1,32 @@
-import { AlertTriangle, CheckCircle2, IndianRupee, Scale, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, IndianRupee, RotateCcw, Scale, ShieldCheck } from "lucide-react";
 import { formatINR } from "@/lib/calculations";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 
-export default function AdminReconciliationPage() {
-  const disputes = [
-    {
-      id: "rec-01",
-      awbNumber: "SF37164698496",
-      seller: "Dhanbyte Logistics",
-      courier: "Shadowfax Express",
-      declaredWeight: "0.50 kg",
-      courierAuditedWeight: "0.85 kg",
-      excessWeight: "+0.35 kg",
-      extraChargeClaimed: 25,
-      status: "AUTO_ACCEPTED",
-      date: "2026-08-24",
-    },
-  ];
+export default async function AdminReconciliationPage() {
+  const session = await getEffectiveSession();
+  const supabase = createServiceClient() || session?.supabase;
+
+  let disputes: any[] = [];
+
+  if (supabase) {
+    const { data } = await supabase
+      .from("ecommerce_shipments")
+      .select("*, order:orders(*), courier_provider:courier_providers(*)")
+      .gt("volumetric_weight_kg", 0)
+      .order("created_at", { ascending: false });
+
+    disputes = (data || []).filter((s: any) => Number(s.chargeable_weight_kg) > Number(s.weight_kg)).map((d: any) => ({
+      id: `rec-${d.id.slice(0, 8)}`,
+      awbNumber: d.awb_number,
+      seller: d.order?.customer_name || "Merchant",
+      courier: d.courier_provider?.name || "Courier Partner",
+      declaredWeight: `${Number(d.weight_kg || 0).toFixed(2)} kg`,
+      courierAuditedWeight: `${Number(d.chargeable_weight_kg || d.volumetric_weight_kg || 0).toFixed(2)} kg`,
+      extraChargeClaimed: Math.max(0, Number(d.shipping_charge || 0) - Number(d.courier_charge || 0)),
+      status: "RECONCILED",
+      date: d.created_at ? d.created_at.slice(0, 10) : "Today",
+    }));
+  }
 
   return (
     <div className="space-y-6">
@@ -58,6 +69,17 @@ export default function AdminReconciliationPage() {
                 </td>
               </tr>
             ))}
+            {!disputes.length && (
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <Scale size={28} className="mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700 text-sm">No Weight Discrepancies</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    All merchant declared weights perfectly match courier audited weights. 0 dispute fees.
+                  </p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

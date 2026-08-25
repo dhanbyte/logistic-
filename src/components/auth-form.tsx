@@ -7,10 +7,8 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  ShieldCheck,
-  Sparkles,
-  Zap,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { registerSellerAction } from "@/app/ecommerce-actions";
 import { createClient } from "@/lib/supabase/client";
@@ -46,35 +44,7 @@ export function AuthForm({
     router.refresh();
   }
 
-  async function handleQuickAdminLogin() {
-    setLoading(true);
-    const supabase = createClient();
-    if (!supabase) {
-      handleEnterDemo("/admin");
-      return;
-    }
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: "dhananjay.win2004@gmail.com",
-        password: "Admin@123456",
-      });
-
-      if (error) {
-        handleEnterDemo("/admin");
-        return;
-      }
-
-      document.cookie = "shopwave_demo=; path=/; max-age=0";
-      toast.success("Welcome, Super Admin!");
-      router.push("/admin");
-      router.refresh();
-    } catch {
-      handleEnterDemo("/admin");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -325,80 +295,10 @@ export function AuthForm({
           )}
         </button>
 
-        {/* 4. SUPER ADMIN QUICK ACCESS CARD */}
-        {currentMode === "login" && (
-          <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-sm space-y-2 mt-4">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-white">
-                <Zap size={14} className="text-amber-400 fill-amber-400" />
-                <span>Super Admin Portal Access</span>
-              </span>
-              <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 text-[9px] font-extrabold">
-                ROOT
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Account: <strong className="text-slate-200">dhananjay.win2004@gmail.com</strong>
-            </p>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleQuickAdminLogin}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
-            >
-              <ShieldCheck size={14} />
-              <span>1-Click Launch Super Admin Panel &rarr;</span>
-            </button>
-          </div>
-        )}
 
-        {/* 5. DEMO EXPLORATION BUTTON */}
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => handleEnterDemo("/dashboard")}
-            className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
-          >
-            <Sparkles size={14} className="text-indigo-600" />
-            <span>Explore ShopWave Demo Workspace</span>
-            <ArrowRight size={13} className="text-slate-400" />
-          </button>
-        </div>
 
-        {/* 6. FOOTER SWITCH LINK */}
-        <div className="pt-2 text-center text-xs text-slate-500">
-          {currentMode === "login" ? (
-            <span>
-              New to ShopWave?{" "}
-              <button
-                type="button"
-                onClick={() => setTab("register")}
-                className="font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer underline-offset-2 hover:underline"
-              >
-                Create account
-              </button>
-            </span>
-          ) : currentMode === "register" ? (
-            <span>
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setTab("login")}
-                className="font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer underline-offset-2 hover:underline"
-              >
-                Sign in
-              </button>
-            </span>
-          ) : (
-            <Link
-              href="/login"
-              className="font-semibold text-indigo-600 hover:text-indigo-800"
-            >
-              Back to Sign in
-            </Link>
-          )}
-        </div>
       </form>
     </div>
   );
 }
+

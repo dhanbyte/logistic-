@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
 import { formatINR } from "@/lib/calculations";
+import { PincodeServiceabilityMatrix } from "@/components/landing/pincode-serviceability-matrix";
+
 
 // Sample mock tracking database for public tracking lookup demo
 interface TrackingRecord {
@@ -243,7 +245,15 @@ export default function LandingPage() {
             >
               Rate Calculator
             </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("serviceability")}
+              className="hover:text-slate-900 transition-colors cursor-pointer"
+            >
+              PIN Serviceability
+            </button>
           </nav>
+
 
           {/* Nav Actions */}
           <div className="flex items-center gap-3">
@@ -957,8 +967,30 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 7. MINIMALIST MODERN FOOTER */}
+      {/* 7. PINCODE SERVICEABILITY MATRIX */}
+      <section id="serviceability" className="py-16 sm:py-24 bg-white border-b border-slate-200/80">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 block mb-2">
+              Pan-India Network Reach
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              Pincode Serviceability Matrix
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-slate-600">
+              Check 29,000+ Indian PIN codes, COD availability, and reverse pickup coverage across all courier partners.
+            </p>
+          </div>
+
+          <div className="max-w-5xl mx-auto">
+            <PincodeServiceabilityMatrix />
+          </div>
+        </div>
+      </section>
+
+      {/* 8. MINIMALIST MODERN FOOTER */}
       <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
+
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
           <p>© 2026 Shipwave. Logistics operations with clarity.</p>
           <div className="flex flex-wrap items-center justify-center gap-5 text-xs">

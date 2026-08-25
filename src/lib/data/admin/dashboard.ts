@@ -1,9 +1,11 @@
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 import type { AdminDashboardKpis } from "@/types/admin";
 
 export async function getAdminDashboardKpis(): Promise<AdminDashboardKpis> {
   const session = await getEffectiveSession();
-  if (!session) {
+  const supabase = createServiceClient() || session?.supabase;
+  if (!supabase) {
+
     return {
       totalUsers: 14,
       activeUsers: 12,
@@ -31,9 +33,8 @@ export async function getAdminDashboardKpis(): Promise<AdminDashboardKpis> {
     };
   }
 
-  const { supabase } = session;
-
   // 1. Fetch count of users
+
   const { count: usersCount } = await supabase.from("profiles").select("id", { count: "exact", head: true });
 
   // 2. Fetch count of orders
@@ -75,33 +76,37 @@ export async function getAdminDashboardKpis(): Promise<AdminDashboardKpis> {
     totalShippingRevenue += Number(s.total_shipping_charge || 0);
   });
 
-  // 4. Fetch wallets total
-  const { data: wallets } = await supabase.from("wallets").select("balance");
-  const totalWalletBalance = (wallets || []).reduce((acc: number, w: any) => acc + Number(w.balance || 0), 0);
+  // 4. Fetch profiles wallet balances
+  const { data: profiles } = await supabase.from("profiles").select("wallet_balance");
+  const totalWalletBalance = (profiles || []).reduce((acc: number, p: any) => acc + Number(p.wallet_balance || 0), 0);
+
+  const realTotalOrders = (ordersCount || 0) + (shipments || []).length;
+  const netPlatformRevenue = Math.round(totalShippingRevenue * 0.15);
 
   return {
-    totalUsers: Math.max(usersCount || 1, 1),
-    activeUsers: Math.max(usersCount || 1, 1),
-    newUsersToday: 1,
-    totalOrders: Math.max(ordersCount || 4, (shipments || []).length),
-    todaysOrders: Math.max(1, (shipments || []).length),
-    pendingOrders: pendingOrders || 2,
-    inTransit: inTransit || 0,
-    delivered: delivered || 0,
-    cancelled: cancelled || 0,
-    rto: rto || 0,
-    ndr: ndr || 0,
-    codOrders: codOrders || 3,
-    prepaidOrders: prepaidOrders || 1,
-    totalCodCollection: totalCodCollection || 4890,
-    totalPrepaidValue: totalPrepaidValue || 999,
-    totalShippingRevenue: totalShippingRevenue || 340,
-    platformRevenue: Math.round((totalShippingRevenue || 340) * 0.15),
-    pendingSettlements: totalCodCollection || 4890,
-    completedSettlements: 12480,
-    totalWalletBalance: totalWalletBalance || 15400,
+    totalUsers: usersCount || (profiles || []).length || 0,
+    activeUsers: usersCount || (profiles || []).length || 0,
+    newUsersToday: (profiles || []).length > 0 ? 1 : 0,
+    totalOrders: realTotalOrders || (shipments || []).length || 0,
+    todaysOrders: (shipments || []).length,
+    pendingOrders,
+    inTransit,
+    delivered,
+    cancelled,
+    rto,
+    ndr,
+    codOrders,
+    prepaidOrders,
+    totalCodCollection,
+    totalPrepaidValue,
+    totalShippingRevenue,
+    platformRevenue: netPlatformRevenue,
+    pendingSettlements: totalCodCollection,
+    completedSettlements: delivered > 0 ? totalCodCollection : 0,
+    totalWalletBalance,
     pendingWalletRequests: 0,
-    pendingRemittance: 4750,
+    pendingRemittance: 0,
     failedPayments: 0,
   };
 }
+

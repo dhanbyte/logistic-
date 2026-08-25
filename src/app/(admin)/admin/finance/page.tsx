@@ -13,8 +13,11 @@ import {
   Wallet,
 } from "lucide-react";
 import { formatINR } from "@/lib/calculations";
+import { getAdminDashboardKpis } from "@/lib/data/admin/dashboard";
 
-export default function AdminFinanceOverviewPage() {
+export default async function AdminFinanceOverviewPage() {
+  const kpis = await getAdminDashboardKpis();
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -33,10 +36,10 @@ export default function AdminFinanceOverviewPage() {
             Adjust Wallet
           </Link>
           <Link
-            href="/admin/finance/remittance"
+            href="/admin/finance/cod-settlements"
             className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
           >
-            Review Remittances (1)
+            Review Settlements ({kpis.pendingOrders})
           </Link>
         </div>
       </div>
@@ -44,26 +47,27 @@ export default function AdminFinanceOverviewPage() {
       {/* KPI Highlights */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Total COD Collected</span>
-          <p className="text-2xl font-black text-slate-900 mt-1">{formatINR(384000)}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Dispatched &amp; Delivered</p>
+          <span className="text-xs font-medium text-slate-500">Total COD Volume</span>
+          <p className="text-2xl font-black text-slate-900 mt-1">{formatINR(kpis.totalCodCollection)}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{kpis.codOrders} COD Shipments</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
           <span className="text-xs font-medium text-slate-500">Shipping Revenue Billed</span>
-          <p className="text-2xl font-black text-indigo-700 mt-1">{formatINR(92450)}</p>
+          <p className="text-2xl font-black text-indigo-700 mt-1">{formatINR(kpis.totalShippingRevenue)}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Paid via Shipper Wallets</p>
         </div>
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-xs">
           <span className="text-xs font-bold text-emerald-900">Platform Realized Profit</span>
-          <p className="text-2xl font-black text-emerald-700 mt-1">{formatINR(14820)}</p>
+          <p className="text-2xl font-black text-emerald-700 mt-1">{formatINR(kpis.platformRevenue)}</p>
           <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Net spread after carrier cost</p>
         </div>
         <div className="rounded-2xl border border-teal-200 bg-teal-50/70 p-5 shadow-xs">
           <span className="text-xs font-bold text-teal-900">Shipper Wallet Escrow</span>
-          <p className="text-2xl font-black text-teal-800 mt-1">{formatINR(94800)}</p>
-          <p className="text-[11px] text-teal-600 mt-0.5">Liquid balance held</p>
+          <p className="text-2xl font-black text-teal-800 mt-1">{formatINR(kpis.totalWalletBalance)}</p>
+          <p className="text-[11px] text-teal-600 mt-0.5">Liquid balance across {kpis.totalUsers} sellers</p>
         </div>
       </div>
+
 
       {/* Quick Navigation Cards */}
       <div className="grid gap-4 sm:grid-cols-3 text-xs">

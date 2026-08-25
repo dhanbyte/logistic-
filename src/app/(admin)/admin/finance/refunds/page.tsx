@@ -1,20 +1,32 @@
 import { CheckCircle2, RotateCcw, Search } from "lucide-react";
 import { formatINR } from "@/lib/calculations";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 
-export default function AdminRefundsPage() {
-  const refunds = [
-    {
-      id: "ref-991",
-      userId: "usr-1",
-      userName: "Dhanbyte Logistics",
-      type: "CANCELLED_LABEL_REFUND",
-      awbNumber: "SF37164698496",
-      refundAmount: 42.5,
-      reason: "Shipper cancelled before courier pickup. Instant wallet credit.",
-      processedAt: "2026-08-24 15:45",
+export default async function AdminRefundsPage() {
+  const session = await getEffectiveSession();
+  const supabase = createServiceClient() || session?.supabase;
+
+  let refunds: any[] = [];
+
+  if (supabase) {
+    const { data } = await supabase
+      .from("wallet_transactions")
+      .select("*, profile:profiles(*)")
+      .in("category", ["REFUND", "SHIPPING_REVERSAL", "CANCELLATION_REFUND"])
+      .order("created_at", { ascending: false });
+
+    refunds = (data || []).map((t: any) => ({
+      id: `ref-${t.id.slice(0, 8)}`,
+      userId: t.user_id,
+      userName: t.profile?.full_name || t.profile?.company_name || "Merchant",
+      type: t.category || "REFUND",
+      awbNumber: t.reference_id || t.awb_number || "—",
+      refundAmount: Number(t.amount || 0),
+      reason: t.description || "Shipment cancellation freight refund credited to wallet.",
+      processedAt: t.created_at ? t.created_at.slice(0, 16).replace("T", " ") : "Today",
       status: "COMPLETED",
-    },
-  ];
+    }));
+  }
 
   return (
     <div className="space-y-6">
@@ -60,6 +72,17 @@ export default function AdminRefundsPage() {
                 </td>
               </tr>
             ))}
+            {!refunds.length && (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <RotateCcw size={28} className="mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700 text-sm">No Refunds Processed</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    No freight cancellations or refunds have been recorded yet.
+                  </p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

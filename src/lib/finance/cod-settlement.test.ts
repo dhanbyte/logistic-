@@ -11,8 +11,10 @@ import {
   recordPayoutFailure,
   rejectSettlementBatch,
   retryCodPayout,
+  saveUserBankDetails,
   submitBatchForApproval,
 } from "./cod-service";
+
 import { toPaise } from "./money";
 
 describe("COD Remittance & Bank Settlement System", () => {
@@ -71,6 +73,12 @@ describe("COD Remittance & Bank Settlement System", () => {
 
   describe("3. Verified User Bank Profile", () => {
     it("returns verified bank details with masked account number", () => {
+      saveUserBankDetails("user-123", {
+        accountHolderName: "Dhananjay",
+        bankName: "HDFC Bank Ltd",
+        accountNumber: "50200049281920",
+        ifsc: "HDFC0001234",
+      });
       const bank = getUserBankDetails("user-123");
       expect(bank.isVerified).toBe(true);
       expect(bank.bankName).toBe("HDFC Bank Ltd");
@@ -79,6 +87,7 @@ describe("COD Remittance & Bank Settlement System", () => {
       expect(bank.beneficiaryStatus).toBe("ACTIVE");
     });
   });
+
 
   describe("4. Merchant and Admin Batch Retrieval", () => {
     it("computes merchant batches and top summary metrics", async () => {

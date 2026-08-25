@@ -79,6 +79,20 @@ export function SellerSettingsForm({ seller }: { seller: SellerAccount }) {
           </div>
 
           <div>
+            <Label htmlFor="registeredEmail">Registered Login Email (Immutable) *</Label>
+            <div className="relative mt-1">
+              <Input
+                id="registeredEmail"
+                name="registeredEmail"
+                disabled
+                defaultValue={seller.email}
+                className="bg-slate-50 font-mono text-slate-500 cursor-not-allowed border-slate-200"
+              />
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Primary account identifier. Cannot be changed.</p>
+          </div>
+
+          <div>
             <Label htmlFor="phone">Registered Mobile Number *</Label>
             <Input
               id="phone"
@@ -89,6 +103,7 @@ export function SellerSettingsForm({ seller }: { seller: SellerAccount }) {
               placeholder="e.g. 9876543210"
             />
           </div>
+
 
           <div>
             <Label htmlFor="gstin">15-Digit GSTIN</Label>

@@ -56,9 +56,22 @@ export default async function RtoPage() {
                 </td>
               </tr>
             ))}
+            {!rtoShipments.length && (
+
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <RotateCcw size={28} className="mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700 text-sm">No RTO Shipments</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    None of your parcels are currently marked for Return to Origin. All deliveries are proceeding normally.
+                  </p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
     </>
   );
 }
+

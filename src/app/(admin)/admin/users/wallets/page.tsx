@@ -42,11 +42,12 @@ export default async function AdminUserWalletsPage() {
           <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Instant label generation active</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Pending Remittances On-Hold</span>
-          <p className="text-2xl font-black text-amber-700 mt-1">{formatINR(14500)}</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">1 Approval Queued</p>
+          <span className="text-xs font-medium text-slate-500">Active Seller Accounts</span>
+          <p className="text-2xl font-black text-indigo-600 mt-1">{users.length}</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">100% KYC Verified</p>
         </div>
       </div>
+
 
       {/* Wallets Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">

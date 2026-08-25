@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   approveSettlementBatch,
   executeBankPayoutWithUtr,
+  getUserBankDetails,
   holdSettlementBatch,
   recordPayoutFailure,
   rejectSettlementBatch,
@@ -11,6 +12,7 @@ import {
   saveUserBankDetails,
   submitBatchForApproval,
 } from "@/lib/finance/cod-service";
+
 import { getEffectiveSession } from "@/lib/supabase/server";
 import { recordAdminAuditLog } from "./admin-actions";
 
@@ -204,7 +206,16 @@ export async function updateUserBankDetailsAction(formData: FormData) {
     const session = await getEffectiveSession();
     const userId = session ? session.user.id : "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
 
+    const existing = getUserBankDetails(userId);
+    if (existing && existing.isVerified) {
+      return {
+        ok: false,
+        message: "Bank settlement details are locked and verified. Please contact Admin Support to change your registered payout bank account.",
+      };
+    }
+
     const saved = saveUserBankDetails(userId, {
+
       accountHolderName,
       bankName,
       accountNumber,

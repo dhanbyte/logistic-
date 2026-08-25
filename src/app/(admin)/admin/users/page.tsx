@@ -66,9 +66,12 @@ export default async function AdminUsersPage() {
         </div>
         <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 shadow-xs">
           <span className="text-xs font-bold text-indigo-900">Total Shipper Wallet Escrow</span>
-          <p className="text-2xl font-black text-indigo-700 mt-1">{formatINR(15400)}</p>
-          <span className="text-[11px] text-indigo-600 font-medium">Prepaid funds held</span>
+          <p className="text-2xl font-black text-indigo-700 mt-1">
+            {formatINR(users.reduce((acc, u) => acc + u.walletBalance, 0))}
+          </p>
+          <span className="text-[11px] text-indigo-600 font-medium">Prepaid funds across {users.length} merchants</span>
         </div>
+
         <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 shadow-xs">
           <span className="text-xs font-bold text-teal-900">COD Settlement Mode</span>
           <p className="text-2xl font-black text-teal-800 mt-1">T + 2 Days</p>

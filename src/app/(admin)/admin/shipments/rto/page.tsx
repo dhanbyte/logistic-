@@ -1,23 +1,35 @@
 import Link from "next/link";
 import { Package, RotateCcw, Truck } from "lucide-react";
 import { formatINR } from "@/lib/calculations";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 
-export default function AdminRtoPage() {
-  const rtoShipments = [
-    {
-      id: "rto-01",
-      awbNumber: "SF37164698496",
-      orderNumber: "ORD-564240",
-      seller: "Dhanbyte Logistics",
-      courier: "Shadowfax Express",
-      rtoReason: "Customer Repeatedly Unavailable after 3 attempts",
-      originCity: "Noida",
-      destinationCity: "Patna",
-      rtoCharges: 42.5,
-      rtoStatus: "IN_TRANSIT_TO_ORIGIN",
-      initiatedDate: "2026-08-23",
-    },
-  ];
+export default async function AdminRtoPage() {
+  const session = await getEffectiveSession();
+  const supabase = createServiceClient() || session?.supabase;
+
+  let rtoShipments: any[] = [];
+
+  if (supabase) {
+    const { data } = await supabase
+      .from("ecommerce_shipments")
+      .select("*, order:orders(*), courier_provider:courier_providers(*)")
+      .in("shipment_status", ["RTO_INITIATED", "RTO_DELIVERED", "RTO_IN_TRANSIT"])
+      .order("created_at", { ascending: false });
+
+    rtoShipments = (data || []).map((s: any) => ({
+      id: s.id,
+      awbNumber: s.awb_number,
+      orderNumber: s.order?.order_number || "ORD",
+      seller: s.order?.customer_name || "Merchant",
+      courier: s.courier_provider?.name || "Courier",
+      rtoReason: s.notes || "Customer unavailable / Rejected at delivery",
+      originCity: s.delivery_pincode || "Delivery",
+      destinationCity: s.pickup_pincode || "Warehouse",
+      rtoCharges: Number(s.shipping_charge || 0),
+      rtoStatus: s.shipment_status,
+      initiatedDate: s.created_at?.slice(0, 10) || "Today",
+    }));
+  }
 
   return (
     <div className="space-y-6">
@@ -71,6 +83,17 @@ export default function AdminRtoPage() {
                 </td>
               </tr>
             ))}
+            {!rtoShipments.length && (
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <RotateCcw size={28} className="mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700 text-sm">No RTO Shipments</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    No undelivered parcels returning to origin currently. All shipments are active or delivered.
+                  </p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

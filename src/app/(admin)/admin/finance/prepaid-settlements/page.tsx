@@ -1,21 +1,37 @@
-import { CheckCircle2, CreditCard, IndianRupee, Search } from "lucide-react";
+import { CheckCircle2, CreditCard, IndianRupee, RotateCcw, Search } from "lucide-react";
 import { formatINR } from "@/lib/calculations";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 
-export default function AdminPrepaidSettlementsPage() {
-  const prepaidSettlements = [
-    {
-      id: "set-pre-01",
-      userId: "usr-1",
-      userName: "Dhanbyte Logistics",
-      orderNumber: "ORD-991823",
-      awbNumber: "SF37164698496",
-      prepaidAmount: 2499,
-      shippingChargeDeducted: 42.5,
-      netSettledToWallet: 2456.5,
-      date: "2026-08-24",
-      status: "SETTLED",
-    },
-  ];
+export default async function AdminPrepaidSettlementsPage() {
+  const session = await getEffectiveSession();
+  const supabase = createServiceClient() || session?.supabase;
+
+  let prepaidSettlements: any[] = [];
+
+  if (supabase) {
+    const { data } = await supabase
+      .from("ecommerce_shipments")
+      .select("*, order:orders(*), profile:profiles(*)")
+      .eq("payment_mode", "PREPAID")
+      .order("created_at", { ascending: false });
+
+    prepaidSettlements = (data || []).map((s: any) => {
+      const prepaidAmt = Number(s.declared_value || 0);
+      const freight = Number(s.shipping_charge || 0);
+      return {
+        id: `set-pre-${s.id.slice(0, 8)}`,
+        userId: s.user_id,
+        userName: s.profile?.full_name || s.profile?.company_name || s.order?.customer_name || "Merchant",
+        orderNumber: s.order?.order_number || "ORD-PRE",
+        awbNumber: s.awb_number,
+        prepaidAmount: prepaidAmt,
+        shippingChargeDeducted: freight,
+        netSettledToWallet: Math.max(0, prepaidAmt - freight),
+        date: s.created_at ? s.created_at.slice(0, 10) : "Today",
+        status: s.shipment_status === "DELIVERED" ? "SETTLED" : "ACTIVE",
+      };
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -61,6 +77,17 @@ export default function AdminPrepaidSettlementsPage() {
                 </td>
               </tr>
             ))}
+            {!prepaidSettlements.length && (
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <RotateCcw size={28} className="mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700 text-sm">No Prepaid Settlements</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    No prepaid shipments found in database.
+                  </p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

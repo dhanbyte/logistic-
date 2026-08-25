@@ -484,6 +484,29 @@ export async function approveSettlementBatch(
 ): Promise<{ ok: boolean; message: string }> {
   const batch = getOrCreateBatch(batchId);
 
+  // Check merchant KYC verification
+  try {
+    const { createServiceClient, getEffectiveSession } = await import("@/lib/supabase/server");
+    const session = await getEffectiveSession();
+    const supabase = createServiceClient() || session?.supabase;
+    if (supabase && batch.userId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("kyc_status")
+        .eq("id", batch.userId)
+        .maybeSingle();
+
+      if (profile && profile.kyc_status !== "VERIFIED") {
+        return {
+          ok: false,
+          message: `Payout Blocked: Merchant KYC status is '${profile.kyc_status || "PENDING"}'. Please approve merchant KYC before releasing bank payout.`,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[approveSettlementBatch.kycCheck]", err);
+  }
+
   batch.status = "APPROVED";
   batch.approvedBy = approverName;
   batch.approvedAt = new Date().toISOString();
@@ -492,6 +515,7 @@ export async function approveSettlementBatch(
   inMemoryCodSettlementBatches.set(batchId, batch);
   return { ok: true, message: `Batch ${batchId} approved. Ready for Bank Payout execution.` };
 }
+
 
 // Step 3: Reject settlement batch
 export async function rejectSettlementBatch(

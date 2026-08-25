@@ -58,16 +58,17 @@ export default async function AdminDashboardPage() {
             className="rounded-xl bg-slate-800 border border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-all shadow-xs flex items-center gap-1.5"
           >
             <ShieldCheck size={15} className="text-emerald-400" />
-            <span>KYC Queue (1)</span>
+            <span>KYC Records ({kpis.totalUsers})</span>
           </Link>
           <Link
-            href="/admin/finance/remittance"
+            href="/admin/finance/cod-settlements"
             className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-all shadow-xs flex items-center gap-1.5"
           >
             <IndianRupee size={15} />
-            <span>Remittances (1)</span>
+            <span>COD Settlements</span>
           </Link>
         </div>
+
       </div>
 
       {/* Section 1: User & Customer Metrics */}
@@ -189,8 +190,9 @@ export default async function AdminDashboardPage() {
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-xs">
             <span className="text-xs font-bold text-amber-900">Pending Remittances</span>
             <p className="text-xl font-black text-amber-800 mt-1">{formatINR(kpis.pendingRemittance)}</p>
-            <p className="text-[11px] text-amber-600 mt-0.5">1 Request Queued</p>
+            <p className="text-[11px] text-amber-600 mt-0.5">Automated T+2 cycle</p>
           </div>
+
         </div>
       </div>
 

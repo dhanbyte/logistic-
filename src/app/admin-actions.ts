@@ -131,22 +131,23 @@ export async function adjustUserWalletAction(params: {
   reason: string;
   referenceId?: string;
 }): Promise<ActionResult> {
+  const { createServiceClient } = await import("@/lib/supabase/server");
   const session = await getEffectiveSession();
-  if (!session) return { ok: false, message: "Authentication required." };
-  const { supabase, user } = session;
+  const supabase = createServiceClient() || session?.supabase;
+  if (!supabase) return { ok: false, message: "Database connection required." };
 
   if (params.amount <= 0) {
     return { ok: false, message: "Adjustment amount must be greater than zero." };
   }
 
-  // 1. Get current wallet
-  const { data: wallet } = await supabase
-    .from("wallets")
-    .select("id, balance, user_id")
-    .eq("user_id", params.userId)
-    .single();
+  // 1. Get current balance from profiles
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("wallet_balance, full_name, email")
+    .eq("id", params.userId)
+    .maybeSingle();
 
-  const prevBalance = wallet?.balance || 0;
+  const prevBalance = Number(profile?.wallet_balance || 0);
   const newBalance =
     params.type === "CREDIT" ? prevBalance + params.amount : prevBalance - params.amount;
 
@@ -154,23 +155,21 @@ export async function adjustUserWalletAction(params: {
     return { ok: false, message: "Insufficient balance for this debit adjustment." };
   }
 
-  // 2. Update wallet balance
-  if (wallet) {
-    await supabase
-      .from("wallets")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("id", wallet.id);
-  } else {
-    await supabase.from("wallets").insert({
-      user_id: params.userId,
-      balance: newBalance,
-      currency: "INR",
-    });
-  }
+  // 2. Update profiles & wallets table
+  await supabase
+    .from("profiles")
+    .update({ wallet_balance: newBalance, updated_at: new Date().toISOString() })
+    .eq("id", params.userId);
+
+  await supabase.from("wallets").upsert({
+    user_id: params.userId,
+    balance: newBalance,
+    currency: "INR",
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
 
   // 3. Create permanent ledger entry
   await supabase.from("wallet_transactions").insert({
-    wallet_id: wallet?.id || null,
     user_id: params.userId,
     transaction_type: params.type,
     amount: params.amount,
@@ -191,11 +190,15 @@ export async function adjustUserWalletAction(params: {
   });
 
   revalidatePath("/admin/users");
+  revalidatePath("/admin/users/wallets");
   revalidatePath("/admin/finance");
   revalidatePath("/admin/finance/wallet");
   revalidatePath("/admin/finance/ledger");
-  return { ok: true, message: `Successfully ${params.type.toLowerCase()}ed ₹${params.amount}. New balance: ₹${newBalance}.` };
+  revalidatePath("/wallet");
+  revalidatePath("/dashboard");
+  return { ok: true, message: `Successfully ${params.type.toLowerCase()}ed ₹${params.amount.toFixed(2)}. New balance: ₹${newBalance.toFixed(2)}.` };
 }
+
 
 /**
  * Approve Bank Remittance Request
