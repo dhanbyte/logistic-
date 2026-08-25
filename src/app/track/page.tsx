@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Compass, Search, Truck } from "lucide-react";
+
 
 export default function TrackSearchPage() {
   return (
