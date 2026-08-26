@@ -42,12 +42,15 @@ export function AppSidebar({
   close,
   walletBalance = 0,
   isDemo,
+  email,
 }: {
   open: boolean;
   close: () => void;
   walletBalance?: number;
   isDemo: boolean;
+  email?: string;
 }) {
+
   const path = usePathname();
   const sidebar = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -179,8 +182,25 @@ export function AppSidebar({
               </Link>
             );
           })}
+
+          {email === "dhananjay.win2004@gmail.com" && (
+            <div className="pt-3 mt-3 border-t border-slate-100">
+              <Link
+                href="/admin"
+                onClick={close}
+                className="group flex items-center justify-between rounded-xl bg-slate-900 text-white px-3 py-2.5 text-xs font-bold hover:bg-slate-800 transition-all shadow-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-sm">🛡️</span>
+                  <span>Super Admin Portal</span>
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400">&rarr;</span>
+              </Link>
+            </div>
+          )}
         </nav>
       </aside>
     </>
+
   );
 }

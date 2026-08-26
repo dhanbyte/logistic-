@@ -36,70 +36,22 @@ export async function POST(request: NextRequest) {
 
     const amountRupees = Number(amount) || 0;
     const amountPaise = toPaise(amountRupees);
-    let newBalanceRupees = 0;
 
-    const supabase = createServiceClient() || session?.supabase;
-
-    if (supabase && targetUserId) {
-      // 1. Fetch current profile balance
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("wallet_balance")
-        .eq("id", targetUserId)
-        .maybeSingle();
-
-      const currentBalance = typeof profile?.wallet_balance === "number" ? profile.wallet_balance : 0;
-      newBalanceRupees = Number((currentBalance + amountRupees).toFixed(2));
-
-      // 2. Update profiles table
-      await supabase
-        .from("profiles")
-        .update({ wallet_balance: newBalanceRupees })
-        .eq("id", targetUserId);
-
-      // 3. Update wallets table
-      const { data: wal } = await supabase
-        .from("wallets")
-        .select("id, balance")
-        .eq("user_id", targetUserId)
-        .maybeSingle();
-
-      if (wal) {
-        await supabase
-          .from("wallets")
-          .update({ balance: newBalanceRupees })
-          .eq("user_id", targetUserId);
-      } else {
-        await supabase.from("wallets").insert({
-          id: `wal-${targetUserId.slice(0, 8)}`,
-          user_id: targetUserId,
-          balance: newBalanceRupees,
-          currency: "INR",
-        });
-      }
-
-      // 4. Insert into wallet_transactions
-      await supabase.from("wallet_transactions").insert({
-        user_id: targetUserId,
-        transaction_type: "CREDIT",
-        category: "WALLET_RECHARGE",
-        amount: amountRupees,
-        balance_after: newBalanceRupees,
-        reference_id: razorpay_payment_id,
-        payment_gateway_reference: `Razorpay (${razorpay_order_id})`,
-        description: `Prepaid wallet recharge of ₹${amountRupees.toFixed(2)} via Razorpay`,
-      });
+    if (amountPaise <= 0) {
+      return NextResponse.json(
+        { error: "Invalid payment amount." },
+        { status: 400 }
+      );
     }
 
-    // Also update in-memory ledger
-    if (amountPaise > 0) {
-      await creditWalletRecharge({
-        userId: targetUserId,
-        amountPaise,
-        paymentId: razorpay_payment_id,
-        gatewayReference: `Razorpay (${razorpay_order_id})`,
-      });
-    }
+    const rechargeResult = await creditWalletRecharge({
+      userId: targetUserId,
+      amountPaise,
+      paymentId: razorpay_payment_id,
+      gatewayReference: `Razorpay (${razorpay_order_id})`,
+    });
+
+    const newBalanceRupees = toRupees(rechargeResult.newBalancePaise);
 
     return NextResponse.json({
       success: true,

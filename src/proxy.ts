@@ -45,14 +45,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(target);
   }
 
-  // If logged in via Supabase and trying to access login/register, redirect to dashboard or next
+  // If logged in via Supabase and trying to access login/register, redirect to admin (if Super Admin) or dashboard
   if (user && guestOnly) {
-    const nextPath = request.nextUrl.searchParams.get("next") || "/dashboard";
+    const isSuperAdmin = user.email === "dhananjay.win2004@gmail.com";
+    const defaultDestination = isSuperAdmin ? "/admin" : "/dashboard";
+    const nextPath = request.nextUrl.searchParams.get("next") || defaultDestination;
     const target = request.nextUrl.clone();
     target.pathname = nextPath;
     target.searchParams.delete("next");
     return NextResponse.redirect(target);
   }
+
 
   return response;
 }

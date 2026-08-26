@@ -40,7 +40,9 @@ export function AppShell({
         close={close}
         walletBalance={walletBalance}
         isDemo={isDemo}
+        email={email}
       />
+
       <div className="lg:pl-64 print:pl-0">
         <header className="sticky top-0 z-20 flex h-20 items-center border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-8 print:hidden">
           <button
@@ -55,6 +57,15 @@ export function AppShell({
             <Menu size={21} aria-hidden="true" />
           </button>
           <div className="ml-auto flex items-center gap-3">
+            {email === "dhananjay.win2004@gmail.com" && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-all shadow-xs"
+              >
+                <span>🛡️ Super Admin Panel</span>
+              </Link>
+            )}
+
             <Link
               href="/wallet"
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-2xs"
@@ -63,6 +74,7 @@ export function AppShell({
               <span className="hidden xs:inline text-slate-500 font-medium">Prepaid Wallet:</span>
               <span className="font-bold text-emerald-700">{formatINR(walletBalance)}</span>
             </Link>
+
 
             <span
               aria-hidden="true"

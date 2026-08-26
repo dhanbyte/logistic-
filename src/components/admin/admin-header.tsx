@@ -20,11 +20,20 @@ export function AdminHeader() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
+        {/* Switch to Seller App */}
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs"
+        >
+          <span>📦 Seller Workspace</span>
+        </Link>
+
         {/* Environment Badge */}
         <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
           <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>SHADOWFAX PROD</span>
         </div>
+
 
         {/* Quick Help / Docs */}
         <Link

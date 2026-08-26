@@ -53,7 +53,7 @@ export function AuthForm({
     setFormError("");
 
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email")).trim();
+    const email = String(form.get("email") || "").trim().toLowerCase();
     const password = String(form.get("password") || "");
     const fullName = String(form.get("fullName") || "").trim();
     const companyName = String(form.get("companyName") || "").trim();
@@ -80,8 +80,8 @@ export function AuthForm({
         document.cookie = "shipwave_demo=; path=/; max-age=0";
         toast.success("Welcome back to Shipwave!");
 
-        router.push(destination);
-        router.refresh();
+        // Force full navigation to guarantee session cookies are recognized by server layouts & proxy
+        window.location.href = destination;
         return;
       }
 
@@ -106,9 +106,8 @@ export function AuthForm({
           if (!signInErr) {
             document.cookie = "shipwave_demo=; path=/; max-age=0";
 
-            toast.success("Account created! ₹500 welcome shipping credit added.");
-            router.push("/dashboard");
-            router.refresh();
+            toast.success("Account created successfully!");
+            window.location.href = "/dashboard";
             return;
           }
         }
@@ -232,6 +231,9 @@ export function AuthForm({
             name="email"
             type="email"
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             required
             placeholder="you@company.com"
             className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"

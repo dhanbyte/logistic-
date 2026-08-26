@@ -1296,10 +1296,12 @@ export async function registerSellerAction(payload: {
   const serviceClient = createServiceClient();
   if (!serviceClient) return { ok: false, message: "Database connection unavailable." };
 
+  const cleanEmail = payload.email.trim().toLowerCase();
+
   try {
     // 1. Create or signup auth user
     const { data: authData, error: authError } = await serviceClient.auth.admin.createUser({
-      email: payload.email,
+      email: cleanEmail,
       password: payload.password,
       email_confirm: true, // auto-confirm email so they can log in immediately
       user_metadata: {
@@ -1319,7 +1321,7 @@ export async function registerSellerAction(payload: {
     // 2. Initialize Profile
     await serviceClient.from("profiles").upsert({
       id: userId,
-      email: payload.email,
+      email: cleanEmail,
       full_name: payload.fullName,
       company_name: payload.companyName,
       phone: payload.phone,
