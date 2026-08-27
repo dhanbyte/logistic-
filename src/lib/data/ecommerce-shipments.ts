@@ -301,6 +301,7 @@ export async function getEcommerceShipmentById(
         location: (row as any).warehouse?.city || "Origin Fulfillment Hub",
         scanDatetime: row.created_at,
         courierStatusCode: "MAN",
+        rawPayload: null,
         createdAt: row.created_at,
       },
     ];

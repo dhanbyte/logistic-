@@ -19,7 +19,7 @@ export async function recordAdminAuditLog(params: {
     if (!session) return;
     const { supabase, user } = session;
 
-    await supabase.from("admin_audit_logs").insert({
+    await (supabase as any).from("admin_audit_logs").insert({
       admin_id: user.id,
       admin_name: user.email || "Super Admin",
       action: params.action,
@@ -161,7 +161,7 @@ export async function adjustUserWalletAction(params: {
     .update({ wallet_balance: newBalance, updated_at: new Date().toISOString() })
     .eq("id", params.userId);
 
-  await supabase.from("wallets").upsert({
+  await (supabase as any).from("wallets").upsert({
     user_id: params.userId,
     balance: newBalance,
     currency: "INR",
@@ -169,7 +169,7 @@ export async function adjustUserWalletAction(params: {
   }, { onConflict: "user_id" });
 
   // 3. Create permanent ledger entry
-  await supabase.from("wallet_transactions").insert({
+  await (supabase as any).from("wallet_transactions").insert({
     user_id: params.userId,
     transaction_type: params.type,
     amount: params.amount,
@@ -338,7 +338,7 @@ export async function createMerchantUserAction(params: {
         wallet_balance: params.initialWalletBalance || 0,
       });
 
-      await supabase.from("wallets").insert({
+      await (supabase as any).from("wallets").insert({
         user_id: newUserId,
         balance: params.initialWalletBalance || 0,
         currency: "INR",

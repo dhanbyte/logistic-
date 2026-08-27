@@ -27,7 +27,7 @@ export async function getAdminUsersList(): Promise<AdminUserListItem[]> {
     .select("id, full_name, email, phone, company_name, gstin, kyc_status, wallet_balance, created_at")
     .order("created_at", { ascending: false });
 
-  const { data: wallets } = await supabase.from("wallets").select("user_id, balance");
+  const { data: wallets } = await (supabase as any).from("wallets").select("user_id, balance");
   const { data: orders } = await supabase.from("orders").select("user_id, order_amount");
 
   const walletMap = new Map((wallets || []).map((w: any) => [w.user_id, Number(w.balance || 0)]));
@@ -53,7 +53,7 @@ export async function getAdminUsersList(): Promise<AdminUserListItem[]> {
       companyName: p.company_name || `${p.full_name || emailName} Store`,
       gstStatus: p.gstin ? "Registered" : "Not Provided",
       kycStatus: (p.kyc_status as any) || "VERIFIED",
-      walletBalance: balance,
+      walletBalance: Number(balance) || 0,
       totalOrders: stats ? stats.count : 0,
       totalSpent: stats ? stats.spent : 0,
       status: "ACTIVE",
@@ -125,7 +125,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
   if (supabase) {
     const [profRes, walRes, ordRes, shpRes, ndrRes, rtoRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("wallets").select("balance, credit_limit").eq("user_id", userId).maybeSingle(),
+      (supabase as any).from("wallets").select("balance, credit_limit").eq("user_id", userId).maybeSingle(),
       supabase.from("orders").select("id, order_amount, cod_amount, payment_mode, order_status").eq("user_id", userId),
       supabase.from("ecommerce_shipments").select("id, shipment_status, shipping_charge, cod_amount, payment_mode").eq("user_id", userId),
       supabase.from("ndr_cases").select("id").eq("user_id", userId),

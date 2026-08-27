@@ -30,6 +30,7 @@ export function createServiceClient() {
   });
 }
 
+/** @deprecated Do not use FALLBACK_USER_ID — it bypasses authentication. Kept only for reference. */
 export const FALLBACK_USER_ID = "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
 
 export async function getEffectiveSession() {
@@ -47,15 +48,7 @@ export async function getEffectiveSession() {
     }
   }
 
-  // Fallback to service client with primary workspace user
-  const serviceClient = createServiceClient();
-  if (serviceClient) {
-    return {
-      supabase: serviceClient as any,
-      user: { id: FALLBACK_USER_ID, email: "dhananjay.win2004@gmail.com" },
-      isFallback: true,
-    };
-  }
-
+  // No valid session — return null so callers enforce authentication properly.
+  // Removed fallback service-client shortcut which was causing data isolation issues.
   return null;
 }

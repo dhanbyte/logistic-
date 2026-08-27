@@ -105,7 +105,7 @@ export interface AdminCourierPartner {
   id: string;
   code: string;
   name: string;
-  apiStatus: "HEALTHY" | "DEGRADED" | "DOWN";
+  apiStatus: "HEALTHY" | "DEGRADED" | "DOWN" | "READY_FOR_KEYS";
   isActive: boolean;
   codAvailable: boolean;
   prepaidAvailable: boolean;

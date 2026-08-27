@@ -101,7 +101,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
   const { supabase } = session;
 
   const [walletRes, profileRes] = await Promise.all([
-    supabase.from("wallets").select("*").eq("user_id", userId).maybeSingle(),
+    (supabase as any).from("wallets").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("wallet_balance").eq("id", userId).maybeSingle(),
   ]);
 
@@ -150,7 +150,7 @@ export async function getOrCreateWallet(userId: string): Promise<WalletAccount> 
   };
 
   try {
-    await supabase.from("wallets").insert({
+    await (supabase as any).from("wallets").insert({
       id: initialWallet.id,
       user_id: userId,
       balance: toRupees(initialWallet.cashBalancePaise),
@@ -263,7 +263,7 @@ export async function commitShippingReservation(params: {
   if (supabase) {
     await syncDatabaseBalances(supabase, reservation.userId, wallet.cashBalancePaise);
     try {
-      await supabase.from("wallet_transactions").insert({
+      await (supabase as any).from("wallet_transactions").insert({
         user_id: reservation.userId,
         transaction_type: "DEBIT",
         category: "SHIPPING_DEDUCTION",
@@ -362,7 +362,7 @@ export async function creditWalletRecharge(params: {
     await syncDatabaseBalances(supabase, params.userId, wallet.cashBalancePaise);
 
     try {
-      await supabase.from("wallet_transactions").insert({
+      await (supabase as any).from("wallet_transactions").insert({
         user_id: params.userId,
         transaction_type: "CREDIT",
         category: "WALLET_RECHARGE",
@@ -525,7 +525,7 @@ export async function processShipmentCancellationRefund(params: {
   if (supabase) {
     await syncDatabaseBalances(supabase, params.userId, wallet.cashBalancePaise);
     try {
-      await supabase.from("wallet_transactions").insert({
+      await (supabase as any).from("wallet_transactions").insert({
         user_id: params.userId,
         transaction_type: "CREDIT",
         category: "REFUND",
@@ -667,16 +667,33 @@ export async function recordLedgerEntry(
   const session = await getEffectiveSession();
   if (session) {
     try {
-      const dbCategory =
-        record.transactionType === "SHIPPING_CHARGE" || record.transactionType === "SHIPPING_DEBIT"
+      const typeStr = String(record.transactionType);
+      const dbCategory: import("@/types/database").WalletTxnCategory =
+        typeStr === "SHIPPING_CHARGE" || typeStr === "SHIPPING_DEBIT" || typeStr === "SHIPPING_RESERVE"
           ? "SHIPPING_DEDUCTION"
-          : record.transactionType === "CANCELLATION_REFUND" || record.transactionType === "FULL_REFUND"
+          : typeStr === "SHIPPING_REVERSAL"
+          ? "SHIPPING_REVERSAL"
+          : typeStr === "CANCELLATION_REFUND"
+          ? "CANCELLATION_REFUND"
+          : typeStr === "FULL_REFUND" || typeStr === "PARTIAL_REFUND" || typeStr === "REFUND"
           ? "REFUND"
-          : record.transactionType === "COD_SETTLEMENT"
+          : typeStr === "COD_SETTLEMENT" || typeStr === "COD_FEE" || typeStr === "COD_CHARGE"
           ? "COD_REMITTANCE"
+          : typeStr === "REVERSAL" || typeStr === "ADJUSTMENT"
+          ? "REVERSAL"
+          : typeStr === "PENALTY" || typeStr === "RTO_CHARGE" || typeStr === "NDR_CHARGE"
+          ? "PENALTY"
+          : typeStr === "WEIGHT_DISCREPANCY"
+          ? "WEIGHT_DISCREPANCY"
+          : typeStr === "MANUAL_DEBIT"
+          ? "MANUAL_DEBIT"
+          : typeStr === "MANUAL_CREDIT" || typeStr.includes("CREDIT") || typeStr === "ADMIN_ADJUSTMENT" || typeStr === "PAYOUT"
+          ? "MANUAL_CREDIT"
           : "WALLET_RECHARGE";
 
-      await session.supabase.from("wallet_transactions").insert({
+
+
+      await (session.supabase as any).from("wallet_transactions").insert({
         id: crypto.randomUUID(),
         user_id: record.userId,
         transaction_type: record.direction,

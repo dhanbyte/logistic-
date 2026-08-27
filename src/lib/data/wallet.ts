@@ -20,16 +20,21 @@ export interface WalletSummary {
 
 export async function getWalletSummary(filterType?: string): Promise<WalletSummary> {
   const session = await getEffectiveSession();
-  let userId = "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
-  let supabase = null;
-
-  if (session) {
-    supabase = session.supabase;
-    userId = session.user.id;
+  if (!session) {
+    return {
+      availableBalance: 0,
+      pendingCod: 0,
+      totalUsed: 0,
+      isLowBalance: true,
+      transactions: [],
+      isDemo: false,
+    };
   }
 
-  const serviceClient = createServiceClient();
-  const db = serviceClient || supabase;
+  const { supabase, user } = session;
+  const userId = user.id;
+  const db = supabase;
+
 
   // Get wallet state
   const walletAccount = await getOrCreateWallet(userId);

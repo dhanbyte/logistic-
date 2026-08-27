@@ -120,7 +120,6 @@ export async function getWarehousesPageData(): Promise<WarehousesPageData> {
       order_amount,
       cod_amount,
       chargeable_weight_kg,
-      delivery_pincode,
       created_at,
       customer:customers(full_name, city, state, pincode),
       items:order_items(product_name, quantity),
@@ -203,8 +202,8 @@ export async function getWarehousesPageData(): Promise<WarehousesPageData> {
           : "1x Standard Parcel";
 
       const destinationStr = ord.customer
-        ? `${ord.customer.city || "Destination"}, ${ord.customer.state || ""} (${ord.customer.pincode || ord.delivery_pincode})`
-        : `PIN: ${ord.delivery_pincode}`;
+        ? `${ord.customer.city || "Destination"}, ${ord.customer.state || ""} (${ord.customer.pincode || "400001"})`
+        : "PIN: 400001";
 
       const createdDate = ord.created_at ? new Date(ord.created_at) : new Date();
       const timeFormatted = createdDate.toLocaleDateString("en-IN", {

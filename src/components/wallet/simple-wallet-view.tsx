@@ -40,7 +40,6 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { rechargeWallet } from "@/app/ecommerce-actions";
 import { launchRazorpayRecharge } from "@/lib/finance/razorpay-client";
 import { formatINR } from "@/lib/calculations";
 import type { WalletTransaction } from "@/types";

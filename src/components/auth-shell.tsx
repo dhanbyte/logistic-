@@ -43,6 +43,9 @@ export function AuthShell({
             <Link href="/#tracking" className="hover:text-slate-900 transition-colors hidden sm:inline-block">
               Track shipment
             </Link>
+            <Link href="/blog" className="hover:text-slate-900 transition-colors hidden sm:inline-block">
+              Blog
+            </Link>
             <Link
               href="/login"
               className="text-xs font-semibold text-slate-700 hover:text-slate-900 px-3 py-1.5 transition-colors"

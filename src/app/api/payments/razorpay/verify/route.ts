@@ -2,17 +2,26 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifyRazorpayPaymentSignature } from "@/lib/finance/razorpay";
 import { creditWalletRecharge } from "@/lib/finance/wallet-service";
 import { toPaise, toRupees } from "@/lib/finance/money";
-import { createServiceClient, getEffectiveSession, FALLBACK_USER_ID } from "@/lib/supabase/server";
+import { getEffectiveSession } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, userId } = body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
         { error: "Missing required payment verification parameters." },
         { status: 400 }
+      );
+    }
+
+    // Require authenticated session — no fallback allowed
+    const session = await getEffectiveSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in before making a payment." },
+        { status: 401 }
       );
     }
 
@@ -29,11 +38,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getEffectiveSession();
-    const targetUserId =
-      session?.user?.id ||
-      (userId && userId !== "default-user" && userId !== "current-user" ? userId : FALLBACK_USER_ID);
-
     const amountRupees = Number(amount) || 0;
     const amountPaise = toPaise(amountRupees);
 
@@ -43,6 +47,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Always credit the currently authenticated user — no fallback user IDs
+    const targetUserId = session.user.id;
 
     const rechargeResult = await creditWalletRecharge({
       userId: targetUserId,

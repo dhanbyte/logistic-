@@ -43,7 +43,8 @@ export type ReturnStatus = "REQUESTED" | "APPROVED" | "PICKUP_SCHEDULED" | "PICK
 export type SettlementStatus = "PENDING" | "PROCESSING" | "REMITTED" | "FAILED" | "ON_HOLD";
 export type ShippingZone = "ZONE_A" | "ZONE_B" | "ZONE_C" | "ZONE_D" | "ZONE_E";
 export type WalletTxnType = "CREDIT" | "DEBIT";
-export type WalletTxnCategory = "WALLET_RECHARGE" | "SHIPPING_DEDUCTION" | "WEIGHT_DISCREPANCY" | "COD_REMITTANCE" | "REFUND" | "PENALTY";
+export type WalletTxnCategory = "WALLET_RECHARGE" | "SHIPPING_DEDUCTION" | "WEIGHT_DISCREPANCY" | "COD_REMITTANCE" | "REFUND" | "PENALTY" | "SHIPPING_REVERSAL" | "CANCELLATION_REFUND" | "REVERSAL" | "MANUAL_CREDIT" | "MANUAL_DEBIT";
+
 export type DocumentKind = "LABEL" | "MANIFEST" | "TAX_INVOICE" | "EWAY_BILL" | "POD" | "CMR" | "OTHER";
 
 export type Database = {

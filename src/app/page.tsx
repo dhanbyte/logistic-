@@ -30,6 +30,7 @@ import {
 import { AuthForm } from "@/components/auth-form";
 import { formatINR } from "@/lib/calculations";
 import { PincodeServiceabilityMatrix } from "@/components/landing/pincode-serviceability-matrix";
+import { BLOG_POSTS } from "@/lib/blog-data";
 
 
 // Sample mock tracking database for public tracking lookup demo
@@ -231,6 +232,12 @@ export default function LandingPage() {
             >
               Track shipment
             </button>
+            <Link
+              href="/blog"
+              className="hover:text-slate-900 transition-colors"
+            >
+              Blog
+            </Link>
             <button
               type="button"
               onClick={() => scrollToSection("features")}
@@ -988,7 +995,80 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 8. MINIMALIST MODERN FOOTER */}
+      {/* 8. FEATURED LOGISTICS BLOG & GUIDES SECTION */}
+      <section className="border-t border-slate-200/80 bg-white py-16 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">
+                <Sparkles size={14} />
+                <span>Logistics Insights &amp; Operational Guides</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+                Mastering Indian D2C Logistics
+              </h2>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-2xl">
+                Expert playbooks on reducing RTO, optimizing volumetric weight, evaluating courier performance, and accelerating COD remittances.
+              </p>
+            </div>
+
+            <Link
+              href="/blog"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap"
+            >
+              View all articles <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {BLOG_POSTS.slice(0, 3).map((post) => (
+              <Link
+                key={post.slug}
+                href={`/blog/${post.slug}`}
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-[#f8fafc] hover:bg-white shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              >
+                <div>
+                  <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                    <img
+                      src={post.featuredImage}
+                      alt={post.title}
+                      className="size-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <span className={`absolute top-3 left-3 rounded-lg px-2.5 py-0.5 text-[10px] font-bold border backdrop-blur-md shadow-xs ${post.categoryColor}`}>
+                      {post.category}
+                    </span>
+                  </div>
+
+                  <div className="p-5 space-y-2">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <span>{post.publishedAt}</span>
+                      <span>•</span>
+                      <span>{post.readTime}</span>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors leading-snug line-clamp-2">
+                      {post.title}
+                    </h3>
+
+                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                      {post.excerpt}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5 pt-3 border-t border-slate-200/60 flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-700">{post.author.name}</span>
+                  <span className="text-xs font-bold text-indigo-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    Read guide <ChevronRight size={13} />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 9. MINIMALIST MODERN FOOTER */}
       <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
 
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
@@ -1008,6 +1088,9 @@ export default function LandingPage() {
             >
               Track shipment
             </button>
+            <Link href="/blog" className="hover:text-slate-900 transition-colors">
+              Blog
+            </Link>
             <Link href="/forgot-password" className="hover:text-slate-900 transition-colors">
               Account recovery
             </Link>

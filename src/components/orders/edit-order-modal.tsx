@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Edit3, Package, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { updateOrderAction } from "@/app/ecommerce-actions";
@@ -15,7 +16,9 @@ export function EditOrderModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+
 
   // Customer State
   const [customerName, setCustomerName] = useState("");
@@ -98,6 +101,7 @@ export function EditOrderModal({
 
     if (res.ok) {
       toast.success(res.message || "Order updated successfully!");
+      router.refresh();
       onClose();
     } else {
       toast.error(res.message || "Failed to update order.");

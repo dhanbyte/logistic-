@@ -63,9 +63,7 @@ export async function createEcommerceOrder(
 
     const session = await auth();
     if (!session) {
-      // In demo mode without DB connection, return mock success
-      refreshEcommerceData();
-      return { ok: true, data: { orderId: "ord-" + Date.now() } };
+      return { ok: false, message: "Please sign in to create an order." };
     }
 
     const { user, supabase } = session;
@@ -204,8 +202,7 @@ export async function createBulkOrders(
   try {
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true, data: { count: rows.length, orderIds: [] } };
+      return { ok: false, message: "Please sign in to import bulk orders." };
     }
 
     let createdCount = 0;
@@ -254,9 +251,7 @@ export async function getWalletBalanceAction(): Promise<{ balance: number }> {
   try {
     const session = await auth();
     if (!session) {
-      const wallet = await getOrCreateWallet("default-user");
-      const computed = computeAvailableFunds(wallet);
-      return { balance: toRupees(computed.cashBalancePaise) };
+      return { balance: 0 };
     }
     const wallet = await getOrCreateWallet(session.user.id);
     const computed = computeAvailableFunds(wallet);
@@ -278,47 +273,7 @@ export async function bookShipmentForOrder(
     const courier = getCourierProvider(courierCode);
 
     if (!session) {
-      const wallet = await getOrCreateWallet("default-user");
-      const computed = computeAvailableFunds(wallet);
-      if (computed.totalAvailableFundsPaise <= 0) {
-        return {
-          ok: false,
-          message: "Insufficient wallet balance (₹0.00). Please recharge your wallet before shipping this order.",
-        };
-      }
-
-      const mockResult = await courier.createShipment({
-        orderId,
-        orderNumber: "SW-" + Date.now().toString().slice(-5),
-        warehouseId: "wh-001",
-        courierCode,
-        pickupPincode: "110020",
-        deliveryPincode: "400050",
-        customerName: "Demo Consignee",
-        customerPhone: "9820011223",
-        customerAddress: "Bandra West, Mumbai",
-        customerCity: "Mumbai",
-        customerState: "Maharashtra",
-        productName: "E-Commerce Package",
-        quantity: 1,
-        paymentMode: "PREPAID",
-        orderAmount: 1499,
-        codAmount: 0,
-        weightKg: 0.8,
-        lengthCm: 15,
-        widthCm: 10,
-        heightCm: 8,
-      });
-
-      refreshEcommerceData();
-      return {
-        ok: true,
-        data: {
-          awbNumber: mockResult.awbNumber,
-          shipmentId: "shp-" + Date.now(),
-          labelUrl: mockResult.labelUrl,
-        },
-      };
+      return { ok: false, message: "Please sign in to book a shipment." };
     }
 
     const { user, supabase } = session;
@@ -337,7 +292,8 @@ export async function bookShipmentForOrder(
         data: {
           awbNumber: existingShipment.awb_number,
           shipmentId: existingShipment.id,
-          labelUrl: existingShipment.label_url,
+          labelUrl: existingShipment.label_url ?? "",
+
         },
       };
     }
@@ -367,8 +323,8 @@ export async function bookShipmentForOrder(
     // 1.3 Get Dynamic Courier Rate Quote
     const rateQuote = await courier.calculateRate(
       {
-        pickupPincode: (order as any).warehouse?.pincode || order.pickup_pincode || "110020",
-        deliveryPincode: (order as any).customer?.pincode || order.delivery_pincode || "400001",
+        pickupPincode: (order as any).warehouse?.pincode || (order as any).pickup_pincode || "110020",
+        deliveryPincode: (order as any).customer?.pincode || (order as any).delivery_pincode || "400001",
         weightKg: chargeableWeightKg,
         paymentMode: order.payment_mode,
         declaredValue: Number(order.order_amount) || 500,
@@ -405,8 +361,8 @@ export async function bookShipmentForOrder(
         orderNumber: order.order_number,
         warehouseId: order.warehouse_id,
         courierCode,
-        pickupPincode: (order as any).warehouse?.pincode || order.pickup_pincode || "110020",
-        deliveryPincode: (order as any).customer?.pincode || order.delivery_pincode || "400001",
+        pickupPincode: (order as any).warehouse?.pincode || (order as any).pickup_pincode || "110020",
+        deliveryPincode: (order as any).customer?.pincode || (order as any).delivery_pincode || "400001",
         customerName: (order as any).customer?.full_name || "Customer",
         customerPhone: (order as any).customer?.phone || "9876543210",
         customerAddress: (order as any).customer?.address_line1 || "Customer Address",
@@ -594,8 +550,7 @@ export async function updateOrderStatus(
   try {
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true };
+      return { ok: false, message: "Authentication required." };
     }
 
     const { data, error } = await session.supabase
@@ -629,8 +584,7 @@ export async function resolveNdrAction(
   try {
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true };
+      return { ok: false, message: "Authentication required." };
     }
 
     const { data, error } = await session.supabase
@@ -659,46 +613,13 @@ export async function resolveNdrAction(
 }
 
 /**
- * Recharges Seller Prepaid Wallet
+ * Recharges Seller Prepaid Wallet (Protected: strictly requires Razorpay PG verification)
  */
-export async function rechargeWallet(amount: number): Promise<ActionResult<{ newBalance: number }>> {
-  try {
-    if (amount <= 0 || isNaN(amount)) {
-      return { ok: false, message: "Please enter a valid recharge amount." };
-    }
-
-    const session = await auth();
-    const userId = session?.user?.id || "default-user";
-    const paymentId = `PAY_RZP_${Date.now().toString().slice(-6)}`;
-
-    const { creditWalletRecharge } = await import("@/lib/finance/wallet-service");
-    const rechargeRes = await creditWalletRecharge({
-      userId,
-      amountPaise: toPaise(amount),
-      paymentId,
-      gatewayReference: "Razorpay / UPI Instant Recharge",
-    });
-
-    refreshEcommerceData();
-    try {
-      revalidatePath("/wallet");
-      revalidatePath("/dashboard");
-      revalidatePath("/orders");
-      revalidatePath("/shipments");
-      revalidatePath("/");
-    } catch {
-      // ignore outside request
-    }
-
-    return {
-      ok: true,
-      message: `Successfully recharged ₹${amount.toFixed(2)} to your wallet!`,
-      data: { newBalance: toRupees(rechargeRes.newBalancePaise) },
-    };
-  } catch (error: any) {
-    console.error("[rechargeWallet] error:", error);
-    return { ok: false, message: "Wallet recharge failed. Please try again." };
-  }
+export async function rechargeWallet(_amount: number): Promise<ActionResult<{ newBalance: number }>> {
+  return {
+    ok: false,
+    message: "Direct balance adjustment is disabled. All wallet recharges must be completed via Razorpay Payment Gateway.",
+  };
 }
 
 /**
@@ -722,8 +643,7 @@ export async function upsertWarehouse(
 
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true };
+      return { ok: false, message: "Authentication required to save warehouse." };
     }
 
     const payload = {
@@ -766,8 +686,7 @@ export async function setDefaultWarehouse(warehouseId: string): Promise<ActionRe
   try {
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true };
+      return { ok: false, message: "Authentication required." };
     }
 
     // Reset others to false
@@ -797,8 +716,7 @@ export async function deleteWarehouseAction(warehouseId: string): Promise<Action
   try {
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true, message: "Warehouse removed." };
+      return { ok: false, message: "Authentication required." };
     }
 
     const { supabase, user } = session;
@@ -888,8 +806,7 @@ export async function updateSellerProfile(formData: FormData): Promise<ActionRes
 
     const session = await auth();
     if (!session) {
-      refreshEcommerceData();
-      return { ok: true };
+      return { ok: false, message: "Authentication required to update seller profile." };
     }
 
     const { user, supabase } = session;
@@ -1028,14 +945,13 @@ export async function updateOrderAction(
       length_cm: payload.lengthCm,
       width_cm: payload.widthCm,
       height_cm: payload.heightCm,
-      volumetric_weight_kg: volumetricWeightKg,
       chargeable_weight_kg: chargeableWeightKg,
     })
     .eq("id", orderId);
 
   if (orderError) {
     console.error("[updateOrderAction.error]", orderError);
-    return { ok: false, message: "Failed to update order details." };
+    return { ok: false, message: orderError.message || "Failed to update order details." };
   }
 
   if (payload.productName) {
@@ -1047,6 +963,7 @@ export async function updateOrderAction(
         sku: payload.sku || null,
         unit_price: payload.orderAmount,
         total_amount: payload.orderAmount,
+        weight_grams: Math.round(Number(payload.weightKg || 0.5) * 1000),
       })
       .eq("order_id", orderId);
   }
@@ -1204,8 +1121,6 @@ export async function cloneOrderAction(
       width_cm: original.width_cm,
       height_cm: original.height_cm,
       chargeable_weight_kg: original.chargeable_weight_kg,
-      pickup_pincode: original.pickup_pincode,
-      delivery_pincode: original.delivery_pincode,
       notes: `Cloned from ${original.order_number}`,
     })
     .select("id, order_number")
@@ -1220,11 +1135,11 @@ export async function cloneOrderAction(
     const itemsToInsert = original.items.map((item: any) => ({
       order_id: newOrder.id,
       product_name: item.product_name,
-      quantity: item.quantity,
-      sku: item.sku,
-      unit_price: item.unit_price,
-      total_amount: item.total_amount,
-      weight_kg: item.weight_kg,
+      quantity: Number(item.quantity) || 1,
+      sku: item.sku || null,
+      unit_price: Number(item.unit_price) || 0,
+      total_amount: Number(item.total_amount) || 0,
+      weight_grams: Number(item.weight_grams) || Math.round((Number(item.weight_kg) || 0.5) * 1000),
     }));
     await supabase.from("order_items").insert(itemsToInsert);
   }

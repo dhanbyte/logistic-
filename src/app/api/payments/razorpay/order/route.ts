@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createRazorpayOrder, isRazorpayConfigured } from "@/lib/finance/razorpay";
 import { toPaise } from "@/lib/finance/money";
+import { getEffectiveSession } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +9,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Razorpay is not configured on the server." },
         { status: 503 }
+      );
+    }
+
+    // Require authenticated session before creating payment order
+    const session = await getEffectiveSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in to recharge your wallet." },
+        { status: 401 }
       );
     }
 
@@ -22,10 +32,8 @@ export async function POST(request: NextRequest) {
     }
 
     const amountPaise = toPaise(amountRupees);
-    const targetUserId =
-      body.userId && body.userId !== "default-user" && body.userId !== "current-user"
-        ? body.userId
-        : "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+    // Always use the authenticated session user — no hardcoded fallback IDs
+    const targetUserId = session.user.id;
 
     const result = await createRazorpayOrder({
       amountPaise,

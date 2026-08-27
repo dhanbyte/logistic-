@@ -24,11 +24,36 @@ export function ShareTrackingWidget({
   const message = `Hello! Your order ${orderNumber ? `#${orderNumber}` : ""} shipped via ${courierName || "Shadowfax"} (AWB: ${awbNumber}) is on its way${destinationCity ? ` to ${destinationCity}` : ""}. Track live movement here: ${trackingUrl}`;
 
   function handleCopy() {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(trackingUrl);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(trackingUrl).then(() => {
+          setCopied(true);
+          toast.success("Public tracking link copied to clipboard!");
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => fallbackCopy());
+      } else {
+        fallbackCopy();
+      }
+    } catch {
+      fallbackCopy();
+    }
+  }
+
+  function fallbackCopy() {
+    try {
+      const el = document.createElement("textarea");
+      el.value = trackingUrl;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
       setCopied(true);
       toast.success("Public tracking link copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link to clipboard.");
     }
   }
 

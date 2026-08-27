@@ -15,7 +15,6 @@ import {
   Plus,
   Printer,
   Scale,
-  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Truck,
@@ -28,8 +27,8 @@ import {
   bookShipmentForOrder,
   fetchCourierRatesAction,
   getWalletBalanceAction,
-  rechargeWallet,
 } from "@/app/ecommerce-actions";
+import { launchRazorpayRecharge } from "@/lib/finance/razorpay-client";
 import { formatINR } from "@/lib/calculations";
 import {
   isCourierConfigured,
@@ -123,17 +122,25 @@ export function ShipNowModal({
 
   async function handleQuickRecharge(amount: number) {
     setRecharging(true);
-    try {
-      const res = await rechargeWallet(amount);
-      if (res.ok && res.data) {
-        setWalletBalance(res.data.newBalance);
-        toast.success(`Wallet recharged with ${formatINR(amount)}! You can now ship this parcel.`);
-      } else {
-        toast.error(res.message || "Recharge failed.");
-      }
-    } catch {
-      toast.error("Recharge failed.");
-    } finally {
+    const launched = await launchRazorpayRecharge({
+      amount,
+      onSuccess: (paymentData) => {
+        setRecharging(false);
+        const updatedBal = paymentData.newBalance ?? (walletBalance + amount);
+        setWalletBalance(updatedBal);
+        toast.success(`Wallet recharged with ${formatINR(amount)} via Razorpay! You can now ship this parcel.`);
+        router.refresh();
+      },
+      onError: (errMsg) => {
+        setRecharging(false);
+        toast.error(errMsg || "Payment failed or was cancelled.");
+      },
+      onClose: () => {
+        setRecharging(false);
+      },
+    });
+
+    if (!launched) {
       setRecharging(false);
     }
   }
@@ -289,28 +296,30 @@ export function ShipNowModal({
               </div>
             </div>
 
-            {/* Low Balance Warning & Instant Recharge Bar */}
+            {/* Low Balance — Friendly Recharge Prompt */}
             {hasLowBalance && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 space-y-2.5 animate-in fade-in">
-                <div className="flex items-start gap-2 text-xs text-rose-900 font-medium">
-                  <ShieldAlert size={16} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 space-y-2.5 animate-in fade-in">
+                <div className="flex items-start gap-2 text-xs text-amber-900 font-medium">
+                  <Wallet size={16} className="text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="font-bold text-rose-950 block">
-                      Insufficient Wallet Balance: {formatINR(walletBalance)}
+                    <strong className="font-bold text-amber-950 block">
+                      Add Funds to Ship
                     </strong>
                     <span>
-                      Shipping charge is <strong>{formatINR(requiredAmount)}</strong>. You must recharge your wallet before generating AWB.
+                      Shipping charge is <strong>{formatINR(requiredAmount)}</strong>. Your wallet balance is{" "}
+                      <strong>{formatINR(walletBalance)}</strong>. Recharge{" "}
+                      <strong>{formatINR(requiredAmount - walletBalance)}</strong> more to proceed.
                     </span>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-rose-200/80">
-                  <span className="text-[11px] font-bold text-rose-950">Quick Recharge:</span>
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/80">
+                  <span className="text-[11px] font-bold text-amber-950">Quick Add:</span>
                   <button
                     type="button"
                     disabled={recharging}
                     onClick={() => handleQuickRecharge(200)}
-                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
+                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     + ₹200
                   </button>
@@ -318,7 +327,7 @@ export function ShipNowModal({
                     type="button"
                     disabled={recharging}
                     onClick={() => handleQuickRecharge(500)}
-                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
+                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     + ₹500
                   </button>
@@ -326,7 +335,7 @@ export function ShipNowModal({
                     type="button"
                     disabled={recharging}
                     onClick={() => handleQuickRecharge(1000)}
-                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
+                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     + ₹1,000
                   </button>
@@ -340,6 +349,7 @@ export function ShipNowModal({
                 </div>
               </div>
             )}
+
 
             {/* Courier Selection List */}
             <div>

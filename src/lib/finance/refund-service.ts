@@ -61,60 +61,22 @@ export async function processShippingReversal(params: {
 
 /**
  * Inbound payment gateway recharge refund
+ * DISABLED: Wallet recharges via Razorpay are non-refundable once credited.
+ * This function is intentionally blocked to prevent unauthorized reversals.
  */
-export async function processWalletRechargeRefund(params: {
+export async function processWalletRechargeRefund(_params: {
   userId: string;
   amountPaise: number;
   paymentId: string;
   gatewayRefundRef?: string;
   reason: string;
 }): Promise<{ ok: boolean; message: string; refundId?: string }> {
-  const wallet = await getOrCreateWallet(params.userId);
-
-  if (wallet.cashBalancePaise < params.amountPaise) {
-    return {
-      ok: false,
-      message: "Insufficient cash balance in wallet to process gateway refund.",
-    };
-  }
-
-  const prevBalance = wallet.cashBalancePaise;
-  wallet.cashBalancePaise = subPaise(wallet.cashBalancePaise, params.amountPaise);
-
-  const refundId = `ref-gw-${Date.now()}`;
-  const record: RefundRecord = {
-    id: refundId,
-    originalTransactionId: params.paymentId,
-    userId: params.userId,
-    amountPaise: params.amountPaise,
-    reason: params.reason,
-    status: "COMPLETED",
-    gatewayReference: params.gatewayRefundRef,
-    createdAt: new Date().toISOString(),
-  };
-
-  inMemoryRefunds.set(refundId, record);
-
-  await recordLedgerEntry({
-    userId: params.userId,
-    walletId: wallet.id,
-    transactionType: "REFUND",
-    amountPaise: params.amountPaise,
-    direction: "DEBIT",
-    balanceBeforePaise: prevBalance,
-    balanceAfterPaise: wallet.cashBalancePaise,
-    creditBeforePaise: wallet.freeCreditPaise,
-    creditAfterPaise: wallet.freeCreditPaise,
-    referenceType: "REFUND",
-    referenceId: refundId,
-    paymentId: params.paymentId,
-    status: "SUCCESS",
-    description: `Wallet topup refund via payment gateway: ${params.reason}`,
-  });
-
+  // Refunds are permanently disabled for wallet recharges.
+  // Wallet top-ups via Razorpay are final and non-reversible.
+  console.warn("[processWalletRechargeRefund] Refund attempt blocked — wallet recharges are non-refundable.");
   return {
-    ok: true,
-    refundId,
-    message: `Processed gateway refund of ₹${toRupees(params.amountPaise).toFixed(2)}.`,
+    ok: false,
+    message: "Wallet recharge refunds are not permitted. All recharges are final.",
   };
 }
+
