@@ -22,12 +22,18 @@ export async function POST(request: NextRequest) {
     }
 
     const amountPaise = toPaise(amountRupees);
+    const targetUserId =
+      body.userId && body.userId !== "default-user" && body.userId !== "current-user"
+        ? body.userId
+        : "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+
     const result = await createRazorpayOrder({
       amountPaise,
       currency: "INR",
       receipt: `recharge_${Date.now()}`,
       notes: {
-        userId: body.userId || "guest",
+        userId: targetUserId,
+        user_id: targetUserId,
         purpose: "wallet_recharge",
       },
     });

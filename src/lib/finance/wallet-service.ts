@@ -355,8 +355,9 @@ export async function creditWalletRecharge(params: {
     description: `Prepaid wallet recharge via ${params.gatewayReference || "Razorpay Payment Gateway"}`,
   });
 
+  const serviceClient = createServiceClient();
   const session = await getEffectiveSession();
-  const supabase = session?.supabase || createServiceClient();
+  const supabase = serviceClient || session?.supabase;
   if (supabase) {
     await syncDatabaseBalances(supabase, params.userId, wallet.cashBalancePaise);
 

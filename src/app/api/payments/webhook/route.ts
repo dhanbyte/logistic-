@@ -56,7 +56,10 @@ export async function POST(request: NextRequest) {
 
     if (eventType === "payment.captured" || eventType === "order.paid") {
       const paymentEntity = payload.payload?.payment?.entity || payload.data || {};
-      const userId = paymentEntity.notes?.user_id || "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+      const userId =
+        paymentEntity.notes?.user_id ||
+        paymentEntity.notes?.userId ||
+        "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
       const amountPaise = paymentEntity.amount || toPaise(Number(paymentEntity.amount_in_rupees || 500));
       const paymentId = paymentEntity.id || `pay_${Date.now()}`;
 
