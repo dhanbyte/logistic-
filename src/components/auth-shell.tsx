@@ -214,7 +214,7 @@ export function AuthShell({
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Flat national rates with zero return charges &amp; T+3 COD bank settlements.
+                  Flat national rates with zero return charges &amp; T+2 COD bank settlements.
                 </p>
               </div>
             </div>

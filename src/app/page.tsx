@@ -406,7 +406,7 @@ export default function LandingPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Flat national rates with zero return charges &amp; T+3 COD bank settlements.
+                  Flat national rates with zero return charges &amp; T+2 COD bank settlements.
                 </p>
               </div>
             </div>
@@ -717,7 +717,7 @@ export default function LandingPage() {
               <ul className="mt-4 space-y-1.5 text-xs text-slate-500">
                 <li className="flex items-center gap-1.5">
                   <CheckCircle2 size={13} className="text-emerald-600" />
-                  <span>T+3 Days guaranteed COD payout</span>
+                  <span>T+2 Days (Delivery + 2 Days) guaranteed COD payout</span>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <CheckCircle2 size={13} className="text-emerald-600" />
@@ -1303,7 +1303,7 @@ export default function LandingPage() {
                   </p>
                   <ul className="list-disc pl-4 space-y-1">
                     <li>10,000+ serviceable postal pincodes across 2,500+ Indian cities</li>
-                    <li>Guaranteed T+3 Days Cash on Delivery (COD) Remittance</li>
+                    <li>Guaranteed T+2 Days (Delivery + 2 Days) Cash on Delivery (COD) Remittance</li>
                     <li>Automated WhatsApp NDR verification &amp; RTO reduction engine</li>
                   </ul>
                 </>

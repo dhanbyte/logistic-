@@ -126,7 +126,7 @@ export default function PricingPage() {
             Simple, Flat Shipping Rates with <span className="text-indigo-600">₹0 RTO Charges</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-            Pay only for successful deliveries. Experience instant courier rate transparency, guaranteed ₹0 Return-to-Origin penalties, and automated T+3 COD settlements.
+            Pay only for successful deliveries. Experience instant courier rate transparency, guaranteed ₹0 Return-to-Origin penalties, and automated T+2 COD settlements.
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center items-center gap-4 text-xs font-semibold text-slate-700">
@@ -668,10 +668,10 @@ export default function PricingPage() {
                 <Clock size={20} />
               </div>
               <h4 className="font-bold text-slate-900 text-base mb-1">
-                T+3 COD Remittances
+                T+2 COD Remittances
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Automated bank transfers within 3 business days of delivery. Keep your ecommerce cash flow healthy with direct UPI and NEFT settlements.
+                Automated bank transfers within 2 business days of delivery (Delivery + 2 Days). Keep your ecommerce cash flow healthy with direct UPI and NEFT settlements.
               </p>
             </div>
 
@@ -750,7 +750,7 @@ export default function PricingPage() {
                 When do I receive my COD money in my bank account?
               </h4>
               <p className="text-xs text-slate-600 pl-6">
-                COD collections are automatically reconciled and disbursed into your verified bank account on a strict T+3 schedule (3 business days after delivery confirmation).
+                COD collections are automatically reconciled and disbursed into your verified bank account on a strict T+2 schedule (2 business days after delivery confirmation).
               </p>
             </div>
           </div>

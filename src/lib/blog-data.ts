@@ -75,7 +75,7 @@ export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "cod-remittance-working-capital-guide-d2c",
     title: "A Practical Guide to COD Remittance: Solving Working Capital Lockup for D2C Sellers",
-    excerpt: "Over 60% of Indian online orders remain Cash on Delivery. Discover how early COD settlements (T+2/T+3) and automated reconciliation keep your cash flow healthy.",
+    excerpt: "Over 60% of Indian online orders remain Cash on Delivery. Discover how early COD settlements (Delivery + 2 Days / T+2) and automated reconciliation keep your cash flow healthy.",
     category: "COD & Finance",
     categoryColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
     readTime: "5 min read",
@@ -90,12 +90,12 @@ export const BLOG_POSTS: BlogPost[] = [
     keyTakeaways: [
       "Traditional 7-to-14 day courier COD settlement cycles suffocate inventory replenishment for fast-growing brands.",
       "Automated weight reconciliation prevents carriers from over-deducting freight on COD remittances.",
-      "Shipwave provides automated T+3 day bank transfers with transparent itemized deduction statements.",
+      "Shipwave provides automated T+2 day (Delivery + 2 Days) bank transfers with transparent itemized deduction statements.",
     ],
     content: [
       "Cash on Delivery continues to dominate consumer purchasing across non-metro Indian markets. While offering COD is essential for high top-of-funnel conversion, it creates severe working capital constraints when carriers delay disbursement.",
       "When courier partners hold cash collections for 10–15 business days, merchants struggle to procure raw inventory, fund ad spend, and pay operational overheads.",
-      "Shipwave solves this by aggregating remittance data across all carriers into a single unified ledger, delivering guaranteed T+3 payouts directly to your registered bank account.",
+      "Shipwave solves this by aggregating remittance data across all carriers into a single unified ledger, delivering guaranteed T+2 (Delivery + 2 Days) payouts directly to your registered bank account.",
     ],
   },
   {

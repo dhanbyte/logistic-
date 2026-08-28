@@ -125,7 +125,7 @@ export function BankDetailsForm({ bankDetails }: BankDetailsFormProps) {
                 COD Remittance &amp; Bank Settlement Account
               </h3>
               <p className="text-xs text-slate-500">
-                Direct bank transfer destination for T+3 Days automated COD remittance payouts
+                Direct bank transfer destination for T+2 Days (Delivery + 2 Days) automated COD remittance payouts
               </p>
             </div>
           </div>

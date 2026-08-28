@@ -332,7 +332,7 @@ export function SimpleWalletView({
 
           <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-between">
             <span className="text-[11px] font-bold text-amber-800">
-              Settlement Cycle: <strong>T+3 Days</strong>
+              Settlement Cycle: <strong>T+2 Days (Delivery + 2 Days)</strong>
             </span>
             <Link
               href="/cod"

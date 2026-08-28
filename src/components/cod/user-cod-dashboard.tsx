@@ -217,7 +217,7 @@ export function UserCodDashboard({
             Upcoming Payout
           </span>
           <p className="mt-2 text-xl font-black text-amber-900">{formatINR(summary.upcomingSettlement)}</p>
-          <p className="text-[10px] text-amber-700 mt-0.5">Scheduled for T+3</p>
+          <p className="text-[10px] text-amber-700 mt-0.5">Scheduled for T+2</p>
         </div>
 
         {/* Card 3 */}
@@ -369,7 +369,7 @@ export function UserCodDashboard({
                 <Package className="mx-auto size-10 text-slate-300 mb-2 stroke-1" />
                 <p className="text-xs font-bold text-slate-700">No settlement batches match your filter</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Ship COD orders to see Delivery + 3 Days batches automatically generated here.
+                  Ship COD orders to see Delivery + 2 Days batches automatically generated here.
                 </p>
               </div>
             ) : (
@@ -377,7 +377,7 @@ export function UserCodDashboard({
                 <thead className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-700">
                   <tr>
                     <th className="py-3 px-4">Settlement Batch</th>
-                    <th className="py-3 px-4">Payout Date (T+3)</th>
+                    <th className="py-3 px-4">Payout Date (T+2)</th>
                     <th className="py-3 px-4">Orders</th>
                     <th className="py-3 px-4">COD Collected</th>
                     <th className="py-3 px-4">Deductions</th>
@@ -403,7 +403,7 @@ export function UserCodDashboard({
                             <Calendar size={13} className="text-indigo-600" />
                             {b.settlementDate}
                           </p>
-                          <p className="text-[10px] text-slate-400">Delivery + 3 Days</p>
+                          <p className="text-[10px] text-slate-400">Delivery + 2 Days</p>
                         </td>
 
                         <td className="py-3.5 px-4">
@@ -496,7 +496,7 @@ export function UserCodDashboard({
                     <th className="py-3 px-4">Order &amp; AWB</th>
                     <th className="py-3 px-4">Courier Partner</th>
                     <th className="py-3 px-4">Delivery Date</th>
-                    <th className="py-3 px-4">Settlement Date (T+3)</th>
+                    <th className="py-3 px-4">Settlement Date (T+2)</th>
                     <th className="py-3 px-4">COD Collected</th>
                     <th className="py-3 px-4">Freight &amp; Fees</th>
                     <th className="py-3 px-4 font-bold text-emerald-800">Net Payable</th>
@@ -739,10 +739,10 @@ export function UserCodDashboard({
                 </p>
               </div>
 
-              {/* Step 3: T+3 Assigned */}
+              {/* Step 3: T+2 Assigned */}
               <div className="relative">
                 <span className="absolute -left-6 top-0.5 size-3.5 rounded-full border-2 border-white ring-2 bg-indigo-500 ring-indigo-200" />
-                <p className="text-xs font-bold text-slate-900">Delivery + 3 Days Settlement Scheduled</p>
+                <p className="text-xs font-bold text-slate-900">Delivery + 2 Days Settlement Scheduled</p>
                 <p className="text-[11px] text-indigo-700 font-semibold">
                   Payout Target: {selectedOrder.settlementDate}
                 </p>
@@ -810,7 +810,7 @@ export function UserCodDashboard({
                     {bankDetails.accountNumber ? "Edit Bank Account Details" : "Setup Beneficiary Bank Account"}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    COD remittances &amp; T+3 payouts will be transferred directly to this account.
+                    COD remittances &amp; T+2 payouts will be transferred directly to this account.
                   </p>
                 </div>
               </div>

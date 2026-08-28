@@ -21,12 +21,12 @@ const CONFIGURED_BANK_HOLIDAYS = new Set([
 ]);
 
 /**
- * 1. Core Settlement Rule: Delivery Date + 3 Days
+ * 1. Core Settlement Rule: Delivery Date + 2 Days (T+2)
  * Automatically advances to next banking business day if falls on weekend/holiday.
  */
 export function calculateSettlementDate(
   deliveryDateStr: string,
-  settlementDays: number = 3,
+  settlementDays: number = 2,
 ): string {
   const delivery = new Date(deliveryDateStr);
   if (isNaN(delivery.getTime())) {
@@ -231,7 +231,7 @@ export async function getMerchantCodBatches(userId: string): Promise<{
         totalRemitted: 0,
         totalCodCollected: 0,
         totalFreightAndFees: 0,
-        nextSettlementDate: "T+3 Daily",
+        nextSettlementDate: "T+2 Daily",
       },
     };
   }
@@ -246,7 +246,7 @@ export async function getMerchantCodBatches(userId: string): Promise<{
       : "Pending Delivery";
 
     const settlementDate = isDelivered
-      ? calculateSettlementDate(deliveryDate, 3)
+      ? calculateSettlementDate(deliveryDate, 2)
       : "Pending POD";
 
     const codAmount = Number(s.cod_amount || 0);
@@ -268,7 +268,7 @@ export async function getMerchantCodBatches(userId: string): Promise<{
       } else if (settlementDate === todayStr) {
         status = "PAYABLE";
       } else {
-        // Past T+3 settlement date
+        // Past T+2 settlement date
         status = "PAID";
         bankUtr = `HDFC${s.id.slice(-8).toUpperCase()}`;
       }
@@ -402,7 +402,7 @@ export async function getMerchantCodBatches(userId: string): Promise<{
   );
 
   const scheduledBatches = batches.filter((b) => b.settlementDate !== "Pending Delivery" && b.settlementDate >= todayStr);
-  const nextSettlementDate = scheduledBatches.length > 0 ? scheduledBatches[scheduledBatches.length - 1].settlementDate : "T+3 Daily";
+  const nextSettlementDate = scheduledBatches.length > 0 ? scheduledBatches[scheduledBatches.length - 1].settlementDate : "T+2 Daily";
 
   return {
     batches,
@@ -677,7 +677,7 @@ export async function createCodSettlementRecord(params: {
     refundAmountPaise: 0,
     netSettlementPaise: calculation.netSettlementPaise,
     status: "PENDING",
-    settlementDate: calculateSettlementDate(new Date().toISOString().slice(0, 10), 3),
+    settlementDate: calculateSettlementDate(new Date().toISOString().slice(0, 10), 2),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

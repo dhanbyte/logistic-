@@ -302,7 +302,7 @@ export function AdminCodSettlementManager({
         <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-3.5 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">Upcoming</span>
           <p className="mt-1 text-lg font-black text-amber-900">{formatINR(kpis.upcoming)}</p>
-          <p className="text-[10px] text-amber-700">Scheduled T+3</p>
+          <p className="text-[10px] text-amber-700">Scheduled T+2</p>
         </div>
 
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3.5 shadow-xs">
@@ -445,7 +445,7 @@ export function AdminCodSettlementManager({
 
                     <td className="py-3.5 px-4">
                       <p className="font-bold text-slate-800">{b.settlementDate}</p>
-                      <p className="text-[10px] text-slate-400">T+3 Delivery</p>
+                      <p className="text-[10px] text-slate-400">T+2 Delivery</p>
                     </td>
 
                     <td className="py-3.5 px-4">
