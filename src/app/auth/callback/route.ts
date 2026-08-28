@@ -87,7 +87,7 @@ export async function GET(request: Request) {
           warehouse_name: `${companyName} Hub`,
           contact_person: fullName,
           contact_phone: metadata.phone || "9876543210",
-          address_line1: "Primary Hub Center",
+          address_line1: "Main Fulfillment Center",
           city: "New Delhi",
           state: "Delhi",
           pincode: "110020",

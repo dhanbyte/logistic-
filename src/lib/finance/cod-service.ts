@@ -1,4 +1,4 @@
-import { getEffectiveSession } from "@/lib/supabase/server";
+import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
 import type {
   CodSettlementBatch,
   CodSettlementOrderItem,
@@ -122,7 +122,7 @@ export function saveUserBankDetails(
     upiId?: string;
   },
 ): UserBankDetails {
-  const uid = userId || "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+  const uid = userId || "default-merchant";
   const current = getUserBankDetails(uid);
 
   const accNum = details.accountNumber.trim() || current.accountNumber;
@@ -438,20 +438,40 @@ export async function getAdminCodBatches(): Promise<{
     totalPaid: number;
   };
 }> {
-  const merchantData = await getMerchantCodBatches("0b67cbd5-bf09-4c54-b4be-02d56af6f0a5");
-  const batches = merchantData.batches;
+  const session = await getEffectiveSession();
+  const supabase = createServiceClient() || session?.supabase;
+
+  let allShipments: any[] = [];
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from("ecommerce_shipments")
+        .select("*, order:orders(*), courier_provider:courier_providers(*)")
+        .eq("payment_mode", "COD")
+        .order("created_at", { ascending: false });
+      allShipments = data || [];
+    } catch (e) {
+      console.warn("[getAdminCodBatches.db]", e);
+    }
+  }
+
+  const batches = Array.from(inMemoryCodSettlementBatches.values());
+
+  const pendingCod = allShipments
+    .filter((s: any) => s.shipment_status !== "DELIVERED")
+    .reduce((sum: number, s: any) => sum + Number(s.cod_amount || 0), 0);
 
   const kpis = {
-    pendingCod: merchantData.summary.pendingCodInField,
-    upcoming: merchantData.summary.upcomingSettlement,
-    payableToday: merchantData.summary.payableToday,
+    pendingCod,
+    upcoming: batches.filter((b) => b.status === "SETTLEMENT_SCHEDULED").reduce((sum, b) => sum + b.netPayable, 0),
+    payableToday: batches.filter((b) => b.status === "AWAITING_APPROVAL" || b.status === "APPROVED").reduce((sum, b) => sum + b.netPayable, 0),
     awaitingApproval: batches.filter((b) => b.status === "AWAITING_APPROVAL").length,
     approved: batches.filter((b) => b.status === "APPROVED").length,
     processing: batches.filter((b) => b.status === "BANK_PROCESSING" || b.status === "PROCESSING").length,
     paid: batches.filter((b) => b.status === "PAID").length,
     failed: batches.filter((b) => b.status === "FAILED").length,
     totalPayable: batches.filter((b) => b.status !== "PAID" && b.status !== "FAILED").reduce((sum, b) => sum + b.netPayable, 0),
-    totalPaid: merchantData.summary.totalRemitted,
+    totalPaid: batches.filter((b) => b.status === "PAID").reduce((sum, b) => sum + b.netPayable, 0),
   };
 
   return { batches, kpis };

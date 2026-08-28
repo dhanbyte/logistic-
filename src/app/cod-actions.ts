@@ -174,18 +174,45 @@ export async function retryCodPayoutAction(batchId: string) {
   return res;
 }
 
-/**
- * Step 8: Save / Update Merchant Bank Account Details
- */
-export async function updateUserBankDetailsAction(formData: FormData) {
+export async function updateUserBankDetailsAction(
+  data:
+    | FormData
+    | {
+        accountHolderName: string;
+        bankName: string;
+        accountNumber: string;
+        confirmAccountNumber?: string;
+        ifsc: string;
+        accountType?: "CURRENT" | "SAVINGS";
+        upiId?: string;
+      },
+) {
   try {
-    const accountHolderName = String(formData.get("accountHolderName") || "").trim();
-    const bankName = String(formData.get("bankName") || "").trim();
-    const accountNumber = String(formData.get("accountNumber") || "").trim();
-    const confirmAccountNumber = String(formData.get("confirmAccountNumber") || "").trim();
-    const ifsc = String(formData.get("ifsc") || "").trim().toUpperCase();
-    const accountType = (String(formData.get("accountType") || "CURRENT")) as "CURRENT" | "SAVINGS";
-    const upiId = String(formData.get("upiId") || "").trim();
+    let accountHolderName = "";
+    let bankName = "";
+    let accountNumber = "";
+    let confirmAccountNumber = "";
+    let ifsc = "";
+    let accountType: "CURRENT" | "SAVINGS" = "CURRENT";
+    let upiId = "";
+
+    if (data instanceof FormData) {
+      accountHolderName = String(data.get("accountHolderName") || "").trim();
+      bankName = String(data.get("bankName") || "").trim();
+      accountNumber = String(data.get("accountNumber") || "").trim();
+      confirmAccountNumber = String(data.get("confirmAccountNumber") || "").trim();
+      ifsc = String(data.get("ifsc") || "").trim().toUpperCase();
+      accountType = (String(data.get("accountType") || "CURRENT")) as "CURRENT" | "SAVINGS";
+      upiId = String(data.get("upiId") || "").trim();
+    } else {
+      accountHolderName = String(data.accountHolderName || "").trim();
+      bankName = String(data.bankName || "").trim();
+      accountNumber = String(data.accountNumber || "").trim();
+      confirmAccountNumber = String(data.confirmAccountNumber || "").trim();
+      ifsc = String(data.ifsc || "").trim().toUpperCase();
+      accountType = (data.accountType || "CURRENT") as "CURRENT" | "SAVINGS";
+      upiId = String(data.upiId || "").trim();
+    }
 
     if (!accountHolderName) {
       return { ok: false, message: "Account Holder Name is required." };
@@ -204,15 +231,10 @@ export async function updateUserBankDetailsAction(formData: FormData) {
     }
 
     const session = await getEffectiveSession();
-    const userId = session ? session.user.id : "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
-
-    const existing = getUserBankDetails(userId);
-    if (existing && existing.isVerified) {
-      return {
-        ok: false,
-        message: "Bank settlement details are locked and verified. Please contact Admin Support to change your registered payout bank account.",
-      };
+    if (!session) {
+      return { ok: false, message: "Please sign in to update bank settlement details." };
     }
+    const userId = session.user.id;
 
     const saved = saveUserBankDetails(userId, {
 

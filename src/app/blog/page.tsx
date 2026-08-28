@@ -66,9 +66,21 @@ export default function BlogPage() {
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600">
+          <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
+            <Link
+              href="/#rates"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-2xs"
+            >
+              <span>Pricing (From ₹78)</span>
+              <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
+                ₹0 RTO
+              </span>
+            </Link>
             <Link href="/#platform" className="hover:text-slate-900 transition-colors">
               Platform
+            </Link>
+            <Link href="/#rates" className="hover:text-slate-900 transition-colors font-medium">
+              Pricing
             </Link>
             <Link href="/#tracking" className="hover:text-slate-900 transition-colors">
               Track shipment
@@ -358,7 +370,10 @@ export default function BlogPage() {
             <Link href="/#platform" className="hover:text-slate-900 transition-colors">
               Platform
             </Link>
-            <Link href="/blog" className="hover:text-slate-900 text-indigo-600 font-bold transition-colors">
+            <Link href="/#rates" className="hover:text-slate-900 text-indigo-600 font-bold transition-colors">
+              Pricing (From ₹78)
+            </Link>
+            <Link href="/blog" className="hover:text-slate-900 transition-colors">
               Blog
             </Link>
             <Link href="/#tracking" className="hover:text-slate-900 transition-colors">

@@ -267,6 +267,12 @@ export async function getWalletBalanceAction(): Promise<{ balance: number }> {
 export async function bookShipmentForOrder(
   orderId: string,
   courierCode: string,
+  customDimensions?: {
+    weightKg?: number;
+    lengthCm?: number;
+    widthCm?: number;
+    heightCm?: number;
+  },
 ): Promise<ActionResult<{ awbNumber: string; shipmentId: string; labelUrl: string }>> {
   try {
     const session = await auth();
@@ -293,7 +299,6 @@ export async function bookShipmentForOrder(
           awbNumber: existingShipment.awb_number,
           shipmentId: existingShipment.id,
           labelUrl: existingShipment.label_url ?? "",
-
         },
       };
     }
@@ -313,12 +318,26 @@ export async function bookShipmentForOrder(
     const firstItem = (order as any).items?.[0];
 
     // 1.2 Calculate Dynamic Volumetric & Chargeable Weight
-    const deadWeightKg = Number(order.total_weight_kg) || 0.5;
-    const lengthCm = Number(order.length_cm) || 10;
-    const widthCm = Number(order.width_cm) || 10;
-    const heightCm = Number(order.height_cm) || 10;
+    const deadWeightKg = customDimensions?.weightKg ?? (Number(order.total_weight_kg) || 0.5);
+    const lengthCm = customDimensions?.lengthCm ?? (Number(order.length_cm) || 10);
+    const widthCm = customDimensions?.widthCm ?? (Number(order.width_cm) || 10);
+    const heightCm = customDimensions?.heightCm ?? (Number(order.height_cm) || 10);
     const volumetricKg = (lengthCm * widthCm * heightCm) / 5000;
     const chargeableWeightKg = Math.max(deadWeightKg, volumetricKg);
+
+    // Persist updated dimensions to order if provided
+    if (customDimensions) {
+      await supabase
+        .from("orders")
+        .update({
+          total_weight_kg: deadWeightKg,
+          length_cm: lengthCm,
+          width_cm: widthCm,
+          height_cm: heightCm,
+          chargeable_weight_kg: chargeableWeightKg,
+        })
+        .eq("id", orderId);
+    }
 
     // 1.3 Get Dynamic Courier Rate Quote
     const rateQuote = await courier.calculateRate(
@@ -1245,13 +1264,13 @@ export async function registerSellerAction(payload: {
       updated_at: new Date().toISOString(),
     });
 
-    // 4. Create default warehouse
+    // 4. Create default initial pickup location
     await serviceClient.from("warehouses").insert({
       user_id: userId,
-      warehouse_name: `${payload.companyName || "Primary"} Warehouse Hub`,
+      warehouse_name: `${payload.companyName || payload.fullName || "Primary"} Hub`,
       contact_person: payload.fullName || "Logistics Manager",
       contact_phone: payload.phone || "9876543210",
-      address_line1: "Plot 104, Industrial Area",
+      address_line1: "Main Fulfillment Center",
       city: "New Delhi",
       state: "Delhi",
       pincode: "110020",

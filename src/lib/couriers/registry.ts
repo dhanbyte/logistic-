@@ -12,6 +12,7 @@ import { XpressbeesProvider } from "./xpressbees/provider";
 
 export const SUPPORTED_COURIERS = [
   "shadowfax",
+  "shadowfax_surface",
 ] as const;
 
 export type SupportedCourierCode = (typeof SUPPORTED_COURIERS)[number];
@@ -26,6 +27,12 @@ export function isCourierConfigured(code: string): boolean {
   if (normalized === "xpressbees") {
     if (process.env.NEXT_PUBLIC_XPRESSBEES_CONFIGURED === "true") return true;
     const client = new XpressbeesClient();
+    return client.isConfigured();
+  }
+  if (normalized === "shadowfax_surface") {
+    if (process.env.NEXT_PUBLIC_SHADOWFAX_SURFACE_CONFIGURED === "true") return true;
+    const token = process.env.SHADOWFAX_SURFACE_TOKEN || process.env.SHADOWFAX_TOKEN;
+    const client = new ShadowfaxClient({ token });
     return client.isConfigured();
   }
   if (normalized === "shadowfax") {
@@ -47,7 +54,7 @@ export function isCourierTestMode(code: string): boolean {
       process.env.XPRESSBEES_TEST_MODE === "true"
     );
   }
-  if (normalized === "shadowfax") {
+  if (normalized === "shadowfax" || normalized === "shadowfax_surface") {
     return (
       process.env.NEXT_PUBLIC_SHADOWFAX_TEST_MODE === "true" ||
       process.env.SHADOWFAX_TEST_MODE === "true"
@@ -73,13 +80,18 @@ export function getCourierProvider(code: string): ICourierProvider {
     } else {
       provider = new MockCourierProvider(normalized);
     }
+  } else if (normalized === "shadowfax_surface") {
+    provider = new ShadowfaxProvider({
+      code: "shadowfax_surface",
+      name: "Shadowfax Cargo 7KG (Surface)",
+      isSurface7Kg: true,
+    });
   } else if (normalized === "shadowfax") {
-    const client = new ShadowfaxClient();
-    if (client.isConfigured()) {
-      provider = new ShadowfaxProvider(client);
-    } else {
-      provider = new MockCourierProvider(normalized);
-    }
+    provider = new ShadowfaxProvider({
+      code: "shadowfax",
+      name: "Shadowfax Express 0.5KG (Air)",
+      isSurface7Kg: false,
+    });
   } else {
     provider = new MockCourierProvider(normalized);
   }

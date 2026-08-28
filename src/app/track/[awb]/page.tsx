@@ -58,8 +58,33 @@ export default async function PublicTrackingPage({
 
       {/* Main Tracking View */}
       <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 flex-1 space-y-6">
-        {/* 1. HERO SHIPMENT STATUS CARD */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+        {data.isNotFound ? (
+          <div className="overflow-hidden rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-md max-w-xl mx-auto space-y-4">
+            <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-rose-50 text-rose-600">
+              <Package size={32} />
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">Shipment Record Not Found</h1>
+            <p className="text-sm text-slate-600">
+              We couldn&apos;t find any active dispatch details for AWB{" "}
+              <strong className="font-mono text-slate-900 font-bold">{data.awbNumber}</strong>.
+            </p>
+            <p className="text-xs text-slate-500">
+              Please double check the AWB number with your merchant or tracking SMS notification.
+            </p>
+            <div className="pt-2">
+              <Link
+                href="/#tracking"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs"
+              >
+                <Search size={14} />
+                <span>Search Another Tracking Number</span>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 1. HERO SHIPMENT STATUS CARD */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
           <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/40 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -262,6 +287,8 @@ export default async function PublicTrackingPage({
             </div>
           </div>
         </div>
+        </>
+        )}
       </main>
 
       {/* Public Tracking Footer */}

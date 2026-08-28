@@ -18,6 +18,7 @@ import {
   MapPin,
   Package,
   Phone,
+  RefreshCw,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -33,73 +34,27 @@ import { PincodeServiceabilityMatrix } from "@/components/landing/pincode-servic
 import { BLOG_POSTS } from "@/lib/blog-data";
 
 
-// Sample mock tracking database for public tracking lookup demo
-interface TrackingRecord {
-  awb: string;
-  courier: string;
-  status: "In Transit" | "Out for Delivery" | "Delivered" | "Manifested";
-  statusColor: string;
-  origin: string;
-  destination: string;
-  recipient: string;
-  lastUpdated: string;
-  eta: string;
-  timeline: { title: string; time: string; location: string; done: boolean }[];
+// Real Live Public Tracking Interface
+interface PublicLiveTrackingRecord {
+  awbNumber: string;
+  orderNumber?: string;
+  courierName: string;
+  courierCode: string;
+  currentStatus: string;
+  currentStatusText: string;
+  currentStatusColor: string;
+  currentLocation: string;
+  originCity: string;
+  originPincode: string;
+  destinationCity: string;
+  destinationState: string;
+  destinationPincode: string;
+  recipientName: string;
+  pickupScheduledDate: string;
+  estimatedDeliveryDate: string;
+  milestones: { label: string; sublabel: string; status: "completed" | "current" | "upcoming"; timestamp?: string; location?: string }[];
+  checkpoints: { status: string; activity: string; location: string; timestamp: string }[];
 }
-
-const SAMPLE_TRACKING_DATA: Record<string, TrackingRecord> = {
-  "SFX-8823401": {
-    awb: "SFX-8823401",
-    courier: "Shadowfax Express",
-    status: "Out for Delivery",
-    statusColor: "text-amber-600 bg-amber-50 border-amber-200",
-    origin: "Bhiwandi Hub, Maharashtra",
-    destination: "Indiranagar, Bengaluru, Karnataka",
-    recipient: "Kavita S. (Verified Customer)",
-    lastUpdated: "Today, 09:30 AM",
-    eta: "Today by 06:00 PM",
-    timeline: [
-      { title: "Out for delivery with courier rider", time: "Today, 08:45 AM", location: "Bengaluru East DC", done: true },
-      { title: "Shipment reached destination hub", time: "Yesterday, 11:20 PM", location: "Bengaluru Mega Hub", done: true },
-      { title: "In transit via Air Cargo", time: "Yesterday, 02:10 PM", location: "Mumbai Airport Hub", done: true },
-      { title: "Pickup completed & weighed", time: "24 Aug, 04:30 PM", location: "Seller Warehouse, Mumbai", done: true },
-      { title: "Shipping label generated", time: "24 Aug, 11:15 AM", location: "Shipwave Central OS", done: true },
-    ],
-  },
-  "XPB-9948210": {
-    awb: "XPB-9948210",
-    courier: "Xpressbees Surface",
-    status: "Delivered",
-    statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200",
-    origin: "Okhla Phase III, New Delhi",
-    destination: "Koregaon Park, Pune, Maharashtra",
-    recipient: "Anand M. (Prepaid Order)",
-    lastUpdated: "25 Aug, 02:15 PM",
-    eta: "Delivered on 25 Aug",
-    timeline: [
-      { title: "Delivered to recipient with OTP verification", time: "25 Aug, 02:15 PM", location: "Pune Delivery Station", done: true },
-      { title: "Out for delivery", time: "25 Aug, 09:00 AM", location: "Pune Central Hub", done: true },
-      { title: "Arrived at distribution facility", time: "24 Aug, 08:30 PM", location: "Pune Logistics Park", done: true },
-      { title: "Dispatched from origin center", time: "23 Aug, 10:00 PM", location: "Delhi Gateway", done: true },
-    ],
-  },
-  "DLV-5541092": {
-    awb: "DLV-5541092",
-    courier: "Delhivery Surface",
-    status: "In Transit",
-    statusColor: "text-indigo-600 bg-indigo-50 border-indigo-200",
-    origin: "Surat Textile Hub, Gujarat",
-    destination: "Salt Lake Sector V, Kolkata",
-    recipient: "Pooja V. (COD: ₹1,499)",
-    lastUpdated: "Today, 11:10 AM",
-    eta: "Tomorrow by 04:00 PM",
-    timeline: [
-      { title: "Linehaul departure to destination transit node", time: "Today, 10:00 AM", location: "Nagpur Sorting Center", done: true },
-      { title: "Consolidated into linehaul container", time: "Yesterday, 07:15 PM", location: "Surat Hub", done: true },
-      { title: "Shipment manifested & picked up", time: "Yesterday, 01:20 PM", location: "Surat Origin Warehouse", done: true },
-    ],
-  },
-};
 
 export default function LandingPage() {
   // Auth card mode
@@ -112,10 +67,12 @@ export default function LandingPage() {
   // Active info modal state
   const [activeModal, setActiveModal] = useState<"about" | "contact" | "terms" | "privacy" | null>(null);
 
-  // Public Tracking State
+  // Public Tracking State (100% Real Live Database & Courier Network)
   const [trackingAwb, setTrackingAwb] = useState("");
-  const [searchedRecord, setSearchedRecord] = useState<TrackingRecord | null>(SAMPLE_TRACKING_DATA["SFX-8823401"]);
+  const [isTrackingLoading, setIsTrackingLoading] = useState(false);
+  const [searchedRecord, setSearchedRecord] = useState<PublicLiveTrackingRecord | null>(null);
   const [trackingError, setTrackingError] = useState("");
+  const [searchedAwb, setSearchedAwb] = useState("");
 
   // Rate Calculator State
   const [pickupPincode, setPickupPincode] = useState("110020");
@@ -123,51 +80,68 @@ export default function LandingPage() {
   const [weightKg, setWeightKg] = useState("0.5");
   const [paymentMode, setPaymentMode] = useState<"PREPAID" | "COD">("PREPAID");
 
-  // Rate calculation estimates
-  const weight = Math.max(0.5, Number(weightKg) || 0.5);
-  const shadowfaxRate = Math.round(38 + (weight > 0.5 ? Math.ceil((weight - 0.5) / 0.5) * 30 : 0));
-  const xpressbeesRate = Math.round(42 + (weight > 0.5 ? Math.ceil((weight - 0.5) / 0.5) * 32 : 0));
-  const delhiveryRate = Math.round(45 + (weight > 0.5 ? Math.ceil((weight - 0.5) / 0.5) * 34 : 0));
+  // Rate calculation estimates (₹0 COD Fee - Free COD for all merchants)
+  const weight = Math.max(0.1, Number(weightKg) || 0.5);
+  const codFee = 0;
 
-  function handleTrackSubmit(e?: React.FormEvent) {
+  // 1. Shadowfax Express (0.5kg Air Plan)
+  const baseShadowfaxExpress = weight <= 0.5 ? 78 : 78 + Math.ceil((weight - 0.5) / 0.5) * 45;
+  const shadowfaxExpressRate = baseShadowfaxExpress;
+
+  // 2. Shadowfax Cargo (7KG Surface Plan)
+  let baseCargoRate = 96;
+  if (weight <= 1.0) {
+    baseCargoRate = 96;
+  } else if (weight <= 3.0) {
+    baseCargoRate = 126;
+  } else if (weight <= 5.0) {
+    baseCargoRate = 146;
+  } else if (weight <= 7.0) {
+    baseCargoRate = 166;
+  } else {
+    baseCargoRate = 166 + Math.ceil(weight - 7.0) * 20;
+  }
+  const shadowfaxCargoRate = baseCargoRate;
+
+  // 3. Xpressbees Surface
+  const baseXpressbees = Math.round(98 + (weight > 0.5 ? Math.ceil((weight - 0.5) / 0.5) * 40 : 0));
+  const xpressbeesRate = baseXpressbees;
+
+  // 4. Delhivery Direct
+  const baseDelhivery = Math.round(110 + (weight > 0.5 ? Math.ceil((weight - 0.5) / 0.5) * 45 : 0));
+  const delhiveryRate = baseDelhivery;
+
+  async function handleTrackSubmit(e?: React.FormEvent) {
     if (e) e.preventDefault();
     const query = trackingAwb.trim().toUpperCase();
     if (!query) {
-      setTrackingError("Please enter a valid AWB or Tracking ID.");
+      setTrackingError("Please enter a valid AWB number or tracking ID.");
       return;
     }
 
+    setIsTrackingLoading(true);
     setTrackingError("");
-    const matched = SAMPLE_TRACKING_DATA[query];
-    if (matched) {
-      setSearchedRecord(matched);
-    } else {
-      // Create a simulated live tracking response for any entered AWB
-      setSearchedRecord({
-        awb: query,
-        courier: query.startsWith("SF") ? "Shadowfax Express" : query.startsWith("XP") ? "Xpressbees" : "Express Linehaul",
-        status: "In Transit",
-        statusColor: "text-indigo-600 bg-indigo-50 border-indigo-200",
-        origin: "Origin Fulfillment Hub",
-        destination: "Destination Delivery Hub",
-        recipient: "Customer Consignee (Secure)",
-        lastUpdated: "Just now",
-        eta: "2-3 business days",
-        timeline: [
-          { title: "In Transit to destination facility", time: "Today, Recent Scan", location: "Transit Sorting Hub", done: true },
-          { title: "Processed at carrier sorting hub", time: "Earlier Today", location: "Origin Facility", done: true },
-          { title: "Picked up & manifest sealed", time: "Yesterday", location: "Merchant Fulfillment Hub", done: true },
-        ],
-      });
-    }
-    // Clear input reference from field after submission for privacy as stated in copy
-    setTrackingAwb("");
-  }
+    setSearchedRecord(null);
+    setSearchedAwb(query);
 
-  function handleSelectSample(awb: string) {
-    setTrackingAwb(awb);
-    setSearchedRecord(SAMPLE_TRACKING_DATA[awb] || null);
-    setTrackingError("");
+    try {
+      const res = await fetch(`/api/track?awb=${encodeURIComponent(query)}`);
+      const result = await res.json();
+
+      if (result.found && result.data && !result.data.isNotFound) {
+        setSearchedRecord(result.data);
+      } else {
+        setTrackingError(
+          result.error ||
+          `No active shipment found for AWB ${query}. Please verify the tracking number.`
+        );
+      }
+    } catch (err) {
+      console.error("Failed to fetch live tracking:", err);
+      setTrackingError("Unable to connect to courier tracking gateway. Please try again in a moment.");
+    } finally {
+      setIsTrackingLoading(false);
+    }
   }
 
   // Smooth scroll & actions
@@ -217,13 +191,30 @@ export default function LandingPage() {
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600">
+          <nav className="hidden md:flex items-center gap-5 lg:gap-6 text-xs font-semibold text-slate-600">
             <button
               type="button"
-              onClick={() => scrollToSection("platform")}
+              onClick={() => scrollToSection("rates")}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer shadow-2xs"
+            >
+              <span>Pricing (From ₹78)</span>
+              <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
+                ₹0 RTO
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("serviceability")}
               className="hover:text-slate-900 transition-colors cursor-pointer"
             >
-              Platform
+              Coverage
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("rates")}
+              className="hover:text-slate-900 transition-colors cursor-pointer font-medium"
+            >
+              Rate Card
             </button>
             <button
               type="button"
@@ -240,13 +231,6 @@ export default function LandingPage() {
             </Link>
             <button
               type="button"
-              onClick={() => scrollToSection("features")}
-              className="hover:text-slate-900 transition-colors cursor-pointer"
-            >
-              Operating Layer
-            </button>
-            <button
-              type="button"
               onClick={() => scrollToSection("rates")}
               className="hover:text-slate-900 transition-colors cursor-pointer"
             >
@@ -260,7 +244,6 @@ export default function LandingPage() {
               PIN Serviceability
             </button>
           </nav>
-
 
           {/* Nav Actions */}
           <div className="flex items-center gap-3">
@@ -317,6 +300,14 @@ export default function LandingPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => scrollToSection("rates")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-5 py-3 text-xs sm:text-sm font-bold text-indigo-700 hover:bg-indigo-100 shadow-xs transition-colors cursor-pointer"
+                >
+                  <span>View Rate Card (From ₹78)</span>
+                  <ArrowRight size={15} />
+                </button>
+                <button
+                  type="button"
                   onClick={scrollToTracking}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs transition-colors cursor-pointer"
                 >
@@ -325,21 +316,51 @@ export default function LandingPage() {
                 </button>
               </div>
 
+              {/* High Impact ₹0 RTO & Price Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                    <ShieldCheck size={13} className="text-emerald-600" /> ₹0 RTO Charges
+                  </span>
+                  <p className="text-xs font-black text-emerald-950 mt-0.5">
+                    100% Free RTO Returns
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/80 p-3 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-800 flex items-center gap-1">
+                    <Zap size={13} className="text-indigo-600" /> 0.5kg Air Lite
+                  </span>
+                  <p className="text-xs font-black text-indigo-950 mt-0.5">
+                    Starts @ ₹78.00 Flat
+                  </p>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1 rounded-xl border border-blue-200 bg-blue-50/80 p-3 shadow-2xs">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-800 flex items-center gap-1">
+                    <Package size={13} className="text-blue-600" /> 7KG Cargo Plan
+                  </span>
+                  <p className="text-xs font-black text-blue-950 mt-0.5">
+                    Starts @ ₹96.00 Flat
+                  </p>
+                </div>
+              </div>
+
               {/* Courier Partners List */}
-              <div className="pt-6 border-t border-slate-200/80">
+              <div className="pt-4 border-t border-slate-200/80">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                   Unified Indian Courier Engine
                 </p>
                 <p className="text-xs font-medium text-slate-600 flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-slate-800">Delhivery</span>
+                  <span className="font-semibold text-slate-800">Shadowfax Express</span>
                   <span className="text-slate-300">•</span>
-                  <span className="font-semibold text-slate-800">Blue Dart</span>
+                  <span className="font-semibold text-slate-800">Shadowfax Cargo (7KG)</span>
                   <span className="text-slate-300">•</span>
                   <span className="font-semibold text-slate-800">Xpressbees</span>
                   <span className="text-slate-300">•</span>
-                  <span className="font-semibold text-slate-800">Ekart</span>
+                  <span className="font-semibold text-slate-800">Delhivery</span>
                   <span className="text-slate-300">•</span>
-                  <span className="font-semibold text-slate-800">Shadowfax</span>
+                  <span className="font-semibold text-slate-800">Blue Dart</span>
                   <span className="text-slate-300">•</span>
                   <span className="font-semibold text-slate-800">DTDC</span>
                 </p>
@@ -373,177 +394,65 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 3. PRODUCT PREVIEW SECTION */}
-      <section id="platform" className="py-16 sm:py-24 bg-white border-y border-slate-200/80">
+      {/* 2.5 INSTANT RATE CARD & ZERO RTO STRIP */}
+      <section className="bg-slate-900 text-white py-6 border-y border-slate-800">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 block mb-2">
-              Product preview
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-              A connected command center
-            </h2>
-            <p className="mt-2 text-sm sm:text-base text-slate-600 leading-relaxed">
-              Keep orders, delivery performance, courier activity, and revenue in one operational view.
-            </p>
-          </div>
-
-          {/* Interactive Mockup Dashboard Card */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-7 shadow-lg shadow-slate-100">
-            {/* Top Stat Ribbon */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                  Active Shipments
-                </span>
-                <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                  1,482
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-                  <TrendingUp size={12} /> 94.2% on-time SLA
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                  COD Available
-                </span>
-                <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                  ₹84,250
-                </span>
-                <span className="text-[11px] font-semibold text-indigo-600 flex items-center gap-1 mt-1">
-                  <Clock size={12} /> T+3 Daily Remittance
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                  NDR Resolution Rate
-                </span>
-                <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                  78.4%
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-                  <RotateCcw size={12} /> Automated WhatsApp
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                  Integrated Couriers
-                </span>
-                <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                  6 Couriers
-                </span>
-                <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 mt-1">
-                  <CheckCircle2 size={12} className="text-emerald-500" /> 10,000+ PINs (2,500+ Cities)
-                </span>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 place-items-center rounded-xl bg-indigo-500 text-white font-black text-sm">
+                ₹
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">
+                    Direct Courier Rates &amp; Zero RTO Plans
+                  </h3>
+                  <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black px-2 py-0.5">
+                    ₹0 RTO GUARANTEED
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Flat national rates with zero return charges &amp; T+3 COD bank settlements.
+                </p>
               </div>
             </div>
 
-            {/* Dashboard Operational Table Preview */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-              <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-bold text-slate-800">
-                    Live Dispatch Activity &bull; Today&apos;s Batches
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => scrollToAuth("register")}
-                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Open Full Command Center</span>
-                  <ChevronRight size={13} />
-                </button>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
+                <span className="text-slate-400">500g Air:</span>
+                <strong className="text-emerald-400 text-sm">₹78.00</strong>
+              </div>
+              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
+                <span className="text-slate-400">1kg Cargo:</span>
+                <strong className="text-indigo-300 text-sm">₹96.00</strong>
+              </div>
+              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
+                <span className="text-slate-400">3kg Cargo:</span>
+                <strong className="text-indigo-300 text-sm">₹126.00</strong>
+              </div>
+              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
+                <span className="text-slate-400">5kg Cargo:</span>
+                <strong className="text-indigo-300 text-sm">₹146.00</strong>
+              </div>
+              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
+                <span className="text-slate-400">7kg Cargo:</span>
+                <strong className="text-indigo-300 text-sm">₹166.00</strong>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-slate-100 bg-slate-50/40 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    <tr>
-                      <th className="px-4 py-2.5">Order / AWB</th>
-                      <th className="px-4 py-2.5">Customer &amp; Route</th>
-                      <th className="px-4 py-2.5">Carrier</th>
-                      <th className="px-4 py-2.5">Amount</th>
-                      <th className="px-4 py-2.5">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    <tr className="hover:bg-slate-50/60">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
-                        #ORD-90241
-                        <span className="block text-[10px] text-slate-400 font-mono">SFX-8823401</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-slate-800">Kavita S.</span>
-                        <span className="block text-[10px] text-slate-400">Bhiwandi &rarr; Bengaluru (560038)</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
-                          Shadowfax Express
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium">₹1,850 <span className="text-[10px] text-slate-400 font-normal">(COD)</span></td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/70 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                          Out for Delivery
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-slate-50/60">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
-                        #ORD-90240
-                        <span className="block text-[10px] text-slate-400 font-mono">XPB-9948210</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-slate-800">Anand M.</span>
-                        <span className="block text-[10px] text-slate-400">Delhi &rarr; Pune (411001)</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200">
-                          Xpressbees Surface
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium">₹2,499 <span className="text-[10px] text-emerald-600 font-semibold">(Prepaid)</span></td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                          Delivered
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-slate-50/60">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
-                        #ORD-90239
-                        <span className="block text-[10px] text-slate-400 font-mono">DLV-5541092</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-slate-800">Pooja V.</span>
-                        <span className="block text-[10px] text-slate-400">Surat &rarr; Kolkata (700091)</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
-                          Delhivery Surface
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium">₹1,499 <span className="text-[10px] text-slate-400 font-normal">(COD)</span></td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100/70 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                          In Transit
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <button
+                type="button"
+                onClick={() => scrollToSection("rates")}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 ml-auto sm:ml-0"
+              >
+                <span>Full Rate Table</span>
+                <ArrowRight size={13} />
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4. PUBLIC TRACKING SECTION */}
+      {/* 3. PUBLIC TRACKING SECTION */}
       <section id="tracking" className="py-16 sm:py-24 bg-[#f8fafc] border-b border-slate-200/80">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-10">
@@ -566,127 +475,180 @@ export default function LandingPage() {
                   ref={trackingInputRef}
                   type="text"
                   value={trackingAwb}
-                  onChange={(e) => setTrackingAwb(e.target.value)}
-                  placeholder="AWB number (e.g. SFX-8823401, XPB-9948210)"
+                  onChange={(e) => {
+                    setTrackingAwb(e.target.value);
+                    if (trackingError) setTrackingError("");
+                  }}
+                  placeholder="Enter your AWB / Tracking ID (e.g. SFX10293847, DLV84920193)"
                   className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-4 pr-10 text-xs sm:text-sm font-medium outline-none shadow-xs transition placeholder:text-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
                 />
                 <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
               <button
                 type="submit"
-                className="h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all cursor-pointer shrink-0"
+                disabled={isTrackingLoading}
+                className="h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all cursor-pointer shrink-0 disabled:opacity-70"
               >
-                <span>Track shipment</span>
-                <ArrowRight size={15} />
+                {isTrackingLoading ? (
+                  <>
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Track shipment</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
               </button>
             </form>
 
+            {/* Error Message */}
             {trackingError && (
-              <p className="text-xs text-red-600 font-medium mt-2 text-center">
-                {trackingError}
-              </p>
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-center">
+                <p className="text-xs font-bold text-rose-800">
+                  {trackingError}
+                </p>
+                <p className="text-[11px] text-rose-600 mt-0.5">
+                  Ensure you have typed the exact AWB number from your SMS notification or seller order slip.
+                </p>
+              </div>
             )}
-
-            {/* Quick Demo Sample AWBs */}
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500">
-              <span>Try sample:</span>
-              <button
-                type="button"
-                onClick={() => handleSelectSample("SFX-8823401")}
-                className="font-mono font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 border border-indigo-200/60 px-2 py-0.5 rounded-md cursor-pointer"
-              >
-                SFX-8823401
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSelectSample("XPB-9948210")}
-                className="font-mono font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 border border-indigo-200/60 px-2 py-0.5 rounded-md cursor-pointer"
-              >
-                XPB-9948210
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSelectSample("DLV-5541092")}
-                className="font-mono font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 border border-indigo-200/60 px-2 py-0.5 rounded-md cursor-pointer"
-              >
-                DLV-5541092
-              </button>
-            </div>
           </div>
 
-          {/* Tracking Result View */}
+          {/* Live Real Tracking Result View */}
           {searchedRecord && (
-            <div className="max-w-3xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xl shadow-slate-200/50">
+            <div className="max-w-3xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xl shadow-slate-200/50 space-y-6">
+              {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-500">AWB Reference</span>
-                    <span className="font-mono text-base font-bold text-slate-900">
-                      {searchedRecord.awb}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500">AWB:</span>
+                    <span className="font-mono text-base font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      {searchedRecord.awbNumber}
                     </span>
+                    <span className="rounded bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                      {searchedRecord.courierName}
+                    </span>
+                    {searchedRecord.orderNumber && (
+                      <span className="text-xs font-medium text-slate-500">
+                        Ref: {searchedRecord.orderNumber}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Carrier: <strong className="text-slate-800">{searchedRecord.courier}</strong> &bull; Updated: {searchedRecord.lastUpdated}
+                  <p className="text-xs text-slate-600 mt-1">
+                    Current Location: <strong className="text-slate-900">{searchedRecord.currentLocation}</strong>
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${searchedRecord.statusColor}`}>
-                    <span className="size-2 rounded-full bg-current" />
-                    {searchedRecord.status}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold border ${searchedRecord.currentStatusColor}`}>
+                    <span className="size-2 rounded-full bg-current animate-pulse" />
+                    {searchedRecord.currentStatusText}
                   </span>
                 </div>
               </div>
 
               {/* Route Summary */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-5 bg-slate-50/80 rounded-xl p-4 border border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/80 rounded-xl p-4 border border-slate-100">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                     Origin Dispatch
                   </span>
                   <span className="text-xs font-semibold text-slate-800 block mt-0.5">
-                    {searchedRecord.origin}
+                    {searchedRecord.originCity} ({searchedRecord.originPincode})
                   </span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Estimated Delivery
+                    Destination &amp; Estimated Delivery
                   </span>
                   <span className="text-xs font-semibold text-indigo-700 block mt-0.5">
-                    {searchedRecord.eta}
+                    {searchedRecord.destinationCity} {searchedRecord.destinationState && `(${searchedRecord.destinationState})`} &bull; Est. {searchedRecord.estimatedDeliveryDate}
                   </span>
                 </div>
               </div>
 
-              {/* Timeline Milestones */}
-              <div className="space-y-4 pt-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Tracking History
-                </h4>
-                <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                  {searchedRecord.timeline.map((step, idx) => (
-                    <div key={idx} className="relative">
-                      <span
-                        className={`absolute -left-6 top-1 grid size-4 place-items-center rounded-full text-white text-[9px] font-bold ${
-                          idx === 0 ? "bg-indigo-600 ring-4 ring-indigo-100" : "bg-slate-300"
+              {/* 5-Stage Stepper */}
+              {searchedRecord.milestones && searchedRecord.milestones.length > 0 && (
+                <div className="pt-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
+                    Delivery Milestones
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                    {searchedRecord.milestones.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className={`rounded-xl border p-2.5 transition-all ${
+                          m.status === "completed"
+                            ? "border-emerald-200 bg-emerald-50/50 text-emerald-950"
+                            : m.status === "current"
+                            ? "border-indigo-300 bg-indigo-50/70 text-indigo-950 ring-2 ring-indigo-200"
+                            : "border-slate-100 bg-slate-50 text-slate-400"
                         }`}
                       >
-                        ✓
-                      </span>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs">
-                        <span className={`font-semibold ${idx === 0 ? "text-slate-900" : "text-slate-700"}`}>
-                          {step.title}
+                        <div className={`mx-auto size-6 rounded-full flex items-center justify-center text-[10px] font-bold mb-1.5 ${
+                          m.status === "completed"
+                            ? "bg-emerald-600 text-white"
+                            : m.status === "current"
+                            ? "bg-indigo-600 text-white animate-pulse"
+                            : "bg-slate-200 text-slate-500"
+                        }`}>
+                          {m.status === "completed" ? "✓" : idx + 1}
+                        </div>
+                        <p className="text-[11px] font-bold truncate">{m.label}</p>
+                        <p className="text-[9px] opacity-75 truncate">{m.sublabel}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline History */}
+              {searchedRecord.checkpoints && searchedRecord.checkpoints.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Live Checkpoint Scans
+                  </h4>
+                  <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                    {searchedRecord.checkpoints.map((step, idx) => (
+                      <div key={idx} className="relative">
+                        <span
+                          className={`absolute -left-6 top-1 grid size-4 place-items-center rounded-full text-white text-[9px] font-bold ${
+                            idx === 0 ? "bg-indigo-600 ring-4 ring-indigo-100" : "bg-slate-300"
+                          }`}
+                        >
+                          ✓
                         </span>
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {step.time}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs">
+                          <span className={`font-semibold ${idx === 0 ? "text-slate-900" : "text-slate-700"}`}>
+                            {step.activity}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {step.timestamp}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 block">
+                          {step.location}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-500 block">
-                        {step.location}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {/* View Full Dedicated Page Action */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  Verified tracking via courier gateway
+                </span>
+                <Link
+                  href={`/track/${encodeURIComponent(searchedRecord.awbNumber)}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition"
+                >
+                  <span>Open Full Tracking Page</span>
+                  <ArrowRight size={13} />
+                </Link>
               </div>
             </div>
           )}
@@ -857,23 +819,35 @@ export default function LandingPage() {
 
               <div>
                 <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Dead Weight (KG)
+                  Parcel Weight (KG)
                 </label>
-                <div className="flex items-center gap-2">
-                  {["0.5", "1.0", "2.0", "5.0"].map((w) => (
+                <div className="grid grid-cols-6 gap-1.5 mb-2">
+                  {["0.5", "1.0", "2.0", "3.0", "5.0", "7.0"].map((w) => (
                     <button
                       key={w}
                       type="button"
                       onClick={() => setWeightKg(w)}
-                      className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border cursor-pointer ${
+                      className={`rounded-lg py-1.5 text-xs font-bold border cursor-pointer ${
                         weightKg === w
-                          ? "bg-indigo-600 text-white border-indigo-600"
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
                           : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                       }`}
                     >
                       {w} kg
                     </button>
                   ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 whitespace-nowrap">Custom weight:</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={weightKg}
+                    onChange={(e) => setWeightKg(e.target.value)}
+                    placeholder="Enter custom kg"
+                    className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold outline-none focus:border-indigo-600"
+                  />
                 </div>
               </div>
 
@@ -887,22 +861,22 @@ export default function LandingPage() {
                     onClick={() => setPaymentMode("PREPAID")}
                     className={`rounded-lg py-2 text-xs font-bold border cursor-pointer ${
                       paymentMode === "PREPAID"
-                        ? "bg-indigo-50 border-indigo-600 text-indigo-700"
+                        ? "bg-indigo-50 border-indigo-600 text-indigo-700 shadow-2xs"
                         : "bg-white border-slate-200 text-slate-600"
                     }`}
                   >
-                    Prepaid (0% COD fee)
+                    Prepaid (0% COD Fee)
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMode("COD")}
                     className={`rounded-lg py-2 text-xs font-bold border cursor-pointer ${
                       paymentMode === "COD"
-                        ? "bg-indigo-50 border-indigo-600 text-indigo-700"
+                        ? "bg-indigo-50 border-indigo-600 text-indigo-700 shadow-2xs"
                         : "bg-white border-slate-200 text-slate-600"
                     }`}
                   >
-                    COD (Cash on Delivery)
+                    COD (₹0 COD Fee • Free COD)
                   </button>
                 </div>
               </div>
@@ -910,24 +884,72 @@ export default function LandingPage() {
 
             {/* Courier Comparison Cards */}
             <div className="lg:col-span-7 space-y-3">
-              {/* Shadowfax */}
-              <div className="rounded-2xl border border-indigo-200/80 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between">
+              {/* Payment Mode Status Indicator */}
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200/80 px-3.5 py-2 text-xs text-emerald-900 flex items-center justify-between shadow-2xs">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-emerald-500" />
+                  {paymentMode === "COD"
+                    ? "COD Mode Active: ₹0 COD Fee (100% Free COD for All Merchants)"
+                    : "Prepaid Mode Active: Pure Freight Rate (0% COD Fee)"}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-white border border-emerald-200 rounded px-2 py-0.5">
+                  ₹0 COD Fee
+                </span>
+              </div>
+
+              {/* Shadowfax Cargo (7KG Plan) */}
+              <div className={`rounded-2xl border p-4 sm:p-5 shadow-xs flex items-center justify-between transition-all ${
+                weight > 0.5 ? "border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-600/20" : "border-slate-200 bg-white"
+              }`}>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 text-sm">Shadowfax Express</span>
-                    <span className="rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold px-1.5 py-0.2">
-                      Cheapest
+                    <span className="font-bold text-slate-900 text-sm">Shadowfax Cargo (7KG Surface)</span>
+                    <span className="rounded bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2">
+                      {weight > 0.5 ? "★ Best for Heavy" : "Flat Slab"}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Est. delivery: 2-3 Days &bull; Surface / Air multimodal
+                    1kg–7kg Flat Surface Plan &bull; SLA: 3-4 Days &bull; 100% Pan India
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-black text-indigo-950">
+                    {formatINR(shadowfaxCargoRate)}
+                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-semibold text-emerald-700">
+                      ₹0 COD Fee &bull; Flat Rate
+                    </span>
+                    <span className="text-[10px] text-slate-400">+ 18% GST</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shadowfax Express (0.5kg Air) */}
+              <div className={`rounded-2xl border p-4 sm:p-5 shadow-xs flex items-center justify-between transition-all ${
+                weight <= 0.5 ? "border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-600/20" : "border-slate-200 bg-white"
+              }`}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 text-sm">Shadowfax Express (0.5KG Air)</span>
+                    <span className="rounded bg-blue-100 border border-blue-300 text-blue-800 text-[10px] font-bold px-1.5 py-0.2">
+                      {weight <= 0.5 ? "★ Best for 0–500g" : "Fastest Air"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Fast Air Express SLA: 2-3 Days &bull; Perfect for lightweight items
                   </p>
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-black text-slate-900">
-                    {formatINR(shadowfaxRate)}
+                    {formatINR(shadowfaxExpressRate)}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">+ 18% GST</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-semibold text-emerald-700">
+                      ₹0 COD Fee &bull; Flat Rate
+                    </span>
+                    <span className="text-[10px] text-slate-400">+ 18% GST</span>
+                  </div>
                 </div>
               </div>
 
@@ -936,19 +958,21 @@ export default function LandingPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900 text-sm">Xpressbees Surface</span>
-                    <span className="rounded bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold px-1.5 py-0.2">
-                      High SLA
-                    </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Est. delivery: 2-4 Days &bull; Heavy freight friendly
+                    SLA: 2-4 Days &bull; High Reliability Surface Logistics
                   </p>
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-black text-slate-900">
                     {formatINR(xpressbeesRate)}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">+ 18% GST</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-semibold text-emerald-700">
+                      ₹0 COD Fee &bull; Flat Rate
+                    </span>
+                    <span className="text-[10px] text-slate-400">+ 18% GST</span>
+                  </div>
                 </div>
               </div>
 
@@ -956,19 +980,196 @@ export default function LandingPage() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 text-sm">Delhivery Surface</span>
+                    <span className="font-bold text-slate-900 text-sm">Delhivery Direct</span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Est. delivery: 2-3 Days &bull; 10,000+ PIN reach
+                    SLA: 2-3 Days &bull; 10,000+ PIN Coverage
                   </p>
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-black text-slate-900">
                     {formatINR(delhiveryRate)}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">+ 18% GST</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-semibold text-emerald-700">
+                      ₹0 COD Fee &bull; Flat Rate
+                    </span>
+                    <span className="text-[10px] text-slate-400">+ 18% GST</span>
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* 6.2 Public Transparent Rate Card Table */}
+          <div className="mt-12 max-w-5xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <span className="grid size-6 place-items-center rounded-lg bg-indigo-600 text-white text-xs">₹</span>
+                  Official Shipping Rate Card &amp; Weight Slabs
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Standard national merchant rates across all shipping zones in India (₹0 COD fee &bull; 100% Free COD).
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold px-2.5 py-1 w-fit">
+                ✓ Verified Flat Slabs
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-600">
+                    <th className="px-4 py-3">Weight Slab</th>
+                    <th className="px-4 py-3">Recommended Partner</th>
+                    <th className="px-4 py-3">Service Type</th>
+                    <th className="px-4 py-3">Prepaid Price</th>
+                    <th className="px-4 py-3">COD Price (₹0 Fee)</th>
+                    <th className="px-4 py-3">RTO Return Charge</th>
+                    <th className="px-4 py-3">SLA</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-bold text-slate-900">0 – 500g (0.5 kg)</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Express
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Air Lite</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹78.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹78.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">2-3 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50 bg-indigo-50/20">
+                    <td className="px-4 py-3 font-bold text-slate-900">0.5 kg – 1.0 kg</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Cargo
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Surface 7KG Plan</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹96.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹96.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">3-4 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-bold text-slate-900">1.0 kg – 3.0 kg</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Cargo
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Surface 7KG Plan</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹126.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹126.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">3-4 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50 bg-indigo-50/20">
+                    <td className="px-4 py-3 font-bold text-slate-900">3.0 kg – 5.0 kg</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Cargo
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Surface 7KG Plan</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹146.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹146.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">3-4 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-bold text-slate-900">5.0 kg – 7.0 kg</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Cargo
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Surface 7KG Plan</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹166.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹166.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">3-4 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50 bg-indigo-50/20">
+                    <td className="px-4 py-3 font-bold text-slate-900">0 – 500g (0.5 kg) Surface</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Xpressbees Surface
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Surface 500g</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹98.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹98.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">2-4 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-bold text-slate-900">0 – 500g (0.5 kg) Direct</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Delhivery Direct
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Direct Air/Surface</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹110.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹110.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">2-3 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50 bg-indigo-50/20">
+                    <td className="px-4 py-3 font-bold text-slate-900">Above 7.0 kg (+1 kg)</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Cargo
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Cargo Extra Slab</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">+₹20.00 / kg</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">+₹20.00 / kg</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">3-5 Days</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1076,10 +1277,17 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-center justify-center gap-5 text-xs">
             <button
               type="button"
-              onClick={() => scrollToSection("platform")}
+              onClick={() => scrollToSection("rates")}
+              className="text-indigo-600 font-bold hover:text-indigo-800 transition-colors cursor-pointer"
+            >
+              Pricing (From ₹78)
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("serviceability")}
               className="hover:text-slate-900 transition-colors cursor-pointer"
             >
-              Platform
+              Coverage
             </button>
             <button
               type="button"

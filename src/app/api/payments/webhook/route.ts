@@ -59,7 +59,15 @@ export async function POST(request: NextRequest) {
       const userId =
         paymentEntity.notes?.user_id ||
         paymentEntity.notes?.userId ||
-        "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5";
+        paymentEntity.notes?.merchant_id;
+
+      if (!userId) {
+        console.warn("[payments.webhook] Received payment without identifiable userId:", paymentEntity.id);
+        return NextResponse.json(
+          { error: "Missing user identification notes on payment" },
+          { status: 400 },
+        );
+      }
       const amountPaise = paymentEntity.amount || toPaise(Number(paymentEntity.amount_in_rupees || 500));
       const paymentId = paymentEntity.id || `pay_${Date.now()}`;
 

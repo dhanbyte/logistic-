@@ -133,6 +133,8 @@ export function WarehouseModal({ warehouse }: { warehouse?: Warehouse }) {
                     name="contactPhone"
                     required
                     maxLength={10}
+                    pattern="^[6-9][0-9]{9}$"
+                    title="Please enter a valid 10-digit Indian mobile number"
                     defaultValue={warehouse?.contactPhone}
                     placeholder="e.g. 9811223344"
                   />
@@ -178,6 +180,8 @@ export function WarehouseModal({ warehouse }: { warehouse?: Warehouse }) {
                     name="pincode"
                     required
                     maxLength={6}
+                    pattern="^[1-9][0-9]{5}$"
+                    title="Please enter a valid 6-digit PIN code"
                     defaultValue={warehouse?.pincode}
                     placeholder="e.g. 110020"
                   />

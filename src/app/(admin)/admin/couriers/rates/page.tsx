@@ -37,45 +37,24 @@ export interface RateSlabItem {
 }
 
 const INITIAL_SHADOWFAX_SLABS: RateSlabItem[] = [
-  // ZONE A (Intra-City)
-  { id: "sfx-a-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 32, userPrepaidPrice: 45, userCodPrice: 65 },
-  { id: "sfx-a-1.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "500g–1kg", maxWeightKg: 1.0, courierBaseCost: 45, userPrepaidPrice: 60, userCodPrice: 80 },
-  { id: "sfx-a-1.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "1kg–1.5kg", maxWeightKg: 1.5, courierBaseCost: 58, userPrepaidPrice: 75, userCodPrice: 95 },
-  { id: "sfx-a-2.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "1.5kg–2kg", maxWeightKg: 2.0, courierBaseCost: 70, userPrepaidPrice: 90, userCodPrice: 110 },
-  { id: "sfx-a-5.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "2kg–5kg", maxWeightKg: 5.0, courierBaseCost: 120, userPrepaidPrice: 155, userCodPrice: 185 },
-  { id: "sfx-a-7.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "5kg–7kg", maxWeightKg: 7.0, courierBaseCost: 175, userPrepaidPrice: 220, userCodPrice: 260 },
-  { id: "sfx-a-10.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "7kg–10kg", maxWeightKg: 10.0, courierBaseCost: 240, userPrepaidPrice: 300, userCodPrice: 350 },
-  { id: "sfx-a-addl", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "Above 10kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 22, userPrepaidPrice: 30, userCodPrice: 40 },
+  // 1. SHADOWFAX EXPRESS (0.5KG LITE PLAN - ₹78)
+  { id: "sfx-a-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 35, userPrepaidPrice: 78, userCodPrice: 98 },
+  { id: "sfx-b-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 40, userPrepaidPrice: 78, userCodPrice: 98 },
+  { id: "sfx-c-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 45, userPrepaidPrice: 78, userCodPrice: 98 },
+  { id: "sfx-d-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 52, userPrepaidPrice: 78, userCodPrice: 98 },
+  { id: "sfx-e-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_E", zoneLabel: "ZONE_E (Special / NE)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 65, userPrepaidPrice: 98, userCodPrice: 118 },
 
-  // ZONE B (Regional / Intra-State)
-  { id: "sfx-b-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 38, userPrepaidPrice: 52, userCodPrice: 72 },
-  { id: "sfx-b-1.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "500g–1kg", maxWeightKg: 1.0, courierBaseCost: 52, userPrepaidPrice: 70, userCodPrice: 90 },
-  { id: "sfx-b-1.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "1kg–1.5kg", maxWeightKg: 1.5, courierBaseCost: 68, userPrepaidPrice: 88, userCodPrice: 110 },
-  { id: "sfx-b-2.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "1.5kg–2kg", maxWeightKg: 2.0, courierBaseCost: 82, userPrepaidPrice: 105, userCodPrice: 130 },
-  { id: "sfx-b-5.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "2kg–5kg", maxWeightKg: 5.0, courierBaseCost: 145, userPrepaidPrice: 185, userCodPrice: 225 },
-  { id: "sfx-b-7.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "5kg–7kg", maxWeightKg: 7.0, courierBaseCost: 205, userPrepaidPrice: 260, userCodPrice: 310 },
-  { id: "sfx-b-10.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "7kg–10kg", maxWeightKg: 10.0, courierBaseCost: 285, userPrepaidPrice: 360, userCodPrice: 420 },
-  { id: "sfx-b-addl", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "Above 10kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 26, userPrepaidPrice: 36, userCodPrice: 46 },
-
-  // ZONE C (Metro to Metro)
-  { id: "sfx-c-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 45, userPrepaidPrice: 62, userCodPrice: 82 },
-  { id: "sfx-c-1.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "500g–1kg", maxWeightKg: 1.0, courierBaseCost: 62, userPrepaidPrice: 82, userCodPrice: 105 },
-  { id: "sfx-c-1.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "1kg–1.5kg", maxWeightKg: 1.5, courierBaseCost: 80, userPrepaidPrice: 105, userCodPrice: 130 },
-  { id: "sfx-c-2.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "1.5kg–2kg", maxWeightKg: 2.0, courierBaseCost: 98, userPrepaidPrice: 128, userCodPrice: 155 },
-  { id: "sfx-c-5.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "2kg–5kg", maxWeightKg: 5.0, courierBaseCost: 175, userPrepaidPrice: 225, userCodPrice: 270 },
-  { id: "sfx-c-7.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "5kg–7kg", maxWeightKg: 7.0, courierBaseCost: 245, userPrepaidPrice: 310, userCodPrice: 370 },
-  { id: "sfx-c-10.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "7kg–10kg", maxWeightKg: 10.0, courierBaseCost: 340, userPrepaidPrice: 430, userCodPrice: 500 },
-  { id: "sfx-c-addl", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "Above 10kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 32, userPrepaidPrice: 42, userCodPrice: 55 },
-
-  // ZONE D (Rest of India)
-  { id: "sfx-d-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 52, userPrepaidPrice: 72, userCodPrice: 95 },
-  { id: "sfx-d-1.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "500g–1kg", maxWeightKg: 1.0, courierBaseCost: 72, userPrepaidPrice: 96, userCodPrice: 120 },
-  { id: "sfx-d-1.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "1kg–1.5kg", maxWeightKg: 1.5, courierBaseCost: 95, userPrepaidPrice: 124, userCodPrice: 152 },
-  { id: "sfx-d-2.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "1.5kg–2kg", maxWeightKg: 2.0, courierBaseCost: 118, userPrepaidPrice: 152, userCodPrice: 185 },
-  { id: "sfx-d-5.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "2kg–5kg", maxWeightKg: 5.0, courierBaseCost: 210, userPrepaidPrice: 270, userCodPrice: 325 },
-  { id: "sfx-d-7.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "5kg–7kg", maxWeightKg: 7.0, courierBaseCost: 295, userPrepaidPrice: 375, userCodPrice: 445 },
-  { id: "sfx-d-10.0", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "7kg–10kg", maxWeightKg: 10.0, courierBaseCost: 410, userPrepaidPrice: 515, userCodPrice: 595 },
-  { id: "sfx-d-addl", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "Above 10kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 38, userPrepaidPrice: 50, userCodPrice: 65 },
+  // 2. SHADOWFAX CARGO (HEAVY SLABS: 1KG=₹96, 3KG=₹126, 5KG=₹146, 7KG=₹166, >7KG=+₹20/KG)
+  // 1kg Slab
+  { id: "sfx-cargo-1.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "0.5kg–1kg", maxWeightKg: 1.0, courierBaseCost: 69, userPrepaidPrice: 96, userCodPrice: 116 },
+  // 1kg to 3kg Slab (+₹30 -> ₹126)
+  { id: "sfx-cargo-3.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "1kg–3kg", maxWeightKg: 3.0, courierBaseCost: 69, userPrepaidPrice: 126, userCodPrice: 146 },
+  // 3kg to 5kg Slab (+₹20 -> ₹146)
+  { id: "sfx-cargo-5.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "3kg–5kg", maxWeightKg: 5.0, courierBaseCost: 69, userPrepaidPrice: 146, userCodPrice: 166 },
+  // 5kg to 7kg Slab (+₹20 -> ₹166)
+  { id: "sfx-cargo-7.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "5kg–7kg", maxWeightKg: 7.0, courierBaseCost: 69, userPrepaidPrice: 166, userCodPrice: 186 },
+  // Above 7kg Slab (+₹20/kg)
+  { id: "sfx-cargo-addl", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "Above 7kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 15, userPrepaidPrice: 20, userCodPrice: 20 },
 ];
 
 export default function AdminRatesPage() {
@@ -138,11 +117,11 @@ export default function AdminRatesPage() {
     const created: RateSlabItem = {
       id,
       courierCode: newSlab.courierCode,
-      courierName: newSlab.courierCode === "shadowfax" ? "Shadowfax Express" : newSlab.courierCode === "xpressbees" ? "Xpressbees Surface" : "Delhivery Direct",
+      courierName: newSlab.courierName,
       zone: newSlab.zone,
       zoneLabel: zoneLabels[newSlab.zone] || newSlab.zone,
       weightSlab: newSlab.weightSlab,
-      maxWeightKg: newSlab.maxWeightKg,
+      maxWeightKg: Number(newSlab.maxWeightKg),
       courierBaseCost: Number(newSlab.courierBaseCost),
       userPrepaidPrice: Number(newSlab.userPrepaidPrice),
       userCodPrice: Number(newSlab.userCodPrice),
@@ -150,7 +129,7 @@ export default function AdminRatesPage() {
 
     setSlabs((prev) => [created, ...prev]);
     setShowAddModal(false);
-    toast.success(`Added new slab: ${created.weightSlab} (${created.zone})`);
+    toast.success("New rate slab added successfully!");
   }
 
   function handleDeleteSlab(id: string) {
@@ -160,14 +139,18 @@ export default function AdminRatesPage() {
 
   // Filtered List
   const filteredSlabs = slabs.filter((s) => {
-    if (selectedCourier !== "ALL" && s.courierCode !== selectedCourier) return false;
-    if (selectedZone !== "ALL" && s.zone !== selectedZone) return false;
-    if (searchQuery) {
+    if (selectedCourier !== "ALL" && s.courierCode !== selectedCourier) {
+      return false;
+    }
+    if (selectedZone !== "ALL" && s.zone !== selectedZone) {
+      return false;
+    }
+    if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        s.weightSlab.toLowerCase().includes(q) ||
+        s.courierName.toLowerCase().includes(q) ||
         s.zoneLabel.toLowerCase().includes(q) ||
-        s.courierName.toLowerCase().includes(q)
+        s.weightSlab.toLowerCase().includes(q)
       );
     }
     return true;
@@ -175,19 +158,17 @@ export default function AdminRatesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Top Banner */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900">
-              Courier Rate Slabs &amp; Platform Margins
-            </h1>
-            <span className="rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-mono text-[10px] font-bold px-2 py-0.5">
-              500g to 10kg+ Matrix
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
+              <Tag size={18} />
             </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Configure courier base cost, seller prepaid price and COD rates for Shadowfax, Xpressbees &amp; Delhivery across India.
+            <span>Courier Rate Slabs &amp; Pricing Engine</span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Configure courier base buy rates, merchant selling prices, and profit margins per zone and weight slab.
           </p>
         </div>
 
@@ -195,7 +176,7 @@ export default function AdminRatesPage() {
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs flex items-center gap-1.5 cursor-pointer"
           >
             <Plus size={14} className="text-indigo-600" />
             <span>Add Custom Slab</span>
@@ -220,7 +201,8 @@ export default function AdminRatesPage() {
             <Truck size={14} className="text-indigo-600" /> Courier:
           </span>
           {[
-            { id: "shadowfax", name: "Shadowfax Express" },
+            { id: "shadowfax", name: "Shadowfax Express (0.5kg Air)" },
+            { id: "shadowfax_surface", name: "Shadowfax Cargo (7KG Plan)" },
             { id: "xpressbees", name: "Xpressbees Surface" },
             { id: "delhivery", name: "Delhivery Direct" },
             { id: "ALL", name: "All Couriers" },
@@ -436,12 +418,20 @@ export default function AdminRatesPage() {
                     setNewSlab({
                       ...newSlab,
                       courierCode: e.target.value,
-                      courierName: e.target.value === "shadowfax" ? "Shadowfax Express" : e.target.value === "xpressbees" ? "Xpressbees Surface" : "Delhivery Direct",
+                      courierName:
+                        e.target.value === "shadowfax_surface"
+                          ? "Shadowfax Cargo (7KG)"
+                          : e.target.value === "shadowfax"
+                          ? "Shadowfax Express"
+                          : e.target.value === "xpressbees"
+                          ? "Xpressbees Surface"
+                          : "Delhivery Direct",
                     })
                   }
                   className="w-full rounded-xl border border-slate-200 p-2 font-bold text-slate-900"
                 >
-                  <option value="shadowfax">Shadowfax Express</option>
+                  <option value="shadowfax">Shadowfax Express (0.5kg Air)</option>
+                  <option value="shadowfax_surface">Shadowfax Cargo (7KG Plan)</option>
                   <option value="xpressbees">Xpressbees Surface</option>
                   <option value="delhivery">Delhivery Direct</option>
                 </select>

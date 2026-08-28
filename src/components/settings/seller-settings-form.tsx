@@ -99,11 +99,12 @@ export function SellerSettingsForm({ seller }: { seller: SellerAccount }) {
               name="phone"
               required
               maxLength={10}
+              pattern="^[6-9][0-9]{9}$"
+              title="Please enter a valid 10-digit Indian mobile number"
               defaultValue={seller.phone}
               placeholder="e.g. 9876543210"
             />
           </div>
-
 
           <div>
             <Label htmlFor="gstin">15-Digit GSTIN</Label>
@@ -165,6 +166,8 @@ export function SellerSettingsForm({ seller }: { seller: SellerAccount }) {
               name="pincode"
               required
               maxLength={6}
+              pattern="^[1-9][0-9]{5}$"
+              title="Please enter a valid 6-digit PIN code"
               defaultValue={seller.pincode}
               placeholder="e.g. 110020"
             />

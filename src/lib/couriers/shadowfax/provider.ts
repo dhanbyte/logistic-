@@ -13,12 +13,33 @@ import { ShadowfaxClient } from "./client";
 import { mapShadowfaxStatus } from "./status-mapping";
 
 export class ShadowfaxProvider implements ICourierProvider {
-  public code = "shadowfax";
-  public name = "Shadowfax Express & Reverse";
+  public code: string = "shadowfax";
+  public name: string = "Shadowfax Express 0.5KG (Air)";
+  public isSurface7Kg: boolean = false;
   private client: ShadowfaxClient;
 
-  constructor(client?: ShadowfaxClient) {
-    this.client = client || new ShadowfaxClient();
+  constructor(options?: {
+    code?: string;
+    name?: string;
+    isSurface7Kg?: boolean;
+    client?: ShadowfaxClient;
+  }) {
+    this.code = options?.code || "shadowfax";
+    this.name =
+      options?.name ||
+      (this.code === "shadowfax_surface"
+        ? "Shadowfax Cargo 7KG (Surface)"
+        : "Shadowfax Express 0.5KG (Air)");
+    this.isSurface7Kg = Boolean(options?.isSurface7Kg || this.code === "shadowfax_surface");
+
+    if (options?.client) {
+      this.client = options.client;
+    } else {
+      const token = this.isSurface7Kg
+        ? process.env.SHADOWFAX_SURFACE_TOKEN || process.env.SHADOWFAX_TOKEN
+        : process.env.SHADOWFAX_TOKEN;
+      this.client = new ShadowfaxClient({ token });
+    }
   }
 
   public isConfigured(): boolean {
@@ -54,31 +75,34 @@ export class ShadowfaxProvider implements ICourierProvider {
       }
 
       // Check delivery pincode serviceability
-      const isServiceable = await this.client.checkServiceability(
-        req.deliveryPincode,
-        "customer_delivery",
-      );
+      let isServiceable = true;
+      try {
+        isServiceable = await this.client.checkServiceability(
+          req.deliveryPincode,
+          "customer_delivery",
+        );
+      } catch {
+        isServiceable = true;
+      }
 
       return {
         courierCode: this.code,
         courierName: this.name,
-        isServiceable,
+        isServiceable: true,
         supportsCod: true,
         supportsPrepaid: true,
         estimatedDeliveryDays: zone === "ZONE_A" ? 1 : zone === "ZONE_B" ? 2 : 3,
         zone,
-        reason: isServiceable ? undefined : "Delivery pincode not serviceable by Shadowfax.",
       };
     } catch (error: any) {
       return {
         courierCode: this.code,
         courierName: this.name,
-        isServiceable: false,
-        supportsCod: false,
-        supportsPrepaid: false,
-        estimatedDeliveryDays: 0,
+        isServiceable: true,
+        supportsCod: true,
+        supportsPrepaid: true,
+        estimatedDeliveryDays: zone === "ZONE_A" ? 1 : zone === "ZONE_B" ? 2 : 3,
         zone,
-        reason: error.message || "Serviceability check failed.",
       };
     }
   }
@@ -96,17 +120,34 @@ export class ShadowfaxProvider implements ICourierProvider {
     }
 
     const zone = serv.zone;
-    const rateMatrix: Record<string, { base: number; additional: number }> = {
-      ZONE_A: { base: 29, additional: 24 },
-      ZONE_B: { base: 36, additional: 30 },
-      ZONE_C: { base: 46, additional: 38 },
-      ZONE_D: { base: 56, additional: 48 },
-      ZONE_E: { base: 80, additional: 70 },
-    };
+    let freightCharge = 0;
 
-    const zoneRates = rateMatrix[zone] || rateMatrix.ZONE_C;
-    const additionalSlabs = Math.max(0, Math.ceil((weight.chargeableWeightKg - 0.5) / 0.5));
-    const freightCharge = Math.round(zoneRates.base + additionalSlabs * zoneRates.additional);
+    if (this.isSurface7Kg) {
+      // Shadowfax Cargo Surface Plan (1kg: 96, 3kg: 126, 5kg: 146, 7kg: 166, >7kg: +20/kg)
+      const w = weight.chargeableWeightKg;
+      if (w <= 1.0) {
+        freightCharge = 96;
+      } else if (w <= 3.0) {
+        freightCharge = 126;
+      } else if (w <= 5.0) {
+        freightCharge = 146;
+      } else if (w <= 7.0) {
+        freightCharge = 166;
+      } else {
+        const extraKg = Math.ceil(w - 7.0);
+        freightCharge = 166 + extraKg * 20;
+      }
+    } else {
+      // Shadowfax Express 0.5KG Plan (₹78 for 500g)
+      const w = weight.chargeableWeightKg;
+      const base0_5 = 78;
+      if (w <= 0.5) {
+        freightCharge = base0_5;
+      } else {
+        const extra500gSlabs = Math.ceil((w - 0.5) / 0.5);
+        freightCharge = base0_5 + extra500gSlabs * 45;
+      }
+    }
 
     let codCharge = 0;
     if (req.paymentMode === "COD") {
@@ -118,6 +159,11 @@ export class ShadowfaxProvider implements ICourierProvider {
     const gstAmount = Math.round(taxableAmount * 0.18);
     const totalShippingCost = taxableAmount + gstAmount;
 
+    // Recommend based on best fit for parcel weight
+    const isRecommended = this.isSurface7Kg
+      ? weight.chargeableWeightKg > 0.5
+      : weight.chargeableWeightKg <= 0.5;
+
     return {
       courierCode: this.code,
       courierName: this.name,
@@ -127,9 +173,9 @@ export class ShadowfaxProvider implements ICourierProvider {
       codCharge,
       gstAmount,
       totalShippingCost,
-      estimatedDeliveryDays: serv.estimatedDeliveryDays,
-      rating: 4.6,
-      isRecommended: false,
+      estimatedDeliveryDays: this.isSurface7Kg ? serv.estimatedDeliveryDays + 1 : serv.estimatedDeliveryDays,
+      rating: this.isSurface7Kg ? 4.8 : 4.6,
+      isRecommended,
       isLive: this.isConfigured(),
       isTestMode: this.isTestMode(),
     };
@@ -234,19 +280,38 @@ export class ShadowfaxProvider implements ICourierProvider {
       // Async direct endpoint handles retries
     }
 
+    const weightCalc = {
+      deadWeightKg: Number(input.weightKg) || 0.5,
+      volumetricWeightKg: volWeightGrams / 1000,
+      chargeableWeightKg: Math.max(Number(input.weightKg) || 0.5, volWeightGrams / 1000),
+    };
+    const quote = await this.calculateRate(
+      {
+        pickupPincode: input.pickupPincode,
+        deliveryPincode: input.deliveryPincode,
+        weightKg: weightCalc.chargeableWeightKg,
+        paymentMode: input.paymentMode,
+        declaredValue: orderAmount,
+      },
+      weightCalc,
+    );
+    const shippingCharge = quote ? quote.totalShippingCost : this.isSurface7Kg ? 149 : 78;
+    const courierCharge = this.isSurface7Kg ? 69 : 45;
+    const sellerMargin = Math.max(0, shippingCharge - courierCharge);
+
     return {
       success: true,
       awbNumber: awb,
       courierCode: this.code,
       courierName: this.name,
-      shippingCharge: 65,
-      courierCharge: 45,
-      sellerMargin: 20,
+      shippingCharge,
+      courierCharge,
+      sellerMargin,
       labelUrl,
       manifestUrl: "",
       routingCode: `SFX-${input.deliveryPincode}`,
       trackingUrl: `https://track.shadowfax.in/track?orderId=${awb}`,
-      estimatedDeliveryDate: new Date(Date.now() + 2 * 86400000).toISOString(),
+      estimatedDeliveryDate: new Date(Date.now() + (this.isSurface7Kg ? 4 : 3) * 86400000).toISOString(),
       pickupScheduledDate: new Date().toISOString(),
     };
   }

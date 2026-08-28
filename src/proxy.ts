@@ -36,9 +36,14 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/register") ||
     path.startsWith("/forgot-password");
   const authFlow = path.startsWith("/auth/callback") || path.startsWith("/reset-password");
+  const publicPages =
+    path === "/" ||
+    guestOnly ||
+    path.startsWith("/track") ||
+    path.startsWith("/blog");
 
-  // If neither logged in nor in demo mode, redirect to /login with next parameter
-  if (!user && !isDemoSession && !guestOnly && !authFlow) {
+  // If neither logged in nor in demo mode, redirect to /login for protected app routes
+  if (!user && !isDemoSession && !publicPages && !authFlow) {
     const target = request.nextUrl.clone();
     target.pathname = "/login";
     target.searchParams.set("next", path);

@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   Download,
+  Edit3,
   ExternalLink,
   Eye,
   FileSpreadsheet,
@@ -21,6 +22,7 @@ import {
   IndianRupee,
   Info,
   Package,
+  Save,
   Search,
   ShieldCheck,
   TrendingUp,
@@ -31,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { formatINR } from "@/lib/calculations";
 import { generateCodSettlementCsv } from "@/lib/export/cod-csv";
+import { updateUserBankDetailsAction } from "@/app/cod-actions";
 import type {
   CodSettlementBatch,
   CodSettlementOrderItem,
@@ -55,9 +58,56 @@ interface UserCodDashboardProps {
 export function UserCodDashboard({
   batches,
   allOrders,
-  bankDetails,
+  bankDetails: initialBankDetails,
   summary,
 }: UserCodDashboardProps) {
+  const [bankDetails, setBankDetails] = useState<UserBankDetails>(initialBankDetails);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+
+  // Bank Form State
+  const [bankForm, setBankForm] = useState({
+    accountHolderName: initialBankDetails.accountHolderName || "",
+    bankName: initialBankDetails.bankName === "Bank Account Pending Setup" ? "" : initialBankDetails.bankName,
+    accountNumber: initialBankDetails.accountNumber || "",
+    confirmAccountNumber: initialBankDetails.accountNumber || "",
+    ifsc: initialBankDetails.ifsc === "REQUIRED" ? "" : initialBankDetails.ifsc,
+    accountType: (initialBankDetails.accountType as "CURRENT" | "SAVINGS") || "CURRENT",
+    upiId: initialBankDetails.upiId || "",
+  });
+
+  async function handleSaveBankDetails(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bankForm.accountHolderName.trim() || !bankForm.bankName.trim() || !bankForm.accountNumber.trim() || !bankForm.ifsc.trim()) {
+      toast.error("Please fill in all mandatory bank account fields.");
+      return;
+    }
+
+    if (bankForm.accountNumber.trim() !== bankForm.confirmAccountNumber.trim()) {
+      toast.error("Account Number and Confirm Account Number do not match.");
+      return;
+    }
+
+    setSavingBank(true);
+    const res = await updateUserBankDetailsAction({
+      accountHolderName: bankForm.accountHolderName.trim(),
+      bankName: bankForm.bankName.trim(),
+      accountNumber: bankForm.accountNumber.trim(),
+      ifsc: bankForm.ifsc.trim().toUpperCase(),
+      accountType: bankForm.accountType,
+      upiId: bankForm.upiId.trim(),
+    });
+    setSavingBank(false);
+
+    if (res.ok && res.data) {
+      setBankDetails(res.data);
+      setShowBankModal(false);
+      toast.success("Bank details saved and verified successfully! COD payouts will be remitted to this account.");
+    } else {
+      toast.error(res.message || "Failed to save bank details.");
+    }
+  }
+
   const [activeTab, setActiveTab] = useState<"batches" | "orders">("batches");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -216,23 +266,36 @@ export function UserCodDashboard({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-slate-900">
-                Beneficiary Bank: {bankDetails.bankName}
+                Beneficiary Bank: {bankDetails.bankName || "Pending Setup"}
               </h3>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                <ShieldCheck size={11} /> Verified
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                bankDetails.accountNumber ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+              }`}>
+                <ShieldCheck size={11} /> {bankDetails.accountNumber ? "Verified & Active" : "Setup Required"}
               </span>
             </div>
             <p className="text-xs text-slate-600 font-mono mt-0.5">
-              Account: <strong className="text-slate-900">{bankDetails.maskedAccountNumber}</strong> &bull; IFSC: <strong className="text-slate-900">{bankDetails.ifsc}</strong> &bull; Beneficiary: {bankDetails.accountHolderName}
+              Account: <strong className="text-slate-900">{bankDetails.maskedAccountNumber || "••••----"}</strong> &bull; IFSC: <strong className="text-slate-900">{bankDetails.ifsc || "REQUIRED"}</strong> &bull; Beneficiary: {bankDetails.accountHolderName || "Seller Account"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2 text-xs text-slate-600">
-          <Calendar size={15} className="text-indigo-600" />
-          <span>
-            Cycle: <strong className="text-slate-900">Delivery + 3 Days</strong> (Auto Payout)
-          </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowBankModal(true)}
+            className="rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Edit3 size={14} />
+            <span>{bankDetails.accountNumber ? "Edit Bank Details" : "Setup Bank Account"}</span>
+          </button>
+
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2 text-xs text-slate-600">
+            <Calendar size={15} className="text-indigo-600" />
+            <span>
+              Cycle: <strong className="text-slate-900">Delivery + 3 Days</strong> (Auto Payout)
+            </span>
+          </div>
         </div>
       </div>
 
@@ -729,6 +792,157 @@ export function UserCodDashboard({
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Setup Bank Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <Building2 size={18} />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {bankDetails.accountNumber ? "Edit Bank Account Details" : "Setup Beneficiary Bank Account"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    COD remittances &amp; T+3 payouts will be transferred directly to this account.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBankModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBankDetails} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Beneficiary / Account Holder Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Dhananjay Sharma or Enterprise Name"
+                  value={bankForm.accountHolderName}
+                  onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. HDFC Bank, SBI, ICICI"
+                    value={bankForm.bankName}
+                    onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Account Type
+                  </label>
+                  <select
+                    value={bankForm.accountType}
+                    onChange={(e) => setBankForm({ ...bankForm, accountType: e.target.value as any })}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  >
+                    <option value="CURRENT">Current Account</option>
+                    <option value="SAVINGS">Savings Account</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Bank Account Number *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter full account number"
+                  value={bankForm.accountNumber}
+                  onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Confirm Bank Account Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Re-enter account number"
+                  value={bankForm.confirmAccountNumber}
+                  onChange={(e) => setBankForm({ ...bankForm, confirmAccountNumber: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    IFSC Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={11}
+                    placeholder="e.g. HDFC0001234"
+                    value={bankForm.ifsc}
+                    onChange={(e) => setBankForm({ ...bankForm, ifsc: e.target.value.toUpperCase() })}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-mono font-bold uppercase text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    UPI ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="merchant@upi"
+                    value={bankForm.upiId}
+                    onChange={(e) => setBankForm({ ...bankForm, upiId: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-mono text-slate-900 focus:border-indigo-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={savingBank}
+                  onClick={() => setShowBankModal(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingBank}
+                  className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Save size={14} />
+                  <span>{savingBank ? "Verifying & Saving…" : "Save & Verify Account"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

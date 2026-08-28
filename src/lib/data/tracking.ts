@@ -72,23 +72,48 @@ export async function getPublicTrackingData(awbNumber: string): Promise<PublicTr
     }
   }
 
+  if (!shipment) {
+    return {
+      awbNumber: cleanAwb,
+      orderNumber: "",
+      courierName: "Courier Partner",
+      courierCode: "courier",
+      currentStatus: "NOT_FOUND",
+      currentStatusText: "Shipment Not Found",
+      currentStatusColor: "bg-rose-100 text-rose-900 border-rose-300",
+      currentLocation: "No location scans available",
+      originCity: "—",
+      originPincode: "—",
+      destinationCity: "—",
+      destinationState: "—",
+      destinationPincode: "—",
+      recipientName: "—",
+      isPickedUp: false,
+      pickupScheduledDate: "—",
+      estimatedDeliveryDate: "—",
+      milestones: [],
+      checkpoints: [],
+      isNotFound: true,
+    };
+  }
+
   // Determine carrier and origin/destination
   const carrierName =
-    shipment?.courier_provider?.name ||
+    shipment.courier_provider?.name ||
     (cleanAwb.startsWith("SFX") || cleanAwb.startsWith("SF")
       ? "Shadowfax Forward"
       : "Shadowfax Express Logistics");
 
-  const courierCode = shipment?.courier_provider?.code || "shadowfax";
-  const orderNumber = shipment?.order?.order_number || `ORD-${cleanAwb.slice(-6)}`;
-  const originCity = shipment?.warehouse?.city || "New Delhi";
-  const originPincode = shipment?.pickup_pincode || shipment?.warehouse?.pincode || "110020";
-  const destinationCity = shipment?.order?.customer?.city || "Barmer";
-  const destinationState = shipment?.order?.customer?.state || "Rajasthan";
-  const destinationPincode = shipment?.delivery_pincode || shipment?.order?.customer?.pincode || "304001";
-  const recipientName = shipment?.order?.customer?.full_name || "Customer";
+  const courierCode = shipment.courier_provider?.code || "shadowfax";
+  const orderNumber = shipment.order?.order_number || `ORD-${cleanAwb.slice(-6)}`;
+  const originCity = shipment.warehouse?.city || "New Delhi";
+  const originPincode = shipment.pickup_pincode || shipment.warehouse?.pincode || "110020";
+  const destinationCity = shipment.order?.customer?.city || "Destination Hub";
+  const destinationState = shipment.order?.customer?.state || "";
+  const destinationPincode = shipment.delivery_pincode || shipment.order?.customer?.pincode || "—";
+  const recipientName = shipment.order?.customer?.full_name || "Consignee";
 
-  const rawStatus = (shipment?.shipment_status || "IN_TRANSIT").toUpperCase();
+  const rawStatus = (shipment.shipment_status || "MANIFESTED").toUpperCase();
   const isDelivered = rawStatus === "DELIVERED";
   const isOutForDelivery = rawStatus === "OUT_FOR_DELIVERY";
   const isInTransit = rawStatus === "IN_TRANSIT";

@@ -62,11 +62,21 @@ export function ShipNowModal({
     amountDeducted: number;
   } | null>(null);
 
-  // Volumetric vs Dead Weight
-  const deadWeight = order?.totalWeightKg || 0.5;
-  const length = order?.lengthCm || 10;
-  const width = order?.widthCm || 10;
-  const height = order?.heightCm || 10;
+  // Volumetric vs Dead Weight (Interactive State)
+  const [deadWeight, setDeadWeight] = useState<number>(order?.totalWeightKg || 0.5);
+  const [length, setLength] = useState<number>(order?.lengthCm || 10);
+  const [width, setWidth] = useState<number>(order?.widthCm || 10);
+  const [height, setHeight] = useState<number>(order?.heightCm || 10);
+
+  useEffect(() => {
+    if (order) {
+      setDeadWeight(Number(order.totalWeightKg) || 0.5);
+      setLength(Number(order.lengthCm) || 10);
+      setWidth(Number(order.widthCm) || 10);
+      setHeight(Number(order.heightCm) || 10);
+    }
+  }, [order]);
+
   const volumetricWeight = (length * width * height) / 5000;
   const chargeableWeight = Math.max(deadWeight, volumetricWeight);
   const isVolumetricHigher = volumetricWeight > deadWeight;
@@ -101,8 +111,8 @@ export function ShipNowModal({
         setWalletBalance(balRes.balance);
 
         if (rates.length > 0) {
-          const liveQuote = rates.find((q) => isCourierConfigured(q.courierCode));
-          setSelectedCourier(liveQuote ? liveQuote.courierCode : rates[0].courierCode);
+          const recommended = rates.find((q) => q.isRecommended) || rates[0];
+          setSelectedCourier(recommended.courierCode);
         }
       } catch (err) {
         console.error("Failed to fetch rates:", err);
@@ -153,7 +163,12 @@ export function ShipNowModal({
     }
 
     setBooking(true);
-    const res = await bookShipmentForOrder(order.id, selectedCourier);
+    const res = await bookShipmentForOrder(order.id, selectedCourier, {
+      weightKg: deadWeight,
+      lengthCm: length,
+      widthCm: width,
+      heightCm: height,
+    });
     setBooking(false);
 
     if (res.ok && res.data) {
@@ -276,20 +291,52 @@ export function ShipNowModal({
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-4 gap-2 text-xs">
                 <div className="rounded-lg bg-white p-2 border border-slate-200">
-                  <span className="text-[10px] text-slate-400 block">Dead Weight</span>
-                  <span className="font-bold text-slate-800">{deadWeight} kg</span>
+                  <span className="text-[10px] text-slate-500 font-semibold block mb-0.5">Dead Wt (kg)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.1"
+                    value={deadWeight}
+                    onChange={(e) => setDeadWeight(Math.max(0.1, Number(e.target.value)))}
+                    className="w-full font-bold text-slate-900 border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-indigo-600"
+                  />
                 </div>
-                <div className="rounded-lg bg-white p-2 border border-slate-200">
-                  <span className="text-[10px] text-slate-400 block">Dimensions</span>
-                  <span className="font-bold text-slate-800">
-                    {length}&times;{width}&times;{height} cm
-                  </span>
+                <div className="rounded-lg bg-white p-2 border border-slate-200 col-span-2">
+                  <span className="text-[10px] text-slate-500 font-semibold block mb-0.5">L &times; W &times; H (cm)</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="1"
+                      value={length}
+                      onChange={(e) => setLength(Math.max(1, Number(e.target.value)))}
+                      className="w-full font-bold text-slate-900 border border-slate-200 rounded px-1 py-0.5 text-xs text-center focus:outline-none focus:border-indigo-600"
+                      title="Length in cm"
+                    />
+                    <span>&times;</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={width}
+                      onChange={(e) => setWidth(Math.max(1, Number(e.target.value)))}
+                      className="w-full font-bold text-slate-900 border border-slate-200 rounded px-1 py-0.5 text-xs text-center focus:outline-none focus:border-indigo-600"
+                      title="Width in cm"
+                    />
+                    <span>&times;</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={height}
+                      onChange={(e) => setHeight(Math.max(1, Number(e.target.value)))}
+                      className="w-full font-bold text-slate-900 border border-slate-200 rounded px-1 py-0.5 text-xs text-center focus:outline-none focus:border-indigo-600"
+                      title="Height in cm"
+                    />
+                  </div>
                 </div>
                 <div className="rounded-lg bg-white p-2 border border-indigo-200 bg-indigo-50/40">
-                  <span className="text-[10px] text-indigo-600 font-semibold block">Chargeable Weight</span>
-                  <span className="font-extrabold text-indigo-950">
+                  <span className="text-[10px] text-indigo-600 font-semibold block mb-0.5">Chargeable Wt</span>
+                  <span className="font-extrabold text-indigo-950 text-sm block mt-0.5">
                     {chargeableWeight.toFixed(2)} kg
                   </span>
                 </div>
