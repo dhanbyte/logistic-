@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Bell, CheckCircle2, Globe, Search, ShieldCheck, User } from "lucide-react";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export function AdminHeader() {
   return (
@@ -53,7 +54,7 @@ export function AdminHeader() {
           <span className="absolute top-1 right-1 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
         </Link>
 
-        {/* Profile Card */}
+        {/* Profile Card & Logout */}
         <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
           <div className="grid size-8 place-items-center rounded-full bg-indigo-600 font-bold text-white text-xs">
             SA
@@ -62,6 +63,9 @@ export function AdminHeader() {
             <p className="text-xs font-bold text-slate-900 leading-tight">Dhananjay</p>
             <p className="text-[10px] font-semibold text-rose-600">Super Admin</p>
           </div>
+          <SignOutButton className="ml-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50">
+            Sign out
+          </SignOutButton>
         </div>
       </div>
     </header>

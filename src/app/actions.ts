@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { carrierFormSchema, clientFormSchema } from "@/lib/validation/directory";
@@ -536,7 +537,23 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
 }
 
 export async function signOut() {
-  const supabase = await createClient();
-  await supabase?.auth.signOut();
+  // Sign out from Supabase
+  try {
+    const supabase = await createClient();
+    await supabase?.auth.signOut();
+  } catch {}
+
+  // Delete all cookies
+  try {
+    const cookieStore = await cookies();
+    const all = cookieStore.getAll();
+    for (const c of all) {
+      if (c.name.startsWith("sb-") || c.name === "shipwave_demo") {
+        cookieStore.delete(c.name);
+      }
+    }
+  } catch {}
+
   redirect("/login");
 }
+

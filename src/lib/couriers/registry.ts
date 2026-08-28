@@ -83,7 +83,7 @@ export function getCourierProvider(code: string): ICourierProvider {
   } else if (normalized === "shadowfax_surface") {
     provider = new ShadowfaxProvider({
       code: "shadowfax_surface",
-      name: "Shadowfax Cargo 7KG (Surface)",
+      name: "Shadowfax Cargo 5KG (Surface)",
       isSurface7Kg: true,
     });
   } else if (normalized === "shadowfax") {

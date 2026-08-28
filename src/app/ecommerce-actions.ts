@@ -14,6 +14,7 @@ import {
   reserveShippingFunds,
 } from "@/lib/finance/wallet-service";
 import { createServiceClient, getEffectiveSession } from "@/lib/supabase/server";
+import { sendMetaConversionEvent } from "@/lib/meta-conversions";
 import { orderFormSchema } from "@/lib/validation/order";
 import { sellerProfileSchema } from "@/lib/validation/seller";
 import { warehouseFormSchema } from "@/lib/validation/warehouse";
@@ -699,6 +700,103 @@ export async function upsertWarehouse(
 }
 
 /**
+ * Fast Onboarding Godown Setup Action
+ */
+export async function saveGodownOnboardingAction(payload: {
+  warehouseName: string;
+  contactPerson: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+}): Promise<ActionResult<{ warehouseId: string }>> {
+  try {
+    const session = await auth();
+    if (!session) {
+      return { ok: false, message: "Authentication required to configure godown." };
+    }
+
+    const cleanPin = payload.pincode.replace(/\D/g, "").slice(0, 6);
+    const cleanPhone = payload.contactPhone.replace(/\D/g, "").slice(-10);
+
+    if (cleanPin.length !== 6) {
+      return { ok: false, message: "Valid 6-digit Indian PIN code is required." };
+    }
+
+    // Check if user has an existing default/starter warehouse
+    const { data: existingWarehouses } = await session.supabase
+      .from("warehouses")
+      .select("id, warehouse_name, pincode")
+      .eq("user_id", session.user.id);
+
+    let warehouseIdToReturn = "";
+
+    // If user only has 1 warehouse (starter/placeholder), update it directly to avoid duplicate
+    if (existingWarehouses && existingWarehouses.length === 1) {
+      const targetId = existingWarehouses[0].id;
+      const { data, error } = await session.supabase
+        .from("warehouses")
+        .update({
+          warehouse_name: payload.warehouseName.trim() || "Main Pickup Godown",
+          contact_person: payload.contactPerson.trim() || "Warehouse Manager",
+          contact_phone: cleanPhone || "9876543210",
+          address_line1: payload.addressLine1.trim(),
+          address_line2: payload.addressLine2?.trim() || null,
+          city: payload.city.trim(),
+          state: payload.state.trim(),
+          pincode: cleanPin,
+          is_default: true,
+        })
+        .eq("id", targetId)
+        .eq("user_id", session.user.id)
+        .select("id")
+        .single();
+
+      if (error || !data) {
+        return { ok: false, message: error?.message || "Could not update pickup godown." };
+      }
+      warehouseIdToReturn = data.id;
+    } else {
+      // Set other warehouses to non-default
+      await session.supabase
+        .from("warehouses")
+        .update({ is_default: false })
+        .eq("user_id", session.user.id);
+
+      // Insert new verified godown
+      const { data, error } = await session.supabase
+        .from("warehouses")
+        .insert({
+          user_id: session.user.id,
+          warehouse_name: payload.warehouseName.trim() || "Main Pickup Godown",
+          contact_person: payload.contactPerson.trim() || "Warehouse Manager",
+          contact_phone: cleanPhone || "9876543210",
+          address_line1: payload.addressLine1.trim(),
+          address_line2: payload.addressLine2?.trim() || null,
+          city: payload.city.trim(),
+          state: payload.state.trim(),
+          pincode: cleanPin,
+          is_default: true,
+        })
+        .select("id")
+        .single();
+
+      if (error || !data) {
+        return { ok: false, message: error?.message || "Could not register pickup godown." };
+      }
+      warehouseIdToReturn = data.id;
+    }
+
+    refreshEcommerceData();
+    return { ok: true, data: { warehouseId: warehouseIdToReturn } };
+  } catch (err: any) {
+    return { ok: false, message: err.message || "Failed to save godown." };
+  }
+}
+
+/**
  * Sets Default Warehouse
  */
 export async function setDefaultWarehouse(warehouseId: string): Promise<ActionResult> {
@@ -1277,6 +1375,25 @@ export async function registerSellerAction(payload: {
       is_default: true,
       is_active: true,
     });
+
+    // 5. Fire Meta Conversions API (CAPI) CompleteRegistration Event
+    sendMetaConversionEvent({
+      eventName: "CompleteRegistration",
+      userData: {
+        email: cleanEmail,
+        phone: payload.phone,
+        firstName: payload.fullName.split(" ")[0] || payload.fullName,
+        lastName: payload.fullName.split(" ").slice(1).join(" ") || undefined,
+        city: "New Delhi",
+        state: "Delhi",
+        pincode: "110020",
+        country: "in",
+      },
+      customData: {
+        content_name: "Seller Free Account Registration",
+        status: "success",
+      },
+    }).catch((capiErr) => console.error("[Meta CAPI Registration Error]", capiErr));
 
     return {
       ok: true,

@@ -3,6 +3,7 @@ import { verifyRazorpayPaymentSignature } from "@/lib/finance/razorpay";
 import { creditWalletRecharge } from "@/lib/finance/wallet-service";
 import { toPaise, toRupees } from "@/lib/finance/money";
 import { getEffectiveSession } from "@/lib/supabase/server";
+import { sendMetaConversionEvent } from "@/lib/meta-conversions";
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,6 +60,22 @@ export async function POST(request: NextRequest) {
     });
 
     const newBalanceRupees = toRupees(rechargeResult.newBalancePaise);
+
+    // Fire Meta Conversions API Purchase Event
+    sendMetaConversionEvent({
+      eventName: "Purchase",
+      eventId: razorpay_payment_id,
+      userData: {
+        email: session.user.email,
+        phone: (session.user as any).phone,
+      },
+      customData: {
+        currency: "INR",
+        value: amountRupees,
+        order_id: razorpay_payment_id,
+        content_name: "Prepaid Shipping Wallet Recharge",
+      },
+    }).catch((capiErr) => console.error("[Meta CAPI Purchase Error]", capiErr));
 
     return NextResponse.json({
       success: true,

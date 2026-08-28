@@ -24,8 +24,6 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isDemoSession = request.cookies.get("shipwave_demo")?.value === "true";
 
-
-
   // Allow all API and webhook requests
   if (path.startsWith("/api")) {
     return response;
@@ -60,7 +58,6 @@ export async function proxy(request: NextRequest) {
     target.searchParams.delete("next");
     return NextResponse.redirect(target);
   }
-
 
   return response;
 }

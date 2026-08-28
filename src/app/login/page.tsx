@@ -19,7 +19,6 @@ export default function LoginPage() {
         </>
       }
     >
-
       <Suspense fallback={<div className="py-8 text-center text-xs text-slate-500">Loading sign in form…</div>}>
         <AuthForm mode="login" />
       </Suspense>

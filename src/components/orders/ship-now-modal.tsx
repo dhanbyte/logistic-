@@ -450,7 +450,7 @@ export function ShipNowModal({
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500">
-                                SLA: {q.estimatedDeliveryDays} days &bull; Weight: {chargeableWeight.toFixed(2)} kg
+                                SLA: {q.estimatedDeliveryDays} days &bull; Weight: {q.courierCode.includes("surface") ? "Up to 5.00 kg (Flat Slab)" : `${chargeableWeight.toFixed(2)} kg`}
                               </p>
                             </div>
                           </div>

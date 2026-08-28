@@ -3,9 +3,9 @@
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { Menu, Wallet } from "lucide-react";
-import { signOut } from "@/app/actions";
 import { formatINR } from "@/lib/calculations";
 import { AppSidebar } from "./app-sidebar";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export function AppShell({
   children,
@@ -86,13 +86,7 @@ export function AppShell({
               <p className="text-sm font-semibold text-slate-900">{fullName}</p>
               <p className="text-xs text-slate-500">{isDemo ? "Demo workspace" : email}</p>
             </div>
-            {!isDemo && (
-              <form action={signOut}>
-                <button className="ml-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50">
-                  Sign out
-                </button>
-              </form>
-            )}
+            <SignOutButton isDemo={isDemo} />
           </div>
         </header>
         <main className="p-4 sm:p-8 print:p-0">{children}</main>
@@ -100,3 +94,4 @@ export function AppShell({
     </div>
   );
 }
+

@@ -28,7 +28,7 @@ export class ShadowfaxProvider implements ICourierProvider {
     this.name =
       options?.name ||
       (this.code === "shadowfax_surface"
-        ? "Shadowfax Cargo 7KG (Surface)"
+        ? "Shadowfax Cargo 5KG (Surface)"
         : "Shadowfax Express 0.5KG (Air)");
     this.isSurface7Kg = Boolean(options?.isSurface7Kg || this.code === "shadowfax_surface");
 
@@ -123,30 +123,29 @@ export class ShadowfaxProvider implements ICourierProvider {
     let freightCharge = 0;
 
     if (this.isSurface7Kg) {
-      // Shadowfax Cargo Surface Plan (1kg to 6kg: ₹99 flat, >6kg: ₹99 + 20/kg)
+      // Shadowfax Cargo Surface Plan: Flat ₹99.00 all-inclusive up to 6KG!
       const w = weight.chargeableWeightKg;
       if (w <= 6.0) {
-        freightCharge = 99;
+        freightCharge = 84; // 84 + 18% GST (15) = ₹99.00 Total
       } else {
         const extraKg = Math.ceil(w - 6.0);
-        freightCharge = 99 + extraKg * 20;
+        freightCharge = 84 + extraKg * 17; // 17 + 18% GST (3) = ₹20/kg
       }
     } else {
-      // Shadowfax Express 0.5KG Plan (₹72 for 500g, >0.5kg: 72 + 45/500g)
+      // Shadowfax Express 0.5KG Air Plan: ₹72.00 all-inclusive for 500g!
       const w = weight.chargeableWeightKg;
-      const base0_5 = 72;
+      const base0_5 = 61; // 61 + 18% GST (11) = ₹72.00 Total
       if (w <= 0.5) {
         freightCharge = base0_5;
       } else {
         const extra500gSlabs = Math.ceil((w - 0.5) / 0.5);
-        freightCharge = base0_5 + extra500gSlabs * 45;
+        freightCharge = base0_5 + extra500gSlabs * 38;
       }
     }
 
-    let codCharge = 0;
+    let codCharge = 0; // ₹0 COD Fee for all merchants
     if (req.paymentMode === "COD") {
-      const declaredVal = req.declaredValue || 0;
-      codCharge = Math.max(32, Math.round(declaredVal * 0.015));
+      codCharge = 0; // Free COD
     }
 
     const taxableAmount = freightCharge + codCharge;

@@ -1,5 +1,5 @@
 import { Building2, ShieldCheck, Warehouse as WarehouseIcon } from "lucide-react";
-import { signOut } from "@/app/actions";
+import { SignOutButton } from "@/components/sign-out-button";
 import { PageHeader } from "@/components/page-header";
 import { BankDetailsForm } from "@/components/settings/bank-details-form";
 import { SellerSettingsForm } from "@/components/settings/seller-settings-form";
@@ -86,11 +86,9 @@ export default async function SettingsPage() {
 
             <p className="text-xs text-slate-500">End your active authenticated session</p>
           </div>
-          <form action={signOut}>
-            <Button variant="outline" className="text-xs font-semibold text-rose-600 hover:bg-rose-50 border-rose-200">
-              Sign Out
-            </Button>
-          </form>
+          <SignOutButton className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50">
+            Sign Out
+          </SignOutButton>
         </div>
       </div>
     </>

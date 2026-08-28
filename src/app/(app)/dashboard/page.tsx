@@ -13,18 +13,23 @@ import {
 import { DeliveryRatioGauges } from "@/components/dashboard/delivery-ratio-gauges";
 import { EcommerceKpiGrid } from "@/components/dashboard/ecommerce-kpi-grid";
 import { ShippingRateCalculator } from "@/components/dashboard/shipping-rate-calculator";
+import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
 import { PageHeader } from "@/components/page-header";
 import { buttonClassName } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { formatINR } from "@/lib/calculations";
 import { getDashboardKpis, getEcommerceShipments } from "@/lib/data/ecommerce-shipments";
 import { getOrders } from "@/lib/data/orders";
+import { getWarehouses } from "@/lib/data/warehouses";
+import { getEffectiveSession } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
-  const [kpis, ordersResult, shipmentsResult] = await Promise.all([
+  const [kpis, ordersResult, shipmentsResult, warehouses, session] = await Promise.all([
     getDashboardKpis(),
     getOrders({ pageSize: 5 }),
     getEcommerceShipments({ pageSize: 5 }),
+    getWarehouses(),
+    getEffectiveSession(),
   ]);
 
   return (
@@ -48,6 +53,12 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </PageHeader>
+
+      {/* First-Time User Onboarding & Live Godown Serviceability Wizard */}
+      <OnboardingWizard
+        hasWarehouses={warehouses.length > 0}
+        userEmail={session?.user?.email}
+      />
 
       {/* 10-Card Ecommerce KPI Grid */}
       <EcommerceKpiGrid kpis={kpis} />

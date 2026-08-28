@@ -48,7 +48,6 @@ export async function getEffectiveSession() {
     }
   }
 
-  // No valid session — return null so callers enforce authentication properly.
-  // Removed fallback service-client shortcut which was causing data isolation issues.
+  // No valid session
   return null;
 }

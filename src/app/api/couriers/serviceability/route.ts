@@ -309,8 +309,8 @@ export async function GET(request: NextRequest) {
       },
       {
         courierCode: "shadowfax_cargo",
-        courierName: "Shadowfax Cargo",
-        serviceType: "Heavy Surface Cargo (1-7kg+ Flat)",
+        courierName: "Shadowfax Cargo 5KG",
+        serviceType: "Surface Cargo (Up to 5kg Flat Plan)",
         pickupServiceable: true,
         deliveryServiceable: true,
         codAvailable: true,
