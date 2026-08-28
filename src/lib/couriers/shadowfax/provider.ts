@@ -123,24 +123,18 @@ export class ShadowfaxProvider implements ICourierProvider {
     let freightCharge = 0;
 
     if (this.isSurface7Kg) {
-      // Shadowfax Cargo Surface Plan (1kg: 96, 3kg: 126, 5kg: 146, 7kg: 166, >7kg: +20/kg)
+      // Shadowfax Cargo Surface Plan (1kg to 6kg: ₹99 flat, >6kg: ₹99 + 20/kg)
       const w = weight.chargeableWeightKg;
-      if (w <= 1.0) {
-        freightCharge = 96;
-      } else if (w <= 3.0) {
-        freightCharge = 126;
-      } else if (w <= 5.0) {
-        freightCharge = 146;
-      } else if (w <= 7.0) {
-        freightCharge = 166;
+      if (w <= 6.0) {
+        freightCharge = 99;
       } else {
-        const extraKg = Math.ceil(w - 7.0);
-        freightCharge = 166 + extraKg * 20;
+        const extraKg = Math.ceil(w - 6.0);
+        freightCharge = 99 + extraKg * 20;
       }
     } else {
-      // Shadowfax Express 0.5KG Plan (₹78 for 500g)
+      // Shadowfax Express 0.5KG Plan (₹72 for 500g, >0.5kg: 72 + 45/500g)
       const w = weight.chargeableWeightKg;
-      const base0_5 = 78;
+      const base0_5 = 72;
       if (w <= 0.5) {
         freightCharge = base0_5;
       } else {
@@ -295,7 +289,7 @@ export class ShadowfaxProvider implements ICourierProvider {
       },
       weightCalc,
     );
-    const shippingCharge = quote ? quote.totalShippingCost : this.isSurface7Kg ? 149 : 78;
+    const shippingCharge = quote ? quote.totalShippingCost : this.isSurface7Kg ? 99 : 72;
     const courierCharge = this.isSurface7Kg ? 69 : 45;
     const sellerMargin = Math.max(0, shippingCharge - courierCharge);
 

@@ -34,22 +34,16 @@ export default function PricingPage() {
   const weight = Math.max(0.1, parseFloat(weightKg) || 0.5);
   const codFee = 0;
 
-  // 1. Shadowfax Express (0.5kg Air Plan)
-  const baseShadowfaxExpress = weight <= 0.5 ? 78 : 78 + Math.ceil((weight - 0.5) / 0.5) * 45;
+  // 1. Shadowfax Express (0.5kg Air Plan @ ₹72 Flat)
+  const baseShadowfaxExpress = weight <= 0.5 ? 72 : 72 + Math.ceil((weight - 0.5) / 0.5) * 45;
   const shadowfaxExpressRate = baseShadowfaxExpress;
 
-  // 2. Shadowfax Cargo (7KG Surface Plan)
-  let baseCargoRate = 96;
-  if (weight <= 1.0) {
-    baseCargoRate = 96;
-  } else if (weight <= 3.0) {
-    baseCargoRate = 126;
-  } else if (weight <= 5.0) {
-    baseCargoRate = 146;
-  } else if (weight <= 7.0) {
-    baseCargoRate = 166;
+  // 2. Shadowfax Cargo (1kg–6kg Flat Surface Plan @ ₹99 Flat, >6kg: +₹20/kg)
+  let baseCargoRate = 99;
+  if (weight <= 6.0) {
+    baseCargoRate = 99;
   } else {
-    baseCargoRate = 166 + Math.ceil(weight - 7.0) * 20;
+    baseCargoRate = 99 + Math.ceil(weight - 6.0) * 20;
   }
   const shadowfaxCargoRate = baseCargoRate;
 
@@ -85,7 +79,7 @@ export default function PricingPage() {
               href="/pricing"
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-2xs"
             >
-              <span>Rates (From ₹78)</span>
+              <span>Rates (From ₹72)</span>
               <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
                 ₹0 RTO
               </span>
@@ -170,7 +164,7 @@ export default function PricingPage() {
                 </span>
                 <h3 className="text-xl font-black text-slate-900">Standard Tier</h3>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-slate-900">₹78</span>
+                  <span className="text-3xl font-black text-slate-900">₹72</span>
                   <span className="text-xs text-slate-500">/ 500g Air base</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
@@ -180,11 +174,11 @@ export default function PricingPage() {
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-600 border-t border-slate-100 pt-4">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>Shadowfax 0.5kg Air: <strong>₹78 flat</strong></span>
+                    <span>Shadowfax 0.5kg Air: <strong>₹72 flat</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>Shadowfax 1kg–7kg Cargo: <strong>From ₹96 flat</strong></span>
+                    <span>Shadowfax 1kg–6kg Cargo: <strong>₹99 flat</strong></span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
@@ -358,7 +352,7 @@ export default function PricingPage() {
                   Parcel Weight (KG)
                 </label>
                 <div className="grid grid-cols-6 gap-1.5 mb-2">
-                  {["0.5", "1.0", "2.0", "3.0", "5.0", "7.0"].map((w) => (
+                  {["0.5", "1.0", "2.0", "3.0", "5.0", "6.0"].map((w) => (
                     <button
                       key={w}
                       type="button"
@@ -433,7 +427,7 @@ export default function PricingPage() {
                 </span>
               </div>
 
-              {/* Shadowfax Cargo */}
+              {/* Shadowfax Cargo (1kg–6kg Plan) */}
               <div
                 className={`rounded-2xl border p-4 sm:p-5 shadow-xs flex items-center justify-between transition-all ${
                   weight > 0.5
@@ -444,14 +438,14 @@ export default function PricingPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900 text-sm">
-                      Shadowfax Cargo (7KG Surface)
+                      Shadowfax Cargo (1kg–6kg Surface)
                     </span>
                     <span className="rounded bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2">
                       {weight > 0.5 ? "★ Best for Heavy" : "Flat Slab"}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    1kg–7kg Flat Surface Plan &bull; SLA: 3-4 Days &bull; 100% Pan India
+                    1kg–6kg Flat Surface Plan &bull; SLA: 3-4 Days &bull; 100% Pan India
                   </p>
                 </div>
                 <div className="text-right">
@@ -524,7 +518,7 @@ export default function PricingPage() {
                 </div>
               </div>
 
-              {/* Delhivery */}
+              {/* Delhivery Direct */}
               <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -551,27 +545,22 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* 5. OFFICIAL RATE CARD SLABS TABLE */}
+      {/* 5. DETAILED WEIGHT SLAB RATE CARD TABLE */}
       <section className="py-14 sm:py-20 bg-[#f8fafc] border-b border-slate-200/80">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4 mb-4">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <span className="grid size-7 place-items-center rounded-lg bg-indigo-600 text-white text-xs">
-                    ₹
-                  </span>
-                  Official Shipping Rate Card &amp; Weight Slabs
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Standard national merchant rates across all shipping zones in India (₹0 COD fee &bull; 100% Free COD).
-                </p>
-              </div>
-              <span className="rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold px-2.5 py-1 w-fit">
-                ✓ Verified Flat Slabs
-              </span>
-            </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 block mb-1">
+              Weight Matrix
+            </span>
+            <h2 className="text-3xl font-extrabold text-slate-900">
+              Official Weight Slab Pricing Card
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-slate-600">
+              Transparent, flat rates per slab with ₹0 COD surcharge and 100% Free RTO Protection.
+            </p>
+          </div>
 
+          <div className="max-w-5xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
@@ -594,60 +583,21 @@ export default function PricingPage() {
                         Air Express
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 font-black text-emerald-700">₹78.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹78.00</td>
+                    <td className="px-4 py-3.5 font-black text-emerald-700">₹72.00</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹72.00</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
                     <td className="px-4 py-3.5 text-slate-500">2-3 Days</td>
                   </tr>
                   <tr className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-900">0.5 kg – 1.0 kg</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-900">1.0 kg – 6.0 kg (Flat Slab)</td>
                     <td className="px-4 py-3.5">Shadowfax Cargo</td>
                     <td className="px-4 py-3.5">
                       <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">
-                        Surface Flat
+                        Surface Flat (1kg–6kg)
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 font-black text-slate-900">₹96.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹96.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
-                    <td className="px-4 py-3.5 text-slate-500">3-4 Days</td>
-                  </tr>
-                  <tr className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-900">1.0 kg – 3.0 kg</td>
-                    <td className="px-4 py-3.5">Shadowfax Cargo (3KG Plan)</td>
-                    <td className="px-4 py-3.5">
-                      <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">
-                        Surface Flat
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 font-black text-slate-900">₹126.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹126.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
-                    <td className="px-4 py-3.5 text-slate-500">3-4 Days</td>
-                  </tr>
-                  <tr className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-900">3.0 kg – 5.0 kg</td>
-                    <td className="px-4 py-3.5">Shadowfax Cargo (5KG Plan)</td>
-                    <td className="px-4 py-3.5">
-                      <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">
-                        Surface Flat
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 font-black text-slate-900">₹146.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹146.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
-                    <td className="px-4 py-3.5 text-slate-500">3-4 Days</td>
-                  </tr>
-                  <tr className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-900">5.0 kg – 7.0 kg</td>
-                    <td className="px-4 py-3.5">Shadowfax Cargo (7KG Plan)</td>
-                    <td className="px-4 py-3.5">
-                      <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">
-                        Surface Flat
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 font-black text-slate-900">₹166.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹166.00</td>
+                    <td className="px-4 py-3.5 font-black text-slate-900">₹99.00</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹99.00</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
                     <td className="px-4 py-3.5 text-slate-500">3-4 Days</td>
                   </tr>
@@ -678,7 +628,7 @@ export default function PricingPage() {
                     <td className="px-4 py-3.5 text-slate-500">2-3 Days</td>
                   </tr>
                   <tr className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-900">Additional Per KG (&gt;7kg)</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-900">Additional Per KG (&gt;6kg)</td>
                     <td className="px-4 py-3.5">Surface Heavy Freight</td>
                     <td className="px-4 py-3.5">
                       <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.5 text-[10px] font-semibold">
@@ -693,10 +643,6 @@ export default function PricingPage() {
                 </tbody>
               </table>
             </div>
-
-            <p className="mt-4 text-[11px] text-slate-400">
-              * Note: All prices exclude 18% GST. ₹0 COD collection fee — zero extra charge for COD orders. 100% Free RTO on returned shipments.
-            </p>
           </div>
         </div>
       </section>
@@ -815,7 +761,7 @@ export default function PricingPage() {
       <section className="py-16 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white text-center">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-            Ready to cut shipping costs starting at ₹78?
+            Ready to cut shipping costs starting at ₹72?
           </h2>
           <p className="mt-3 text-sm text-indigo-200 max-w-xl mx-auto">
             Create your free account today and start shipping with India&apos;s leading courier network.
@@ -857,7 +803,7 @@ export default function PricingPage() {
               Home
             </Link>
             <Link href="/pricing" className="text-indigo-600 font-bold transition-colors">
-              Pricing (From ₹78)
+              Pricing (From ₹72)
             </Link>
             <Link href="/#platform" className="hover:text-slate-900 transition-colors">
               Platform

@@ -41,7 +41,7 @@ export function AuthShell({
               href="/#rates"
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-2xs"
             >
-              <span>Pricing (From ₹78)</span>
+              <span>Pricing (From ₹72)</span>
               <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
                 ₹0 RTO
               </span>
@@ -109,7 +109,7 @@ export function AuthShell({
                 href="/#rates"
                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-5 py-3 text-xs sm:text-sm font-bold text-indigo-700 hover:bg-indigo-100 shadow-xs transition-colors cursor-pointer"
               >
-                <span>View Rate Card (From ₹78)</span>
+                <span>View Rate Card (From ₹72)</span>
                 <ArrowRight size={15} />
               </Link>
               <Link
@@ -137,16 +137,16 @@ export function AuthShell({
                   <Zap size={13} className="text-indigo-600" /> 0.5kg Air Lite
                 </span>
                 <p className="text-xs font-black text-indigo-950 mt-0.5">
-                  Starts @ ₹78.00 Flat
+                  Starts @ ₹72.00 Flat
                 </p>
               </div>
 
               <div className="col-span-2 sm:col-span-1 rounded-xl border border-blue-200 bg-blue-50/80 p-3 shadow-2xs">
                 <span className="text-[10px] font-black uppercase tracking-wider text-blue-800 flex items-center gap-1">
-                  <Package size={13} className="text-blue-600" /> 7KG Cargo Plan
+                  <Package size={13} className="text-blue-600" /> 1kg–6kg Cargo Plan
                 </span>
                 <p className="text-xs font-black text-blue-950 mt-0.5">
-                  Starts @ ₹96.00 Flat
+                  Starts @ ₹99.00 Flat
                 </p>
               </div>
             </div>
@@ -159,7 +159,7 @@ export function AuthShell({
               <p className="text-xs font-medium text-slate-600 flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-slate-800">Shadowfax Express</span>
                 <span className="text-slate-300">•</span>
-                <span className="font-semibold text-slate-800">Shadowfax Cargo (7KG)</span>
+                <span className="font-semibold text-slate-800">Shadowfax Cargo (1kg–6kg)</span>
                 <span className="text-slate-300">•</span>
                 <span className="font-semibold text-slate-800">Xpressbees</span>
                 <span className="text-slate-300">•</span>
@@ -222,23 +222,15 @@ export function AuthShell({
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
                 <span className="text-slate-400">500g Air:</span>
-                <strong className="text-emerald-400 text-sm">₹78.00</strong>
+                <strong className="text-emerald-400 text-sm">₹72.00</strong>
               </div>
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
-                <span className="text-slate-400">1kg Cargo:</span>
-                <strong className="text-indigo-300 text-sm">₹96.00</strong>
+                <span className="text-slate-400">1kg–6kg Cargo (Flat):</span>
+                <strong className="text-indigo-300 text-sm">₹99.00</strong>
               </div>
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
-                <span className="text-slate-400">3kg Cargo:</span>
-                <strong className="text-indigo-300 text-sm">₹126.00</strong>
-              </div>
-              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
-                <span className="text-slate-400">5kg Cargo:</span>
-                <strong className="text-indigo-300 text-sm">₹146.00</strong>
-              </div>
-              <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
-                <span className="text-slate-400">7kg Cargo:</span>
-                <strong className="text-indigo-300 text-sm">₹166.00</strong>
+                <span className="text-slate-400">Above 6kg:</span>
+                <strong className="text-indigo-300 text-sm">+₹20/kg</strong>
               </div>
 
               <Link
@@ -262,7 +254,7 @@ export function AuthShell({
               Platform
             </Link>
             <Link href="/#rates" className="hover:text-slate-800 transition-colors font-medium text-indigo-600">
-              Pricing (From ₹78)
+              Pricing (From ₹72)
             </Link>
             <Link href="/#tracking" className="hover:text-slate-800 transition-colors">
               Track shipment

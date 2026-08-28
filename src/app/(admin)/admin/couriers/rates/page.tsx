@@ -37,24 +37,16 @@ export interface RateSlabItem {
 }
 
 const INITIAL_SHADOWFAX_SLABS: RateSlabItem[] = [
-  // 1. SHADOWFAX EXPRESS (0.5KG LITE PLAN - ₹78)
-  { id: "sfx-a-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 35, userPrepaidPrice: 78, userCodPrice: 98 },
-  { id: "sfx-b-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 40, userPrepaidPrice: 78, userCodPrice: 98 },
-  { id: "sfx-c-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 45, userPrepaidPrice: 78, userCodPrice: 98 },
-  { id: "sfx-d-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 52, userPrepaidPrice: 78, userCodPrice: 98 },
-  { id: "sfx-e-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_E", zoneLabel: "ZONE_E (Special / NE)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 65, userPrepaidPrice: 98, userCodPrice: 118 },
+  // 1. SHADOWFAX EXPRESS (0.5KG LITE PLAN - ₹72.00 FLAT • ₹0 COD FEE)
+  { id: "sfx-a-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_A", zoneLabel: "ZONE_A (Intra-City)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 35, userPrepaidPrice: 72, userCodPrice: 72 },
+  { id: "sfx-b-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_B", zoneLabel: "ZONE_B (Regional)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 40, userPrepaidPrice: 72, userCodPrice: 72 },
+  { id: "sfx-c-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_C", zoneLabel: "ZONE_C (Metro to Metro)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 45, userPrepaidPrice: 72, userCodPrice: 72 },
+  { id: "sfx-d-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_D", zoneLabel: "ZONE_D (Rest of India)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 52, userPrepaidPrice: 72, userCodPrice: 72 },
+  { id: "sfx-e-0.5", courierCode: "shadowfax", courierName: "Shadowfax Express", zone: "ZONE_E", zoneLabel: "ZONE_E (Special / NE)", weightSlab: "0–500g", maxWeightKg: 0.5, courierBaseCost: 65, userPrepaidPrice: 92, userCodPrice: 92 },
 
-  // 2. SHADOWFAX CARGO (HEAVY SLABS: 1KG=₹96, 3KG=₹126, 5KG=₹146, 7KG=₹166, >7KG=+₹20/KG)
-  // 1kg Slab
-  { id: "sfx-cargo-1.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "0.5kg–1kg", maxWeightKg: 1.0, courierBaseCost: 69, userPrepaidPrice: 96, userCodPrice: 116 },
-  // 1kg to 3kg Slab (+₹30 -> ₹126)
-  { id: "sfx-cargo-3.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "1kg–3kg", maxWeightKg: 3.0, courierBaseCost: 69, userPrepaidPrice: 126, userCodPrice: 146 },
-  // 3kg to 5kg Slab (+₹20 -> ₹146)
-  { id: "sfx-cargo-5.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "3kg–5kg", maxWeightKg: 5.0, courierBaseCost: 69, userPrepaidPrice: 146, userCodPrice: 166 },
-  // 5kg to 7kg Slab (+₹20 -> ₹166)
-  { id: "sfx-cargo-7.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "5kg–7kg", maxWeightKg: 7.0, courierBaseCost: 69, userPrepaidPrice: 166, userCodPrice: 186 },
-  // Above 7kg Slab (+₹20/kg)
-  { id: "sfx-cargo-addl", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "Above 7kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 15, userPrepaidPrice: 20, userCodPrice: 20 },
+  // 2. SHADOWFAX CARGO (FLAT SLAB: 1KG–6KG = ₹99.00 FLAT, >6KG = +₹20/KG)
+  { id: "sfx-cargo-6.0", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "1kg–6kg (Flat)", maxWeightKg: 6.0, courierBaseCost: 69, userPrepaidPrice: 99, userCodPrice: 99 },
+  { id: "sfx-cargo-addl", courierCode: "shadowfax_surface", courierName: "Shadowfax Cargo", zone: "ZONE_ALL", zoneLabel: "All Zones (India)", weightSlab: "Above 6kg (+1kg)", maxWeightKg: 99.0, courierBaseCost: 15, userPrepaidPrice: 20, userCodPrice: 20 },
 ];
 
 export default function AdminRatesPage() {
