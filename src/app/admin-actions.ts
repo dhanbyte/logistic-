@@ -308,6 +308,45 @@ export async function assignUserCourierRatesAction(params: {
 }
 
 /**
+ * Get Custom Courier Rates & Pricing Profile for a Specific User
+ */
+export async function getUserPricingProfileAction(userId: string): Promise<any> {
+  const { getUserPricingProfile } = await import("@/lib/couriers/pricing-engine");
+  return getUserPricingProfile(userId);
+}
+
+/**
+ * Fetch all registered merchants from database for admin switcher
+ */
+export async function getAllMerchantsAction(): Promise<{ id: string; name: string; email: string }[]> {
+  try {
+    const session = await getEffectiveSession();
+    if (!session) return [];
+    const { supabase } = session;
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, company_name")
+      .order("created_at", { ascending: false });
+
+    if (profiles && profiles.length > 0) {
+      return profiles.map((p) => ({
+        id: p.id,
+        name: p.company_name ? `${p.full_name} (${p.company_name})` : p.full_name,
+        email: p.email,
+      }));
+    }
+  } catch (e) {
+    console.error("[getAllMerchantsAction]", e);
+  }
+  return [
+    { id: "0b67cbd5-bf09-4c54-b4be-02d56af6f0a5", name: "Dhananjay (Dhanbyte Logistics)", email: "dhananjay.win2004@gmail.com" },
+    { id: "1021f9f6-a770-42ba-b0de-fb5315337c46", name: "dhananjay.win545", email: "dhananjay.win545@gmail.com" },
+    { id: "28b1226e-c0b6-448c-90c8-372df9d65097", name: "Shan Bhati", email: "shanbhati2003@gmail.com" },
+  ];
+}
+
+/**
  * Super Admin Creates a New Merchant User
  */
 export async function createMerchantUserAction(params: {

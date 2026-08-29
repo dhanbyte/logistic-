@@ -340,9 +340,10 @@ export async function bookShipmentForOrder(
         .eq("id", orderId);
     }
 
-    // 1.3 Get Dynamic Courier Rate Quote
+    // 1.3 Get Dynamic Courier Rate Quote (With Custom Merchant Rate Profile)
     const rateQuote = await courier.calculateRate(
       {
+        userId: user.id,
         pickupPincode: (order as any).warehouse?.pincode || (order as any).pickup_pincode || "110020",
         deliveryPincode: (order as any).customer?.pincode || (order as any).delivery_pincode || "400001",
         weightKg: chargeableWeightKg,
@@ -978,6 +979,9 @@ export async function fetchCourierRatesAction(params: {
   paymentMode: "PREPAID" | "COD";
   declaredValue: number;
 }): Promise<CourierRateQuote[]> {
+  const session = await getEffectiveSession();
+  const userId = session?.user?.id;
+
   const weightCalc = calculateChargeableWeight(params.weightKg, {
     lengthCm: params.lengthCm,
     widthCm: params.widthCm,
@@ -986,6 +990,7 @@ export async function fetchCourierRatesAction(params: {
 
   return compareAllCourierRates(
     {
+      userId,
       pickupPincode: params.pickupPincode,
       deliveryPincode: params.deliveryPincode,
       weightKg: weightCalc.chargeableWeightKg,

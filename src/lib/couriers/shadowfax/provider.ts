@@ -121,36 +121,105 @@ export class ShadowfaxProvider implements ICourierProvider {
 
     const zone = serv.zone;
     let freightCharge = 0;
+    let codCharge = 0;
 
-    if (this.isSurface7Kg) {
-      // Shadowfax Cargo Surface Plan: Flat ₹99.00 all-inclusive up to 6KG!
-      const w = weight.chargeableWeightKg;
-      if (w <= 6.0) {
-        freightCharge = 84; // 84 + 18% GST (15) = ₹99.00 Total
-      } else {
-        const extraKg = Math.ceil(w - 6.0);
-        freightCharge = 84 + extraKg * 17; // 17 + 18% GST (3) = ₹20/kg
-      }
-    } else {
-      // Shadowfax Express 0.5KG Air Plan: ₹72.00 all-inclusive for 500g!
-      const w = weight.chargeableWeightKg;
-      const base0_5 = 61; // 61 + 18% GST (11) = ₹72.00 Total
-      if (w <= 0.5) {
-        freightCharge = base0_5;
-      } else {
-        const extra500gSlabs = Math.ceil((w - 0.5) / 0.5);
-        freightCharge = base0_5 + extra500gSlabs * 38;
+    // Check if merchant user has custom negotiated rate cards assigned by admin
+    let hasCustomUserRate = false;
+    let customGstAmount = 0;
+    let customTotalCost = 0;
+
+    if (req.userId) {
+      try {
+        const { getUserPricingProfile } = await import("../pricing-engine");
+        const profile = getUserPricingProfile(req.userId);
+        if (profile && (profile.tier === "CUSTOM" || profile.tier === "SILVER" || profile.tier === "GOLD")) {
+          const userRate = profile.rates.shadowfax;
+          if (userRate) {
+            hasCustomUserRate = true;
+            let base = 0;
+            const w = weight.chargeableWeightKg;
+
+            // 1. If multi-slab rate matrix is available, match exact slab
+            if (Array.isArray(userRate.slabs) && userRate.slabs.length > 0) {
+              const matchedSlab = userRate.slabs.find((s: any) => w <= s.maxWeight) || userRate.slabs[userRate.slabs.length - 1];
+              if (zone === "ZONE_A") base = Number(matchedSlab.zoneA) || 45;
+              else if (zone === "ZONE_B") base = Number(matchedSlab.zoneB) || 52;
+              else if (zone === "ZONE_C") base = Number(matchedSlab.zoneC) || 62;
+              else if (zone === "ZONE_D") base = Number(matchedSlab.zoneD) || 72;
+              else if (zone === "ZONE_E") base = Number(matchedSlab.zoneE) || (Number(matchedSlab.zoneD) + 16);
+
+              // If parcel exceeds 10kg, add +1kg incremental slab
+              if (w > 10.0 && userRate.slabs.length >= 8) {
+                const extraKg = Math.ceil(w - 10.0);
+                const addSlab = userRate.slabs[7];
+                const addRate = zone === "ZONE_A" ? addSlab.zoneA : zone === "ZONE_B" ? addSlab.zoneB : zone === "ZONE_C" ? addSlab.zoneC : zone === "ZONE_D" ? addSlab.zoneD : (addSlab.zoneE || 50);
+                base += extraKg * (Number(addRate) || 50);
+              }
+
+              if (req.paymentMode === "COD") {
+                codCharge = Number(matchedSlab.codFee) || 0;
+              }
+            } else {
+              // 2. Base 500g slab + additional 500g increments
+              base = userRate.zoneA_0_500g;
+              if (zone === "ZONE_B") base = userRate.zoneB_0_500g;
+              if (zone === "ZONE_C") base = userRate.zoneC_0_500g;
+              if (zone === "ZONE_D") base = userRate.zoneD_0_500g;
+              if (zone === "ZONE_E") base = userRate.zoneE_0_500g || (userRate.zoneD_0_500g + 16);
+
+              if (w > 0.5) {
+                const extraSlabs = Math.ceil((w - 0.5) / 0.5);
+                base += extraSlabs * (userRate.additional500g || 35);
+              }
+
+              if (req.paymentMode === "COD") {
+                const codPercentFee = ((req.declaredValue || 0) * (userRate.codPercent || 0)) / 100;
+                codCharge = Math.max(userRate.codChargeFlat || 0, codPercentFee);
+              }
+            }
+
+            freightCharge = base;
+            customTotalCost = freightCharge + codCharge;
+          }
+        }
+      } catch (e) {
+        // fallback to standard
       }
     }
 
-    let codCharge = 0; // ₹0 COD Fee for all merchants
-    if (req.paymentMode === "COD") {
-      codCharge = 0; // Free COD
+    if (!hasCustomUserRate) {
+      if (this.isSurface7Kg) {
+        // Shadowfax Cargo Surface Plan: Flat ₹99.00 all-inclusive up to 6KG!
+        const w = weight.chargeableWeightKg;
+        if (w <= 6.0) {
+          freightCharge = 84; // 84 + 18% GST (15) = ₹99.00 Total
+        } else {
+          const extraKg = Math.ceil(w - 6.0);
+          freightCharge = 84 + extraKg * 17; // 17 + 18% GST (3) = ₹20/kg
+        }
+      } else {
+        // Shadowfax Express 0.5KG Air Plan: ₹72.00 all-inclusive for 500g!
+        const w = weight.chargeableWeightKg;
+        const base0_5 = 61; // 61 + 18% GST (11) = ₹72.00 Total
+        if (w <= 0.5) {
+          freightCharge = base0_5;
+        } else {
+          const extra500gSlabs = Math.ceil((w - 0.5) / 0.5);
+          freightCharge = base0_5 + extra500gSlabs * 38;
+        }
+      }
+
+      if (req.paymentMode === "COD") {
+        codCharge = 0; // Free COD
+      }
+
+      const taxableAmount = freightCharge + codCharge;
+      customGstAmount = Math.round(taxableAmount * 0.18);
+      customTotalCost = taxableAmount + customGstAmount;
     }
 
-    const taxableAmount = freightCharge + codCharge;
-    const gstAmount = Math.round(taxableAmount * 0.18);
-    const totalShippingCost = taxableAmount + gstAmount;
+    const gstAmount = customGstAmount;
+    const totalShippingCost = customTotalCost;
 
     // Recommend based on best fit for parcel weight
     const isRecommended = this.isSurface7Kg

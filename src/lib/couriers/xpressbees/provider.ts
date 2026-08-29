@@ -103,6 +103,55 @@ export class XpressbeesProvider implements ICourierProvider {
   ): Promise<CourierRateQuote | null> {
     const zone = determineShippingZone(req.pickupPincode, req.deliveryPincode);
 
+    // Check if user has custom rate card set by Admin
+    if (req.userId) {
+      try {
+        const { getUserPricingProfile } = await import("../pricing-engine");
+        const profile = getUserPricingProfile(req.userId);
+        if (profile && (profile.tier === "CUSTOM" || profile.tier === "SILVER" || profile.tier === "GOLD")) {
+          const userRate = profile.rates.xpressbees;
+          if (userRate) {
+            let base = userRate.zoneA_0_500g;
+            if (zone === "ZONE_B") base = userRate.zoneB_0_500g;
+            if (zone === "ZONE_C") base = userRate.zoneC_0_500g;
+            if (zone === "ZONE_D") base = userRate.zoneD_0_500g;
+            if (zone === "ZONE_E") base = userRate.zoneE_0_500g || (userRate.zoneD_0_500g + 16);
+
+            const w = weight.chargeableWeightKg;
+            if (w > 0.5) {
+              const extraSlabs = Math.ceil((w - 0.5) / 0.5);
+              base += extraSlabs * (userRate.additional500g || 38);
+            }
+
+            let codCharge = 0;
+            if (req.paymentMode === "COD") {
+              const codPercentFee = ((req.declaredValue || 0) * (userRate.codPercent || 0)) / 100;
+              codCharge = Math.max(userRate.codChargeFlat || 0, codPercentFee);
+            }
+
+            const totalShippingCost = base + codCharge;
+            return {
+              courierCode: this.code,
+              courierName: this.name,
+              zone,
+              chargeableWeightKg: weight.chargeableWeightKg,
+              freightCharge: base,
+              codCharge,
+              gstAmount: 0,
+              totalShippingCost,
+              estimatedDeliveryDays: zone === "ZONE_A" ? 1 : zone === "ZONE_B" ? 2 : zone === "ZONE_C" ? 3 : 4,
+              rating: 4.8,
+              isRecommended: true,
+              isLive: this.isConfigured(),
+              isTestMode: this.isTestMode(),
+            };
+          }
+        }
+      } catch (e) {
+        // fallback to live API
+      }
+    }
+
     try {
       const resp = await this.client.getServiceabilityAndRates({
         origin: req.pickupPincode,

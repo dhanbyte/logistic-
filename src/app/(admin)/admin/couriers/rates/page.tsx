@@ -224,6 +224,7 @@ export default function AdminRatesPage() {
               { id: "ZONE_B", name: "Zone B (Regional)" },
               { id: "ZONE_C", name: "Zone C (Metro)" },
               { id: "ZONE_D", name: "Zone D (ROI)" },
+              { id: "ZONE_E", name: "Zone E (Special/NE)" },
             ].map((z) => (
               <button
                 key={z.id}
@@ -443,6 +444,7 @@ export default function AdminRatesPage() {
                     <option value="ZONE_B">Zone B (Regional)</option>
                     <option value="ZONE_C">Zone C (Metro to Metro)</option>
                     <option value="ZONE_D">Zone D (Rest of India)</option>
+                    <option value="ZONE_E">Zone E (Special / NE / J&K / Islands)</option>
                   </select>
                 </div>
 

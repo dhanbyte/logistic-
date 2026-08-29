@@ -241,20 +241,18 @@ export default function LandingPage() {
 
           {/* Nav Actions */}
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => scrollToAuth("login")}
+            <Link
+              href="/login"
               className="text-xs font-semibold text-slate-700 hover:text-slate-900 px-3 py-1.5 transition-colors cursor-pointer"
             >
               Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToAuth("register")}
+            </Link>
+            <Link
+              href="/register"
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all hover:scale-[1.02] cursor-pointer"
             >
               Get started
-            </button>
+            </Link>
           </div>
         </div>
       </header>
@@ -284,14 +282,13 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => scrollToAuth("register")}
+                <Link
+                  href="/register"
                   className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all cursor-pointer"
                 >
                   <span>Start with Shipwave</span>
                   <ArrowRight size={15} />
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => scrollToSection("rates")}

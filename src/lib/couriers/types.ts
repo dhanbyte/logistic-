@@ -18,6 +18,7 @@ export interface CalculatedWeight {
 }
 
 export interface ServiceabilityRequest {
+  userId?: string;
   pickupPincode: string;
   deliveryPincode: string;
   weightKg: number;
