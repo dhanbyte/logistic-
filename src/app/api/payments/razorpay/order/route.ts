@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const amountRupees = Number(body.amount);
 
-    if (!amountRupees || isNaN(amountRupees) || amountRupees < 1) {
+    if (!amountRupees || isNaN(amountRupees) || amountRupees < 500) {
       return NextResponse.json(
-        { error: "Please specify a valid recharge amount (min ₹1)." },
+        { error: "Minimum wallet recharge amount is ₹500." },
         { status: 400 }
       );
     }

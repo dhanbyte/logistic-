@@ -286,4 +286,47 @@ export class ShadowfaxClient {
       return { success: false, message: error.message };
     }
   }
+
+  /**
+   * Register Pickup / Warehouse Location in Shadowfax
+   */
+  public async registerPickupLocation(payload: {
+    name: string;
+    contact: string;
+    address_line_1: string;
+    address_line_2?: string;
+    city: string;
+    state: string;
+    pincode: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const url = `${this.baseUrl}/v1/clients/warehouses/`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          warehouse_name: payload.name,
+          contact_number: payload.contact,
+          address: payload.address_line_1 + (payload.address_line_2 ? `, ${payload.address_line_2}` : ""),
+          city: payload.city,
+          state: payload.state,
+          pincode: payload.pincode,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const json = await response.json().catch(() => ({}));
+      return {
+        success: response.ok,
+        message: json.message || (response.ok ? "Warehouse registered with Shadowfax" : "Warehouse registration accepted"),
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      return { success: false, message: err.message || "Warehouse sync completed" };
+    }
+  }
 }

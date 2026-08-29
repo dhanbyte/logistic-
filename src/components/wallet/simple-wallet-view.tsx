@@ -78,7 +78,7 @@ export function SimpleWalletView({
 
   // Recharge Modal State
   const [rechargeOpen, setRechargeOpen] = useState(false);
-  const [rechargeAmount, setRechargeAmount] = useState<number>(2000);
+  const [rechargeAmount, setRechargeAmount] = useState<number>(500);
   const [customAmount, setCustomAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"UPI" | "NET_BANKING" | "CARD">("UPI");
   const [rechargeLoading, setRechargeLoading] = useState(false);
@@ -180,8 +180,8 @@ export function SimpleWalletView({
 
   async function handleRecharge() {
     const finalAmount = customAmount ? Number(customAmount) : rechargeAmount;
-    if (!finalAmount || isNaN(finalAmount) || finalAmount < 1) {
-      toast.error("Please enter a valid recharge amount (minimum ₹1).");
+    if (!finalAmount || isNaN(finalAmount) || finalAmount < 500) {
+      toast.error("Please enter a valid recharge amount (minimum ₹500).");
       return;
     }
 
@@ -934,8 +934,8 @@ export function SimpleWalletView({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
                   <input
                     type="number"
-                    min={1}
-                    placeholder="Enter amount (min ₹1)"
+                    min={500}
+                    placeholder="Enter amount (min ₹500)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 pl-8 pr-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"

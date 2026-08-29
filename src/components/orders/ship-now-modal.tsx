@@ -365,14 +365,6 @@ export function ShipNowModal({
                   <button
                     type="button"
                     disabled={recharging}
-                    onClick={() => handleQuickRecharge(200)}
-                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
-                  >
-                    + ₹200
-                  </button>
-                  <button
-                    type="button"
-                    disabled={recharging}
                     onClick={() => handleQuickRecharge(500)}
                     className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
@@ -385,6 +377,14 @@ export function ShipNowModal({
                     className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     + ₹1,000
+                  </button>
+                  <button
+                    type="button"
+                    disabled={recharging}
+                    onClick={() => handleQuickRecharge(2000)}
+                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    + ₹2,000
                   </button>
                   <Link
                     href="/wallet"

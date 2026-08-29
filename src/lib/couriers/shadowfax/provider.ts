@@ -122,51 +122,71 @@ export class ShadowfaxProvider implements ICourierProvider {
     const zone = serv.zone;
     let freightCharge = 0;
     let codCharge = 0;
-
-    // Check if merchant user has custom negotiated rate cards assigned by admin
-    let hasCustomUserRate = false;
     let customGstAmount = 0;
     let customTotalCost = 0;
 
-    if (req.userId) {
-      try {
-        const { getUserPricingProfile } = await import("../pricing-engine");
-        const profile = getUserPricingProfile(req.userId);
-        if (profile && (profile.tier === "CUSTOM" || profile.tier === "SILVER" || profile.tier === "GOLD")) {
-          const userRate = profile.rates.shadowfax;
-          if (userRate) {
-            hasCustomUserRate = true;
-            let base = 0;
-            const w = weight.chargeableWeightKg;
+    if (this.isSurface7Kg) {
+      // 1. SHADOWFAX CARGO 5KG (SURFACE PLAN)
+      // Flat ₹99.00 all-inclusive for parcels up to 5kg–6kg!
+      const w = weight.chargeableWeightKg;
+      let cargoFreight = 84; // 84 + 18% GST (15) = ₹99.00 Total
+      let cargoCod = 0;
 
-            // 1. If multi-slab rate matrix is available, match exact slab
-            if (Array.isArray(userRate.slabs) && userRate.slabs.length > 0) {
-              const matchedSlab = userRate.slabs.find((s: any) => w <= s.maxWeight) || userRate.slabs[userRate.slabs.length - 1];
-              if (zone === "ZONE_A") base = Number(matchedSlab.zoneA) || 45;
-              else if (zone === "ZONE_B") base = Number(matchedSlab.zoneB) || 52;
-              else if (zone === "ZONE_C") base = Number(matchedSlab.zoneC) || 62;
-              else if (zone === "ZONE_D") base = Number(matchedSlab.zoneD) || 72;
-              else if (zone === "ZONE_E") base = Number(matchedSlab.zoneE) || (Number(matchedSlab.zoneD) + 16);
-
-              // If parcel exceeds 10kg, add +1kg incremental slab
-              if (w > 10.0 && userRate.slabs.length >= 8) {
-                const extraKg = Math.ceil(w - 10.0);
-                const addSlab = userRate.slabs[7];
-                const addRate = zone === "ZONE_A" ? addSlab.zoneA : zone === "ZONE_B" ? addSlab.zoneB : zone === "ZONE_C" ? addSlab.zoneC : zone === "ZONE_D" ? addSlab.zoneD : (addSlab.zoneE || 50);
-                base += extraKg * (Number(addRate) || 50);
+      if (req.userId) {
+        try {
+          const { getUserPricingProfile } = await import("../pricing-engine");
+          const profile = getUserPricingProfile(req.userId);
+          if (profile && (profile.tier === "CUSTOM" || profile.tier === "SILVER" || profile.tier === "GOLD")) {
+            const userRate = profile.rates.shadowfax;
+            if (userRate && Array.isArray(userRate.slabs) && userRate.slabs.length > 4) {
+              // Match 2kg-5kg cargo slab for cargo surface
+              const cargoSlab = userRate.slabs.find((s: any) => s.maxWeight >= 5.0) || userRate.slabs[4];
+              if (cargoSlab) {
+                if (zone === "ZONE_A") cargoFreight = Number(cargoSlab.zoneA) || 84;
+                else if (zone === "ZONE_B") cargoFreight = Number(cargoSlab.zoneB) || 84;
+                else if (zone === "ZONE_C") cargoFreight = Number(cargoSlab.zoneC) || 84;
+                else if (zone === "ZONE_D") cargoFreight = Number(cargoSlab.zoneD) || 84;
+                else if (zone === "ZONE_E") cargoFreight = Number(cargoSlab.zoneE) || 99;
+                if (req.paymentMode === "COD") cargoCod = Number(cargoSlab.codFee) || 0;
               }
+            }
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
 
-              if (req.paymentMode === "COD") {
-                codCharge = Number(matchedSlab.codFee) || 0;
-              }
-            } else {
-              // 2. Base 500g slab + additional 500g increments
-              base = userRate.zoneA_0_500g;
+      if (w > 6.0) {
+        const extraKg = Math.ceil(w - 6.0);
+        cargoFreight += extraKg * 17; // 17 + 18% GST (3) = ₹20/kg
+      }
+
+      freightCharge = cargoFreight;
+      codCharge = cargoCod;
+      const taxable = freightCharge + codCharge;
+      customGstAmount = Math.round(taxable * 0.18);
+      customTotalCost = taxable + customGstAmount;
+    } else {
+      // 2. SHADOWFAX EXPRESS 0.5KG (AIR PLAN)
+      let airFreight = 61; // 61 + 18% GST (11) = ₹72.00 Total
+      let airCod = 0;
+      let hasCustom = false;
+
+      if (req.userId) {
+        try {
+          const { getUserPricingProfile } = await import("../pricing-engine");
+          const profile = getUserPricingProfile(req.userId);
+          if (profile && (profile.tier === "CUSTOM" || profile.tier === "SILVER" || profile.tier === "GOLD")) {
+            const userRate = profile.rates.shadowfax;
+            if (userRate) {
+              hasCustom = true;
+              let base = userRate.zoneA_0_500g;
               if (zone === "ZONE_B") base = userRate.zoneB_0_500g;
               if (zone === "ZONE_C") base = userRate.zoneC_0_500g;
               if (zone === "ZONE_D") base = userRate.zoneD_0_500g;
               if (zone === "ZONE_E") base = userRate.zoneE_0_500g || (userRate.zoneD_0_500g + 16);
 
+              const w = weight.chargeableWeightKg;
               if (w > 0.5) {
                 const extraSlabs = Math.ceil((w - 0.5) / 0.5);
                 base += extraSlabs * (userRate.additional500g || 35);
@@ -174,48 +194,35 @@ export class ShadowfaxProvider implements ICourierProvider {
 
               if (req.paymentMode === "COD") {
                 const codPercentFee = ((req.declaredValue || 0) * (userRate.codPercent || 0)) / 100;
-                codCharge = Math.max(userRate.codChargeFlat || 0, codPercentFee);
+                airCod = Math.max(userRate.codChargeFlat || 0, codPercentFee);
               }
+              airFreight = base;
             }
-
-            freightCharge = base;
-            customTotalCost = freightCharge + codCharge;
           }
+        } catch (e) {
+          // fallback
         }
-      } catch (e) {
-        // fallback to standard
       }
-    }
 
-    if (!hasCustomUserRate) {
-      if (this.isSurface7Kg) {
-        // Shadowfax Cargo Surface Plan: Flat ₹99.00 all-inclusive up to 6KG!
+      if (!hasCustom) {
         const w = weight.chargeableWeightKg;
-        if (w <= 6.0) {
-          freightCharge = 84; // 84 + 18% GST (15) = ₹99.00 Total
-        } else {
-          const extraKg = Math.ceil(w - 6.0);
-          freightCharge = 84 + extraKg * 17; // 17 + 18% GST (3) = ₹20/kg
-        }
-      } else {
-        // Shadowfax Express 0.5KG Air Plan: ₹72.00 all-inclusive for 500g!
-        const w = weight.chargeableWeightKg;
-        const base0_5 = 61; // 61 + 18% GST (11) = ₹72.00 Total
+        const base0_5 = 61; // ₹72 Total for 0.5kg
         if (w <= 0.5) {
-          freightCharge = base0_5;
+          airFreight = base0_5;
         } else {
           const extra500gSlabs = Math.ceil((w - 0.5) / 0.5);
-          freightCharge = base0_5 + extra500gSlabs * 38;
+          airFreight = base0_5 + extra500gSlabs * 38;
+        }
+        if (req.paymentMode === "COD") {
+          airCod = 0; // Free COD
         }
       }
 
-      if (req.paymentMode === "COD") {
-        codCharge = 0; // Free COD
-      }
-
-      const taxableAmount = freightCharge + codCharge;
-      customGstAmount = Math.round(taxableAmount * 0.18);
-      customTotalCost = taxableAmount + customGstAmount;
+      freightCharge = airFreight;
+      codCharge = airCod;
+      const taxable = freightCharge + codCharge;
+      customGstAmount = Math.round(taxable * 0.18);
+      customTotalCost = taxable + customGstAmount;
     }
 
     const gstAmount = customGstAmount;
