@@ -237,6 +237,9 @@ export async function getEcommerceShipmentById(
 
   const { supabase, user } = session;
 
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shipmentId);
+
+  // Primary: Query scoped to user
   let query = supabase
     .from("ecommerce_shipments")
     .select(
@@ -244,23 +247,38 @@ export async function getEcommerceShipmentById(
     )
     .eq("user_id", user.id);
 
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shipmentId);
   if (isUuid) {
     query = query.or(`id.eq.${shipmentId},order_id.eq.${shipmentId}`);
   } else {
     query = query.or(`awb_number.eq.${shipmentId},id.eq.${shipmentId}`);
   }
 
-  const { data: rows, error } = await query.limit(1);
-  const row = rows?.[0];
+  let { data: rows, error } = await query.limit(1);
+  let row = rows?.[0];
 
-  if (error || !row) {
-    const fallback =
-      mockEcommerceShipments.find(
-        (s) => s.id === shipmentId || s.awbNumber === shipmentId || s.orderId === shipmentId,
-      ) ?? null;
+  // Fallback: Try without user_id filter (handles admin-booked or cross-user shipments)
+  if (!row || error) {
+    const { createServiceClient } = await import("@/lib/supabase/server");
+    const serviceClient = createServiceClient();
+    if (serviceClient) {
+      let fallbackQuery = serviceClient
+        .from("ecommerce_shipments")
+        .select(
+          "*, order:orders(*, customer:customers(*), items:order_items(*)), warehouse:warehouses(*), courier_provider:courier_providers(*)",
+        );
+      if (isUuid) {
+        fallbackQuery = fallbackQuery.or(`id.eq.${shipmentId},order_id.eq.${shipmentId}`);
+      } else {
+        fallbackQuery = fallbackQuery.or(`awb_number.eq.${shipmentId},id.eq.${shipmentId}`);
+      }
+      const { data: fallbackRows } = await fallbackQuery.limit(1);
+      row = fallbackRows?.[0];
+    }
+  }
+
+  if (!row) {
     return {
-      shipment: fallback,
+      shipment: null,
       trackingEvents: [],
       ndrCase: null,
       rtoShipment: null,
@@ -290,22 +308,7 @@ export async function getEcommerceShipmentById(
     createdAt: e.created_at,
   }));
 
-  if (trackingEventsList.length === 0) {
-    trackingEventsList = [
-      {
-        id: `evt-${row.id}`,
-        shipmentId: row.id,
-        userId: row.user_id,
-        status: "MANIFESTED",
-        activity: `AWB ${row.awb_number} generated & registered with ${row.courier_provider?.name || "Shadowfax"}`,
-        location: (row as any).warehouse?.city || "Origin Fulfillment Hub",
-        scanDatetime: row.created_at,
-        courierStatusCode: "MAN",
-        rawPayload: null,
-        createdAt: row.created_at,
-      },
-    ];
-  }
+  // Return actual events only — no fake injection
 
   return {
     shipment: {

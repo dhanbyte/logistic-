@@ -328,15 +328,17 @@ export class ShadowfaxProvider implements ICourierProvider {
       ],
     };
 
-    let awb = "SF" + Date.now().toString().slice(-9);
+    let awb: string;
     try {
       const orderResp = await this.client.createForwardOrder(forwardPayload);
       if (orderResp?.data?.awb_number) {
         awb = orderResp.data.awb_number;
+      } else {
+        throw new Error("Shadowfax did not return a valid AWB number. Please check your Shadowfax account credentials and try again.");
       }
     } catch (err: any) {
-      console.warn("[ShadowfaxProvider.createShipment] forwardOrder fallback", err.message);
-      awb = "SF" + Date.now().toString().slice(-9);
+      console.error("[ShadowfaxProvider.createShipment] Booking failed:", err.message);
+      throw new Error(err.message || "Shadowfax shipment booking failed. Please check API credentials.");
     }
 
     let labelUrl = `/api/couriers/shadowfax/label/${awb}`;

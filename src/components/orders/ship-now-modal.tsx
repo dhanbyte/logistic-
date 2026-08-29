@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -50,9 +50,12 @@ export function ShipNowModal({
   const [quotes, setQuotes] = useState<CourierRateQuote[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [selectedCourier, setSelectedCourier] = useState<string>("shadowfax");
+  const userSelectedCourier = useRef(false); // Track if user manually selected
   const [booking, setBooking] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [recharging, setRecharging] = useState(false);
+  const [serviceabilityError, setServiceabilityError] = useState<string | null>(null);
+  const [serviceabilityInfo, setServiceabilityInfo] = useState<{ zone: string; zoneLabel: string; city: string; state: string; sla: string } | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<{
     awbNumber: string;
     shipmentId: string;
@@ -81,6 +84,13 @@ export function ShipNowModal({
   const chargeableWeight = Math.max(deadWeight, volumetricWeight);
   const isVolumetricHigher = volumetricWeight > deadWeight;
 
+  // Reset manual selection flag when modal closes
+  useEffect(() => {
+    if (!open) {
+      userSelectedCourier.current = false;
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open || !order) {
       setBookingSuccess(null);
@@ -91,12 +101,43 @@ export function ShipNowModal({
       if (!order) return;
       setLoadingQuotes(true);
       setBookingSuccess(null);
+      setServiceabilityError(null);
 
       try {
+        const deliveryPin = order.customer?.pincode || "";
+        const pickupPin = order.warehouse?.pincode || "110020";
+
+        const svcRes = await fetch(`/api/serviceability?pincode=${deliveryPin}&pickup_pincode=${pickupPin}`);
+        const svcData = await svcRes.json();
+
+        if (!svcData.isServiceable || !svcData.success) {
+          const errMsg = svcData.error ||
+            `Delivery to PIN ${deliveryPin} is not serviceable. No courier covers this area.`;
+          setServiceabilityError(errMsg);
+          setServiceabilityInfo(null);
+          setQuotes([]);
+          setLoadingQuotes(false);
+          const balRes = await getWalletBalanceAction();
+          setWalletBalance(balRes.balance);
+          return;
+        }
+
+        // Store serviceability details to show info banner
+        if (svcData.route?.destination) {
+          const dest = svcData.route.destination;
+          setServiceabilityInfo({
+            zone: svcData.route.zone || "ZONE_D",
+            zoneLabel: svcData.route.zoneLabel || "Zone D",
+            city: dest.city || "",
+            state: dest.state || "",
+            sla: dest.deliverySla || "2-3 Days",
+          });
+        }
+
         const [rates, balRes] = await Promise.all([
           fetchCourierRatesAction({
-            pickupPincode: order.warehouse?.pincode || "110020",
-            deliveryPincode: order.customer?.pincode || "400050",
+            pickupPincode: pickupPin,
+            deliveryPincode: deliveryPin,
             weightKg: deadWeight,
             lengthCm: length,
             widthCm: width,
@@ -110,7 +151,8 @@ export function ShipNowModal({
         setQuotes(rates);
         setWalletBalance(balRes.balance);
 
-        if (rates.length > 0) {
+        // Only auto-select if user hasn't manually chosen a courier yet
+        if (rates.length > 0 && !userSelectedCourier.current) {
           const recommended = rates.find((q) => q.isRecommended) || rates[0];
           setSelectedCourier(recommended.courierCode);
         }
@@ -121,7 +163,11 @@ export function ShipNowModal({
       }
     }
 
-    loadRatesAndWallet();
+    if (open && order) {
+      loadRatesAndWallet();
+    } else if (!open) {
+      setBookingSuccess(null);
+    }
   }, [open, order, deadWeight, length, width, height]);
 
   if (!open || !order) return null;
@@ -157,6 +203,10 @@ export function ShipNowModal({
 
   async function handleBook() {
     if (!order) return;
+    if (serviceabilityError) {
+      toast.error("This delivery area is not serviceable. Cannot book shipment.");
+      return;
+    }
     if (hasLowBalance) {
       toast.error(`Insufficient balance (${formatINR(walletBalance)}). Please recharge minimum ${formatINR(requiredAmount)}.`);
       return;
@@ -174,7 +224,8 @@ export function ShipNowModal({
     if (res.ok && res.data) {
       const courierName = selectedQuote?.courierName || selectedCourier.toUpperCase();
       const awb = res.data.awbNumber;
-      const labelUrl = res.data.labelUrl || `/shipments/${res.data.shipmentId}/label`;
+      // Always use Supabase UUID in label URL, not AWB number
+      const labelUrl = `/shipments/${res.data.shipmentId}/label`;
 
       setWalletBalance((prev) => Math.max(0, prev - requiredAmount));
       toast.success(`AWB ${awb} generated successfully! Deducted ${formatINR(requiredAmount)} from wallet.`);
@@ -407,10 +458,34 @@ export function ShipNowModal({
                 <span className="text-[11px] text-slate-400">Direct Partner Integration</span>
               </div>
 
+              {/* Serviceability Info Banner */}
+              {serviceabilityInfo && !serviceabilityError && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px]">
+                  <span className="text-emerald-600 font-black text-base">✓</span>
+                  <div className="flex-1">
+                    <span className="font-bold text-emerald-800">Serviceable — </span>
+                    <span className="text-emerald-700">
+                      {serviceabilityInfo.city}{serviceabilityInfo.state ? `, ${serviceabilityInfo.state}` : ""}
+                    </span>
+                    <span className="mx-1.5 text-emerald-400">•</span>
+                    <span className="font-semibold text-emerald-700">{serviceabilityInfo.zoneLabel}</span>
+                    <span className="mx-1.5 text-emerald-400">•</span>
+                    <span className="text-emerald-600">Est. Delivery: {serviceabilityInfo.sla}</span>
+                  </div>
+                </div>
+              )}
+
               {loadingQuotes ? (
                 <div className="py-10 text-center text-slate-500">
                   <Loader2 className="mx-auto size-6 animate-spin text-indigo-600 mb-2" />
-                  <p className="text-xs">Calculating dynamic weight rates across courier APIs…</p>
+                  <p className="text-xs">Checking serviceability & calculating rates…</p>
+                </div>
+              ) : serviceabilityError ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center space-y-2">
+                  <div className="text-rose-600 font-black text-2xl">⚠️</div>
+                  <p className="text-sm font-bold text-rose-900">Delivery Not Serviceable</p>
+                  <p className="text-xs text-rose-700">{serviceabilityError}</p>
+                  <p className="text-[11px] text-rose-500">Please ask the customer to provide an alternate address in a serviceable area.</p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -423,7 +498,10 @@ export function ShipNowModal({
                       return (
                         <div
                           key={q.courierCode}
-                          onClick={() => setSelectedCourier(q.courierCode)}
+                          onClick={() => {
+                            userSelectedCourier.current = true;
+                            setSelectedCourier(q.courierCode);
+                          }}
                           className={`cursor-pointer rounded-xl border p-3 transition-all flex items-center justify-between ${
                             isSelected
                               ? "border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-600/20"
@@ -488,9 +566,9 @@ export function ShipNowModal({
                 >
                   Cancel
                 </button>
-                <button
+                  <button
                   type="button"
-                  disabled={booking || loadingQuotes || quotes.length === 0 || hasLowBalance}
+                  disabled={booking || loadingQuotes || !!serviceabilityError || quotes.length === 0 || hasLowBalance}
                   onClick={handleBook}
                   className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
@@ -498,6 +576,8 @@ export function ShipNowModal({
                   <span>
                     {booking
                       ? "Booking Parcel…"
+                      : serviceabilityError
+                      ? "Not Serviceable"
                       : hasLowBalance
                       ? "Insufficient Balance"
                       : "Confirm & Generate AWB"}

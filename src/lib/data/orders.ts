@@ -114,25 +114,6 @@ export async function getOrders(query?: OrderQuery): Promise<OrdersQueryResult> 
 
   const { supabase, user } = session;
 
-  // 1. Fetch counts across statuses
-  const { data: allUserOrders } = await supabase
-    .from("orders")
-    .select("id, order_status")
-    .eq("user_id", user.id);
-
-  const rawAll = allUserOrders || [];
-  const counts: OrderStatusCounts = {
-    all: rawAll.length,
-    toShip: rawAll.filter((o: any) => ["READY_TO_SHIP", "DRAFT"].includes(o.order_status)).length,
-    manifested: rawAll.filter((o: any) => ["PENDING_PICKUP"].includes(o.order_status)).length,
-    inTransit: rawAll.filter((o: any) => ["IN_TRANSIT"].includes(o.order_status)).length,
-    ofd: rawAll.filter((o: any) => o.order_status === "OUT_FOR_DELIVERY").length,
-    delivered: rawAll.filter((o: any) => o.order_status === "DELIVERED").length,
-    ndr: rawAll.filter((o: any) => o.order_status === "NDR").length,
-    rto: rawAll.filter((o: any) => ["RTO_INITIATED", "RTO_DELIVERED"].includes(o.order_status)).length,
-    cancelled: rawAll.filter((o: any) => o.order_status === "CANCELLED").length,
-  };
-
   let dbQuery = supabase
     .from("orders")
     .select(
@@ -178,7 +159,27 @@ export async function getOrders(query?: OrderQuery): Promise<OrdersQueryResult> 
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  const { data, count, error } = await dbQuery.range(from, to);
+
+  // Run status counts and data queries in parallel
+  const [countsRes, dataRes] = await Promise.all([
+    supabase.from("orders").select("id, order_status").eq("user_id", user.id),
+    dbQuery.range(from, to),
+  ]);
+
+  const rawAll = countsRes.data || [];
+  const counts: OrderStatusCounts = {
+    all: rawAll.length,
+    toShip: rawAll.filter((o: any) => ["READY_TO_SHIP", "DRAFT"].includes(o.order_status)).length,
+    manifested: rawAll.filter((o: any) => ["PENDING_PICKUP"].includes(o.order_status)).length,
+    inTransit: rawAll.filter((o: any) => ["IN_TRANSIT"].includes(o.order_status)).length,
+    ofd: rawAll.filter((o: any) => o.order_status === "OUT_FOR_DELIVERY").length,
+    delivered: rawAll.filter((o: any) => o.order_status === "DELIVERED").length,
+    ndr: rawAll.filter((o: any) => o.order_status === "NDR").length,
+    rto: rawAll.filter((o: any) => ["RTO_INITIATED", "RTO_DELIVERED"].includes(o.order_status)).length,
+    cancelled: rawAll.filter((o: any) => o.order_status === "CANCELLED").length,
+  };
+
+  const { data, count, error } = dataRes;
 
   if (error || !data) {
     return {

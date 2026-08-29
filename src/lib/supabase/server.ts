@@ -40,6 +40,15 @@ export async function getEffectiveSession() {
 
   const client = await createClient();
   if (client) {
+    // Fast path: Check active JWT session from cookie (0ms local decode)
+    const {
+      data: { session },
+    } = await client.auth.getSession();
+    if (session?.user) {
+      return { supabase: client, user: session.user, isFallback: false };
+    }
+
+    // Fallback: Verify directly with auth server if needed
     const {
       data: { user },
     } = await client.auth.getUser();

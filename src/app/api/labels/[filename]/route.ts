@@ -12,14 +12,23 @@ export async function GET(
   // Clean AWB number (remove .pdf if present)
   const awb = filename.replace(/\.pdf$/i, "").trim();
 
-  // 1. Try to fetch direct official label from Shadowfax API if this is a Shadowfax AWB
-  if (awb.startsWith("SFX") || awb.startsWith("SHADOWFAX")) {
+  // 1. Try to fetch direct official label from Shadowfax API for any Shadowfax AWB
+  const isShadowfaxAwb = /^(SF|SFX|SHADOWFAX|SFWD)/i.test(awb);
+  if (isShadowfaxAwb) {
     try {
       const sfxClient = new ShadowfaxClient();
       if (sfxClient.isConfigured()) {
         const officialLabelUrl = await sfxClient.generateLabel(awb, "pdf");
         if (officialLabelUrl && officialLabelUrl.startsWith("http")) {
           return NextResponse.redirect(officialLabelUrl);
+        }
+      }
+      // Also try with surface token client
+      const sfxSurfaceClient = new ShadowfaxClient({ token: process.env.SHADOWFAX_SURFACE_TOKEN || process.env.SHADOWFAX_TOKEN });
+      if (sfxSurfaceClient.isConfigured()) {
+        const surfaceLabelUrl = await sfxSurfaceClient.generateLabel(awb, "pdf");
+        if (surfaceLabelUrl && surfaceLabelUrl.startsWith("http")) {
+          return NextResponse.redirect(surfaceLabelUrl);
         }
       }
     } catch (err: any) {

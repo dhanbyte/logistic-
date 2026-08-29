@@ -202,14 +202,14 @@ export async function getPublicTrackingData(awbNumber: string): Promise<PublicTr
     },
   ];
 
-  // Scan Checkpoints
+  // Scan Checkpoints - Only real data from DB / webhooks
   const checkpoints: PublicTrackingCheckpoint[] = [];
 
   if (shipment?.tracking_events && shipment.tracking_events.length > 0) {
     for (const ev of shipment.tracking_events) {
       checkpoints.push({
         status: ev.status || "STATUS_UPDATE",
-        activity: ev.activity || "Package scanned in transit",
+        activity: ev.activity || "Package scanned",
         location: ev.location || `${originCity} Hub`,
         timestamp: new Date(ev.scan_datetime || ev.created_at).toLocaleString("en-IN", {
           day: "numeric",
@@ -221,53 +221,20 @@ export async function getPublicTrackingData(awbNumber: string): Promise<PublicTr
       });
     }
   } else {
-    // Standard realistic checkpoints for tracking
-    const now = Date.now();
-    if (isDelivered) {
-      checkpoints.push({
-        status: "DELIVERED",
-        activity: "Package safely delivered to consignee",
-        location: `${destinationCity}, ${destinationState}`,
-        timestamp: new Date(now).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-      });
-    }
-    if (isOutForDelivery || isDelivered) {
-      checkpoints.push({
-        status: "OUT_FOR_DELIVERY",
-        activity: "Out for delivery with Shadowfax delivery executive",
-        location: `${destinationCity} Delivery Center`,
-        timestamp: new Date(now - 4 * 3600000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-      });
-    }
-    if (isInTransit || isOutForDelivery || isDelivered) {
-      checkpoints.push({
-        status: "IN_TRANSIT",
-        activity: "Arrived at Regional Sort Hub",
-        location: `${destinationCity} Main Hub`,
-        timestamp: new Date(now - 12 * 3600000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-      });
-      checkpoints.push({
-        status: "IN_TRANSIT",
-        activity: "Departed from Origin Mother Facility via Express Connect",
-        location: `${originCity} Air Hub`,
-        timestamp: new Date(now - 20 * 3600000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-      });
-    }
-    if (isPickedUp) {
-      checkpoints.push({
-        status: "PICKUP_COMPLETED",
-        activity: "Shipment collected from seller warehouse by courier rider",
-        location: `${originCity} Warehouse Node`,
-        timestamp: new Date(now - 24 * 3600000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-      });
-    }
+    // Only show AWB creation event (real timestamp) - no fake status injection
     checkpoints.push({
-      status: "MANIFEST_GENERATED",
-      activity: `Shipping label and AWB ${cleanAwb} generated & registered with ${carrierName}`,
+      status: "MANIFESTED",
+      activity: `AWB ${cleanAwb} created & registered with ${carrierName}`,
       location: `${originCity} (${originPincode})`,
       timestamp: shipment?.created_at
-        ? new Date(shipment.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-        : new Date(now - 28 * 3600000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+        ? new Date(shipment.created_at).toLocaleString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "—",
     });
   }
 
