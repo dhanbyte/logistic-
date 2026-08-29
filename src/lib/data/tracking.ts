@@ -114,6 +114,7 @@ export async function getPublicTrackingData(awbNumber: string): Promise<PublicTr
   const recipientName = shipment.order?.customer?.full_name || "Consignee";
 
   const rawStatus = (shipment.shipment_status || "MANIFESTED").toUpperCase();
+  const isCancelled = rawStatus === "CANCELLED";
   const isDelivered = rawStatus === "DELIVERED";
   const isOutForDelivery = rawStatus === "OUT_FOR_DELIVERY";
   const isInTransit = rawStatus === "IN_TRANSIT";
@@ -123,7 +124,11 @@ export async function getPublicTrackingData(awbNumber: string): Promise<PublicTr
   let currentStatusColor = "bg-amber-100 text-amber-900 border-amber-300";
   let currentLocation = `${originCity} Hub (${originPincode})`;
 
-  if (isDelivered) {
+  if (isCancelled) {
+    currentStatusText = "Shipment Cancelled";
+    currentStatusColor = "bg-rose-100 text-rose-900 border-rose-300";
+    currentLocation = "Cancelled with Courier";
+  } else if (isDelivered) {
     currentStatusText = "Delivered & Signed";
     currentStatusColor = "bg-emerald-100 text-emerald-900 border-emerald-300";
     currentLocation = `${destinationCity}, ${destinationState} (${destinationPincode})`;

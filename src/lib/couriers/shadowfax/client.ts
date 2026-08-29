@@ -23,12 +23,12 @@ export class ShadowfaxClient {
       "https://dale.shadowfax.in/api"
     ).replace(/\/+$/, "");
     const rawToken = options?.token || process.env.SHADOWFAX_TOKEN;
-    this.token = rawToken && rawToken.length >= 20 ? rawToken : process.env.SHADOWFAX_TOKEN;
+    this.token = rawToken && rawToken.trim().length > 0 ? rawToken.trim() : process.env.SHADOWFAX_TOKEN;
     this.timeoutMs = options?.timeoutMs || 15000;
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.token && this.token.length >= 20);
+    return Boolean(this.token && this.token.length >= 5);
   }
 
   private getHeaders(): HeadersInit {

@@ -24,8 +24,35 @@ export interface UserPricingProfile {
   updatedAt: string;
 }
 
-// In-memory user custom rate cards store
+// In-memory cache for fast lookup
 const userCustomRates = new Map<string, UserPricingProfile>();
+let isDiskLoaded = false;
+
+// Helper to ensure rates are loaded from persistent disk store
+function ensureDiskRatesLoaded(): void {
+  if (isDiskLoaded || typeof window !== "undefined") return;
+  try {
+    const { loadRatesFromDisk } = require("./pricing-store");
+    const diskData = loadRatesFromDisk();
+    for (const [k, v] of Object.entries(diskData)) {
+      userCustomRates.set(k, v as UserPricingProfile);
+    }
+    isDiskLoaded = true;
+  } catch {
+    // fallback to memory
+  }
+}
+
+// Helper to persist rates to disk
+function triggerDiskSave(): void {
+  if (typeof window !== "undefined") return;
+  try {
+    const { saveRatesToDisk } = require("./pricing-store");
+    saveRatesToDisk(userCustomRates);
+  } catch {
+    // fallback
+  }
+}
 
 /**
  * Standard Default Pricing Tiers
@@ -152,6 +179,7 @@ export const DEFAULT_PRICING_TIERS: Record<PricingTier, Record<string, UserCouri
  * Get or assign rate card for a user
  */
 export function getUserPricingProfile(userId: string, userName = "Shipper"): UserPricingProfile {
+  ensureDiskRatesLoaded();
   if (userCustomRates.has(userId)) {
     return userCustomRates.get(userId)!;
   }
@@ -166,6 +194,7 @@ export function getUserPricingProfile(userId: string, userName = "Shipper"): Use
   };
 
   userCustomRates.set(userId, profile);
+  triggerDiskSave();
   return profile;
 }
 
@@ -178,6 +207,7 @@ export function setUserPricingProfile(
   tier: PricingTier,
   customRates?: Record<string, UserCourierRate>,
 ): UserPricingProfile {
+  ensureDiskRatesLoaded();
   let ratesToSet: Record<string, UserCourierRate>;
 
   if (tier === "CUSTOM" && customRates) {
@@ -195,6 +225,7 @@ export function setUserPricingProfile(
   };
 
   userCustomRates.set(userId, profile);
+  triggerDiskSave();
   return profile;
 }
 

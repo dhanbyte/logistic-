@@ -20,11 +20,13 @@ export async function POST(req: Request) {
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+      const searchAwb = payload.awb_number || (payload as any).client_order_id || payload.order_id || "";
+
       // Find the shipment by AWB or orderNumber
       const { data: shipment } = await supabase
         .from("ecommerce_shipments")
-        .select("id, status")
-        .or(`awb_number.eq.${payload.awb_number},order_id.eq.${payload.order_id}`)
+        .select("id, order_id, shipment_status, shipping_charge, user_id")
+        .or(`awb_number.eq.${searchAwb},tracking_number.eq.${searchAwb}`)
         .maybeSingle();
 
       if (shipment) {
@@ -32,10 +34,20 @@ export async function POST(req: Request) {
         await supabase
           .from("ecommerce_shipments")
           .update({
-            status: mappedStatus,
+            shipment_status: mappedStatus,
             updated_at: new Date().toISOString(),
           })
           .eq("id", shipment.id);
+
+        if (shipment.order_id) {
+          await supabase
+            .from("orders")
+            .update({
+              order_status: mappedStatus === "CANCELLED" ? "CANCELLED" : mappedStatus === "DELIVERED" ? "DELIVERED" : "IN_TRANSIT",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", shipment.order_id);
+        }
       }
     }
 

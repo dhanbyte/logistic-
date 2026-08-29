@@ -548,11 +548,20 @@ export async function cancelShipmentAction(
     if (session) {
       const { user, supabase } = session;
 
-      await supabase
+      const { data: updatedShipment } = await supabase
         .from("ecommerce_shipments")
         .update({ shipment_status: "CANCELLED" as any })
         .eq("id", shipmentId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("order_id")
+        .maybeSingle();
+
+      if (updatedShipment?.order_id) {
+        await supabase
+          .from("orders")
+          .update({ order_status: "CANCELLED" as any })
+          .eq("id", updatedShipment.order_id);
+      }
 
       await supabase.from("tracking_events").insert({
         shipment_id: shipmentId,
