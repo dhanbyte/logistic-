@@ -1,10 +1,4 @@
 import type { SupportedCourierCode } from "./registry";
-import {
-  loadDiskRates,
-  loadGlobalRatesFromDisk,
-  saveGlobalRatesToDisk,
-  saveRatesToDisk,
-} from "./pricing-store";
 
 export type PricingTier = "STANDARD" | "SILVER" | "GOLD" | "CUSTOM";
 
@@ -298,7 +292,14 @@ export function getGlobalCourierRates(): Record<string, UserCourierRate> {
 export function setGlobalCourierRates(rates: Record<string, UserCourierRate>): Record<string, UserCourierRate> {
   ensureDiskRatesLoaded();
   globalRatesCache = rates;
-  saveGlobalRatesToDisk(rates);
+  if (typeof window === "undefined") {
+    try {
+      const { saveGlobalRatesToDisk } = require("./pricing-store");
+      saveGlobalRatesToDisk(rates);
+    } catch {
+      // fallback
+    }
+  }
   return rates;
 }
 

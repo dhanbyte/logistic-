@@ -1,12 +1,11 @@
-import fs from "fs";
-import path from "path";
 import type { UserPricingProfile, UserCourierRate } from "./pricing-engine";
 
-const USER_RATES_FILE_PATH = path.join(process.cwd(), "data", "user-rates.json");
-const GLOBAL_RATES_FILE_PATH = path.join(process.cwd(), "data", "global-rates.json");
-
 export function loadRatesFromDisk(): Record<string, UserPricingProfile> {
+  if (typeof window !== "undefined") return {};
   try {
+    const fs = require("fs");
+    const path = require("path");
+    const USER_RATES_FILE_PATH = path.join(process.cwd(), "data", "user-rates.json");
     if (fs.existsSync(USER_RATES_FILE_PATH)) {
       const data = fs.readFileSync(USER_RATES_FILE_PATH, "utf-8");
       return JSON.parse(data);
@@ -18,7 +17,11 @@ export function loadRatesFromDisk(): Record<string, UserPricingProfile> {
 }
 
 export function saveRatesToDisk(ratesMap: Map<string, UserPricingProfile>): void {
+  if (typeof window !== "undefined") return;
   try {
+    const fs = require("fs");
+    const path = require("path");
+    const USER_RATES_FILE_PATH = path.join(process.cwd(), "data", "user-rates.json");
     const dir = path.dirname(USER_RATES_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -34,7 +37,11 @@ export function saveRatesToDisk(ratesMap: Map<string, UserPricingProfile>): void
 }
 
 export function loadGlobalRatesFromDisk(): Record<string, UserCourierRate> | null {
+  if (typeof window !== "undefined") return null;
   try {
+    const fs = require("fs");
+    const path = require("path");
+    const GLOBAL_RATES_FILE_PATH = path.join(process.cwd(), "data", "global-rates.json");
     if (fs.existsSync(GLOBAL_RATES_FILE_PATH)) {
       const data = fs.readFileSync(GLOBAL_RATES_FILE_PATH, "utf-8");
       return JSON.parse(data);
@@ -46,7 +53,11 @@ export function loadGlobalRatesFromDisk(): Record<string, UserCourierRate> | nul
 }
 
 export function saveGlobalRatesToDisk(globalRates: Record<string, UserCourierRate>): void {
+  if (typeof window !== "undefined") return;
   try {
+    const fs = require("fs");
+    const path = require("path");
+    const GLOBAL_RATES_FILE_PATH = path.join(process.cwd(), "data", "global-rates.json");
     const dir = path.dirname(GLOBAL_RATES_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
