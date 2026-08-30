@@ -45,14 +45,14 @@ export default function AdminUserRatesPage() {
 
   // Shadowfax multi-slab rate matrix for this specific user with all 5 zones (A, B, C, D, E)
   const [shadowfaxSlabs, setShadowfaxSlabs] = useState([
-    { slab: "0–500g", maxWeight: 0.5, zoneA: 45, zoneB: 52, zoneC: 62, zoneD: 72, zoneE: 88, codFee: 0 },
-    { slab: "500g–1kg", maxWeight: 1.0, zoneA: 60, zoneB: 70, zoneC: 82, zoneD: 96, zoneE: 115, codFee: 0 },
-    { slab: "1kg–1.5kg", maxWeight: 1.5, zoneA: 75, zoneB: 88, zoneC: 105, zoneD: 124, zoneE: 145, codFee: 0 },
-    { slab: "1.5kg–2kg", maxWeight: 2.0, zoneA: 90, zoneB: 105, zoneC: 128, zoneD: 152, zoneE: 175, codFee: 0 },
-    { slab: "2kg–5kg", maxWeight: 5.0, zoneA: 155, zoneB: 185, zoneC: 225, zoneD: 270, zoneE: 320, codFee: 0 },
-    { slab: "5kg–7kg", maxWeight: 7.0, zoneA: 220, zoneB: 260, zoneC: 310, zoneD: 375, zoneE: 440, codFee: 0 },
-    { slab: "7kg–10kg", maxWeight: 10.0, zoneA: 300, zoneB: 360, zoneC: 430, zoneD: 515, zoneE: 610, codFee: 0 },
-    { slab: "Above 10kg (+1kg)", maxWeight: 99.0, zoneA: 30, zoneB: 36, zoneC: 42, zoneD: 50, zoneE: 65, codFee: 0 },
+    { slab: "0–500g", maxWeight: 0.5, zoneA: 27, zoneB: 30, zoneC: 34, zoneD: 38, zoneE: 46, codFee: 20 },
+    { slab: "500g–1kg", maxWeight: 1.0, zoneA: 40, zoneB: 46, zoneC: 56, zoneD: 62, zoneE: 80, codFee: 20 },
+    { slab: "1kg–1.5kg", maxWeight: 1.5, zoneA: 53, zoneB: 62, zoneC: 78, zoneD: 86, zoneE: 114, codFee: 20 },
+    { slab: "1.5kg–2kg", maxWeight: 2.0, zoneA: 66, zoneB: 78, zoneC: 100, zoneD: 110, zoneE: 148, codFee: 20 },
+    { slab: "2kg–5kg", maxWeight: 5.0, zoneA: 105, zoneB: 126, zoneC: 166, zoneD: 182, zoneE: 250, codFee: 20 },
+    { slab: "5kg–7kg", maxWeight: 7.0, zoneA: 145, zoneB: 174, zoneC: 232, zoneD: 254, zoneE: 352, codFee: 20 },
+    { slab: "7kg–10kg", maxWeight: 10.0, zoneA: 205, zoneB: 246, zoneC: 331, zoneD: 362, zoneE: 505, codFee: 20 },
+    { slab: "Above 10kg (+1kg)", maxWeight: 99.0, zoneA: 20, zoneB: 25, zoneC: 30, zoneD: 35, zoneE: 45, codFee: 20 },
   ]);
 
   // Xpressbees & Delhivery rates across all 5 zones (A, B, C, D, E)
@@ -64,7 +64,7 @@ export default function AdminUserRatesPage() {
       zoneD_0_500g: 82,
       zoneE_0_500g: 98,
       additional500g: 38,
-      codChargeFlat: 0,
+      codChargeFlat: 20,
     },
     delhivery: {
       zoneA_0_500g: 55,
@@ -73,7 +73,7 @@ export default function AdminUserRatesPage() {
       zoneD_0_500g: 85,
       zoneE_0_500g: 105,
       additional500g: 40,
-      codChargeFlat: 0,
+      codChargeFlat: 20,
     },
   });
 
@@ -152,14 +152,19 @@ export default function AdminUserRatesPage() {
     const customRatePayload = {
       shadowfax: {
         courierCode: "shadowfax",
-        courierName: "Shadowfax Express",
+        courierName: "Shadowfax Express 0.5KG (Air)",
         zoneA_0_500g: shadowfaxSlabs[0].zoneA,
         zoneB_0_500g: shadowfaxSlabs[0].zoneB,
         zoneC_0_500g: shadowfaxSlabs[0].zoneC,
         zoneD_0_500g: shadowfaxSlabs[0].zoneD,
         zoneE_0_500g: shadowfaxSlabs[0].zoneE,
-        additional500g: shadowfaxSlabs[7].zoneD,
-        codChargeFlat: shadowfaxSlabs[0].codFee,
+        zoneA_500g_1kg: shadowfaxSlabs[1]?.zoneA || 40,
+        zoneB_500g_1kg: shadowfaxSlabs[1]?.zoneB || 46,
+        zoneC_500g_1kg: shadowfaxSlabs[1]?.zoneC || 56,
+        zoneD_500g_1kg: shadowfaxSlabs[1]?.zoneD || 62,
+        zoneE_500g_1kg: shadowfaxSlabs[1]?.zoneE || 80,
+        additional500g: shadowfaxSlabs[7]?.zoneD || 24,
+        codChargeFlat: shadowfaxSlabs[0]?.codFee !== undefined ? shadowfaxSlabs[0].codFee : 20,
         codPercent: 0,
         slabs: shadowfaxSlabs,
       },

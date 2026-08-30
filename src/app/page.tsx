@@ -80,13 +80,13 @@ export default function LandingPage() {
   const [weightKg, setWeightKg] = useState("0.5");
   const [paymentMode, setPaymentMode] = useState<"PREPAID" | "COD">("PREPAID");
 
-  // Rate calculation estimates (₹0 COD Fee - Free COD for all merchants)
+  // Rate calculation estimates (Zone-wise starting from ₹27 for 500g Air)
   const weight = Math.max(0.1, Number(weightKg) || 0.5);
-  const codFee = 0;
+  const codFee = paymentMode === "COD" ? 20 : 0;
 
-  // 1. Shadowfax Express (0.5kg Air Plan @ ₹72 Flat)
-  const baseShadowfaxExpress = weight <= 0.5 ? 72 : 72 + Math.ceil((weight - 0.5) / 0.5) * 45;
-  const shadowfaxExpressRate = baseShadowfaxExpress;
+  // 1. Shadowfax Express (0.5kg Air Plan: ₹27-₹38, 1kg: ₹40-₹62)
+  const baseShadowfaxExpress = weight <= 0.5 ? 27 : weight <= 1.0 ? 40 : 40 + Math.ceil((weight - 1.0) / 0.5) * 24;
+  const shadowfaxExpressRate = baseShadowfaxExpress + codFee;
 
   // 2. Shadowfax Cargo (1kg–6kg Flat Surface Plan @ ₹99 Flat, >6kg: +₹20/kg)
   let baseCargoRate = 99;
@@ -191,7 +191,7 @@ export default function LandingPage() {
               onClick={() => scrollToSection("rates")}
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer shadow-2xs"
             >
-              <span>Pricing (From ₹72)</span>
+              <span>Pricing (From ₹27)</span>
               <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
                 ₹0 RTO
               </span>
@@ -294,7 +294,7 @@ export default function LandingPage() {
                   onClick={() => scrollToSection("rates")}
                   className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-5 py-3 text-xs sm:text-sm font-bold text-indigo-700 hover:bg-indigo-100 shadow-xs transition-colors cursor-pointer"
                 >
-                  <span>View Rate Card (From ₹72)</span>
+                  <span>View Rate Card (From ₹27)</span>
                   <ArrowRight size={15} />
                 </button>
                 <button
@@ -323,7 +323,7 @@ export default function LandingPage() {
                     <Zap size={13} className="text-indigo-600" /> 0.5kg Air Lite
                   </span>
                   <p className="text-xs font-black text-indigo-950 mt-0.5">
-                    Starts @ ₹72.00 Flat
+                    Starts @ ₹27.00 Flat
                   </p>
                 </div>
 
@@ -411,7 +411,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
                 <span className="text-slate-400">500g Air:</span>
-                <strong className="text-emerald-400 text-sm">₹72.00</strong>
+                <strong className="text-emerald-400 text-sm">₹27.00</strong>
               </div>
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
                 <span className="text-slate-400">1kg–6kg Cargo (Flat):</span>
@@ -1023,14 +1023,31 @@ export default function LandingPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">Air Lite</td>
-                    <td className="px-4 py-3 font-bold text-emerald-700">₹72.00</td>
-                    <td className="px-4 py-3 font-bold text-emerald-700">₹72.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹27.00 – ₹46.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹27.00 – ₹46.00</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
                         ₹0 (100% Free)
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">2-3 Days</td>
+                    <td className="px-4 py-3 text-slate-500">1-3 Days</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-bold text-slate-900">500g – 1.0 kg</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-600">
+                        Shadowfax Express
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">Air 1KG Slab</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹40.00 – ₹80.00</td>
+                    <td className="px-4 py-3 font-bold text-emerald-700">₹40.00 – ₹80.00</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                        ₹0 (100% Free)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">1-3 Days</td>
                   </tr>
                   <tr className="hover:bg-slate-50/50 bg-indigo-50/20">
                     <td className="px-4 py-3 font-bold text-slate-900">1.0 kg – 6.0 kg (Flat Slab)</td>
@@ -1212,7 +1229,7 @@ export default function LandingPage() {
               onClick={() => scrollToSection("rates")}
               className="text-indigo-600 font-bold hover:text-indigo-800 transition-colors cursor-pointer"
             >
-              Pricing (From ₹72)
+              Pricing (From ₹27)
             </button>
             <button
               type="button"

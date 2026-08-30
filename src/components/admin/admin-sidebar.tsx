@@ -8,6 +8,7 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   Banknote,
+  BookOpen,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -128,6 +129,15 @@ export function AdminSidebar() {
       ],
     },
     {
+      title: "Blogs & SEO",
+      href: "/admin/blogs",
+      icon: BookOpen,
+      children: [
+        { title: "All Articles", href: "/admin/blogs" },
+        { title: "Write New Post", href: "/admin/blogs/new" },
+      ],
+    },
+    {
       title: "Reports",
       href: "/admin/reports",
       icon: FileSpreadsheet,
@@ -155,6 +165,10 @@ export function AdminSidebar() {
       title: "Settings",
       href: "/admin/settings",
       icon: Settings,
+      children: [
+        { title: "General Settings", href: "/admin/settings" },
+        { title: "Global Courier Rates", href: "/admin/couriers/rates" },
+      ],
     },
   ];
 

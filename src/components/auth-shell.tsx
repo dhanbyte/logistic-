@@ -41,7 +41,7 @@ export function AuthShell({
               href="/#rates"
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-2xs"
             >
-              <span>Pricing (From ₹72)</span>
+              <span>Pricing (From ₹27)</span>
               <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
                 ₹0 RTO
               </span>
@@ -109,7 +109,7 @@ export function AuthShell({
                 href="/#rates"
                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-5 py-3 text-xs sm:text-sm font-bold text-indigo-700 hover:bg-indigo-100 shadow-xs transition-colors cursor-pointer"
               >
-                <span>View Rate Card (From ₹72)</span>
+                <span>View Rate Card (From ₹27)</span>
                 <ArrowRight size={15} />
               </Link>
               <Link
@@ -137,7 +137,7 @@ export function AuthShell({
                   <Zap size={13} className="text-indigo-600" /> 0.5kg Air Lite
                 </span>
                 <p className="text-xs font-black text-indigo-950 mt-0.5">
-                  Starts @ ₹72.00 Flat
+                  Starts @ ₹27.00 Flat
                 </p>
               </div>
 
@@ -222,7 +222,7 @@ export function AuthShell({
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
                 <span className="text-slate-400">500g Air:</span>
-                <strong className="text-emerald-400 text-sm">₹72.00</strong>
+                <strong className="text-emerald-400 text-sm">₹27.00</strong>
               </div>
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/80 px-3 py-2 flex items-center gap-2">
                 <span className="text-slate-400">1kg–6kg Cargo (Flat):</span>
@@ -254,7 +254,7 @@ export function AuthShell({
               Platform
             </Link>
             <Link href="/#rates" className="hover:text-slate-800 transition-colors font-medium text-indigo-600">
-              Pricing (From ₹72)
+              Pricing (From ₹27)
             </Link>
             <Link href="/#tracking" className="hover:text-slate-800 transition-colors">
               Track shipment

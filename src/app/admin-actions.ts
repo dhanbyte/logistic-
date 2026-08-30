@@ -475,3 +475,81 @@ export async function toggleUserStatusAction(
   revalidatePath("/admin/users");
   return { ok: true, message: `User ${userName} is now ${newStatus}.` };
 }
+
+/**
+ * Super Admin Gets Global Default Courier Rates
+ */
+export async function getGlobalRatesAction() {
+  const { getGlobalCourierRates } = await import("@/lib/couriers/pricing-engine");
+  const rates = getGlobalCourierRates();
+  return { ok: true, data: rates };
+}
+
+/**
+ * Super Admin Updates Global Default Courier Rates
+ */
+export async function saveGlobalRatesAction(rates: Record<string, any>): Promise<ActionResult> {
+  const { setGlobalCourierRates } = await import("@/lib/couriers/pricing-engine");
+  setGlobalCourierRates(rates);
+
+  await recordAdminAuditLog({
+    action: "GLOBAL_RATES_UPDATED",
+    targetType: "SETTINGS",
+    targetId: "global-rates",
+    details: `Updated global default courier rates across all 5 zones and couriers.`,
+  });
+
+  revalidatePath("/admin/couriers/rates");
+  revalidatePath("/admin/settings/rates");
+  revalidatePath("/pricing");
+  return { ok: true, message: "Global courier rates saved successfully! All new users will receive this default rate card." };
+}
+
+/**
+ * Get All Blog Posts for Admin Management
+ */
+export async function getAllAdminBlogsAction() {
+  const { getAllBlogPosts } = await import("@/lib/blog-store");
+  const posts = getAllBlogPosts();
+  return { ok: true, data: posts };
+}
+
+/**
+ * Super Admin Creates or Updates a Blog Post
+ */
+export async function saveAdminBlogAction(post: any): Promise<ActionResult> {
+  const { saveBlogPost } = await import("@/lib/blog-store");
+  const saved = saveBlogPost(post);
+
+  await recordAdminAuditLog({
+    action: "BLOG_SAVED",
+    targetType: "SETTINGS",
+    targetId: post.slug,
+    details: `Saved blog post '${post.title}' (${post.slug})`,
+  });
+
+  revalidatePath("/blog");
+  revalidatePath(`/blog/${post.slug}`);
+  revalidatePath("/admin/blogs");
+  return { ok: true, data: saved, message: `Blog post '${post.title}' published successfully!` };
+}
+
+/**
+ * Super Admin Deletes a Blog Post
+ */
+export async function deleteAdminBlogAction(slug: string): Promise<ActionResult> {
+  const { deleteBlogPost } = await import("@/lib/blog-store");
+  const res = deleteBlogPost(slug);
+
+  await recordAdminAuditLog({
+    action: "BLOG_DELETED",
+    targetType: "SETTINGS",
+    targetId: slug,
+    details: `Deleted blog post with slug '${slug}'`,
+  });
+
+  revalidatePath("/blog");
+  revalidatePath("/admin/blogs");
+  return { ok: res, message: res ? "Blog post deleted." : "Failed to delete blog post." };
+}
+

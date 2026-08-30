@@ -32,11 +32,11 @@ export default function PricingPage() {
   const [paymentMode, setPaymentMode] = useState<"PREPAID" | "COD">("PREPAID");
 
   const weight = Math.max(0.1, parseFloat(weightKg) || 0.5);
-  const codFee = 0;
+  const codFee = paymentMode === "COD" ? 20 : 0;
 
-  // 1. Shadowfax Express (0.5kg Air Plan @ ₹72 Flat)
-  const baseShadowfaxExpress = weight <= 0.5 ? 72 : 72 + Math.ceil((weight - 0.5) / 0.5) * 45;
-  const shadowfaxExpressRate = baseShadowfaxExpress;
+  // 1. Shadowfax Express (0.5kg Air Plan: ₹27-₹38, 1kg: ₹40-₹62)
+  const baseShadowfaxExpress = weight <= 0.5 ? 27 : weight <= 1.0 ? 40 : 40 + Math.ceil((weight - 1.0) / 0.5) * 24;
+  const shadowfaxExpressRate = baseShadowfaxExpress + codFee;
 
   // 2. Shadowfax Cargo (1kg–6kg Flat Surface Plan @ ₹99 Flat, >6kg: +₹20/kg)
   let baseCargoRate = 99;
@@ -79,7 +79,7 @@ export default function PricingPage() {
               href="/pricing"
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-2xs"
             >
-              <span>Rates (From ₹72)</span>
+              <span>Rates (From ₹27)</span>
               <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
                 ₹0 RTO
               </span>
@@ -164,8 +164,8 @@ export default function PricingPage() {
                 </span>
                 <h3 className="text-xl font-black text-slate-900">Standard Tier</h3>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-slate-900">₹72</span>
-                  <span className="text-xs text-slate-500">/ 500g Air base</span>
+                  <span className="text-3xl font-black text-slate-900">₹27</span>
+                  <span className="text-xs text-slate-500">/ 500g Air base (From ₹27)</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
                   Best for D2C brands &amp; growing ecommerce businesses shipping 0–500 orders/month.
@@ -174,7 +174,11 @@ export default function PricingPage() {
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-600 border-t border-slate-100 pt-4">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>Shadowfax 0.5kg Air: <strong>₹72 flat</strong></span>
+                    <span>Shadowfax 0.5kg Air: <strong>₹27 – ₹46</strong> (Zone A-E)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                    <span>Shadowfax 1.0kg Air: <strong>₹40 – ₹80</strong> (Zone A-E)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
@@ -583,10 +587,23 @@ export default function PricingPage() {
                         Air Express
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 font-black text-emerald-700">₹72.00</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹72.00</td>
+                    <td className="px-4 py-3.5 font-black text-emerald-700">₹27.00 – ₹46.00</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹47.00 – ₹66.00</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
-                    <td className="px-4 py-3.5 text-slate-500">2-3 Days</td>
+                    <td className="px-4 py-3.5 text-slate-500">1-3 Days</td>
+                  </tr>
+                  <tr className="hover:bg-indigo-50/30 transition-colors">
+                    <td className="px-4 py-3.5 font-bold text-slate-900">0.5 kg – 1.0 kg</td>
+                    <td className="px-4 py-3.5">Shadowfax Express</td>
+                    <td className="px-4 py-3.5">
+                      <span className="rounded bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 text-[10px] font-semibold">
+                        Air 1KG Slab
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 font-black text-emerald-700">₹40.00 – ₹80.00</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700">₹60.00 – ₹100.00</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-600">₹0 (Free)</td>
+                    <td className="px-4 py-3.5 text-slate-500">1-3 Days</td>
                   </tr>
                   <tr className="hover:bg-indigo-50/30 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-900">1.0 kg – 6.0 kg (Flat Slab)</td>
@@ -761,7 +778,7 @@ export default function PricingPage() {
       <section className="py-16 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white text-center">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-            Ready to cut shipping costs starting at ₹72?
+            Ready to cut shipping costs starting at ₹27?
           </h2>
           <p className="mt-3 text-sm text-indigo-200 max-w-xl mx-auto">
             Create your free account today and start shipping with India&apos;s leading courier network.
@@ -803,7 +820,7 @@ export default function PricingPage() {
               Home
             </Link>
             <Link href="/pricing" className="text-indigo-600 font-bold transition-colors">
-              Pricing (From ₹72)
+              Pricing (From ₹27)
             </Link>
             <Link href="/#platform" className="hover:text-slate-900 transition-colors">
               Platform

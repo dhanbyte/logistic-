@@ -1,0 +1,76 @@
+{
+  "fc44afd2-6d0b-4abf-ab5e-2c17421d8643": {
+    "userId": "fc44afd2-6d0b-4abf-ab5e-2c17421d8643",
+    "userName": "Shipper",
+    "tier": "STANDARD",
+    "rates": {
+      "shadowfax": {
+        "courierCode": "shadowfax",
+        "courierName": "Shadowfax Express 0.5KG (Air)",
+        "zoneA_0_500g": 27,
+        "zoneB_0_500g": 30,
+        "zoneC_0_500g": 34,
+        "zoneD_0_500g": 38,
+        "zoneE_0_500g": 46,
+        "zoneA_500g_1kg": 40,
+        "zoneB_500g_1kg": 46,
+        "zoneC_500g_1kg": 56,
+        "zoneD_500g_1kg": 62,
+        "zoneE_500g_1kg": 80,
+        "additional500g": 24,
+        "initialSlabWeightKg": 0.5,
+        "codChargeFlat": 20,
+        "codPercent": 0,
+        "slabs": [
+          { "slab": "0–500g", "maxWeight": 0.5, "zoneA": 27, "zoneB": 30, "zoneC": 34, "zoneD": 38, "zoneE": 46, "codFee": 20 },
+          { "slab": "500g–1kg", "maxWeight": 1.0, "zoneA": 40, "zoneB": 46, "zoneC": 56, "zoneD": 62, "zoneE": 80, "codFee": 20 },
+          { "slab": "1kg–1.5kg", "maxWeight": 1.5, "zoneA": 53, "zoneB": 62, "zoneC": 78, "zoneD": 86, "zoneE": 114, "codFee": 20 },
+          { "slab": "1.5kg–2kg", "maxWeight": 2.0, "zoneA": 66, "zoneB": 78, "zoneC": 100, "zoneD": 110, "zoneE": 148, "codFee": 20 },
+          { "slab": "2kg–5kg", "maxWeight": 5.0, "zoneA": 105, "zoneB": 126, "zoneC": 166, "zoneD": 182, "zoneE": 250, "codFee": 20 },
+          { "slab": "5kg–7kg", "maxWeight": 7.0, "zoneA": 145, "zoneB": 174, "zoneC": 232, "zoneD": 254, "zoneE": 352, "codFee": 20 },
+          { "slab": "7kg–10kg", "maxWeight": 10.0, "zoneA": 205, "zoneB": 246, "zoneC": 331, "zoneD": 362, "zoneE": 505, "codFee": 20 },
+          { "slab": "Above 10kg (+1kg)", "maxWeight": 99.0, "zoneA": 20, "zoneB": 25, "zoneC": 30, "zoneD": 35, "zoneE": 45, "codFee": 20 }
+        ]
+      },
+      "shadowfax_surface": {
+        "courierCode": "shadowfax_surface",
+        "courierName": "Shadowfax Cargo 5KG (Surface)",
+        "zoneA_0_500g": 75,
+        "zoneB_0_500g": 85,
+        "zoneC_0_500g": 89,
+        "zoneD_0_500g": 99,
+        "zoneE_0_500g": 119,
+        "additional500g": 20,
+        "additionalKg": 20,
+        "initialSlabWeightKg": 5.0,
+        "codChargeFlat": 20,
+        "codPercent": 0
+      },
+      "xpressbees": {
+        "courierCode": "xpressbees",
+        "courierName": "Xpressbees Surface",
+        "zoneA_0_500g": 52,
+        "zoneB_0_500g": 62,
+        "zoneC_0_500g": 72,
+        "zoneD_0_500g": 82,
+        "zoneE_0_500g": 98,
+        "additional500g": 38,
+        "codChargeFlat": 20,
+        "codPercent": 0
+      },
+      "delhivery": {
+        "courierCode": "delhivery",
+        "courierName": "Delhivery Direct",
+        "zoneA_0_500g": 55,
+        "zoneB_0_500g": 65,
+        "zoneC_0_500g": 75,
+        "zoneD_0_500g": 85,
+        "zoneE_0_500g": 105,
+        "additional500g": 40,
+        "codChargeFlat": 20,
+        "codPercent": 0
+      }
+    },
+    "updatedAt": "2026-08-30T13:00:00.000Z"
+  }
+}

@@ -59,7 +59,7 @@ export default async function BlogPostPage({
               href="/#rates"
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-2xs"
             >
-              <span>Pricing (From ₹72)</span>
+              <span>Pricing (From ₹27)</span>
               <span className="rounded bg-emerald-600 text-[9px] font-black text-white px-1.5 py-0.2">
                 ₹0 RTO
               </span>
@@ -262,7 +262,7 @@ export default async function BlogPostPage({
               Platform
             </Link>
             <Link href="/#rates" className="hover:text-slate-900 text-indigo-600 font-bold transition-colors">
-              Pricing (From ₹72)
+              Pricing (From ₹27)
             </Link>
             <Link href="/blog" className="text-indigo-600 font-bold transition-colors">
               Blog
