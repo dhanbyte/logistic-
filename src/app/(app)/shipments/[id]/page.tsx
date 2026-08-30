@@ -301,7 +301,7 @@ export default async function ShipmentDetailPage({
                     <p className="text-[10px] text-slate-400">Standard courier pickup format</p>
                   </div>
                 </div>
-                <PrintLabelButton labelUrl={shipment.labelUrl} />
+                <PrintLabelButton labelUrl={shipment.labelUrl} awbNumber={shipment.awbNumber} />
               </div>
 
               <div className="rounded-lg border border-slate-200 p-3 flex items-center justify-between bg-slate-50/50">

@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Download,
   ExternalLink,
   Eye,
   FileText,
@@ -252,17 +253,16 @@ export function EcommerceShipmentsTable({
                         <Truck size={12} /> Track
                       </Link>
 
-                      {s.labelUrl && (
-                        <a
-                          href={s.labelUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                          title="Print Official Shipping Label"
-                        >
-                          <Printer size={13} />
-                        </a>
-                      )}
+                      <a
+                        href={s.labelUrl?.startsWith("http") ? s.labelUrl : `/api/couriers/shadowfax/label/${s.awbNumber}?download=true`}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={`Shadowfax-${s.awbNumber}.pdf`}
+                        className="rounded-lg border border-slate-200 p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300"
+                        title="Download Official Courier PDF Label"
+                      >
+                        <Download size={13} />
+                      </a>
 
                       <Link
                         href={`/shipments/${s.id}`}

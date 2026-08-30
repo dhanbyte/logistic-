@@ -30,7 +30,7 @@ export default async function ShipmentLabelPage({
         >
           &larr; Back to Shipment
         </a>
-        <PrintLabelButton />
+        <PrintLabelButton labelUrl={shipment.labelUrl} awbNumber={shipment.awbNumber} />
       </div>
 
       {/* 4x6 Inch Thermal Label Container */}

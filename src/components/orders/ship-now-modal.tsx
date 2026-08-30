@@ -8,6 +8,7 @@ import {
   Banknote,
   CheckCircle,
   CreditCard,
+  Download,
   ExternalLink,
   IndianRupee,
   Loader2,
@@ -224,8 +225,10 @@ export function ShipNowModal({
     if (res.ok && res.data) {
       const courierName = selectedQuote?.courierName || selectedCourier.toUpperCase();
       const awb = res.data.awbNumber;
-      // Always use Supabase UUID in label URL, not AWB number
-      const labelUrl = `/shipments/${res.data.shipmentId}/label`;
+      // Direct official courier download route with attachment headers
+      const labelUrl = res.data.labelUrl && res.data.labelUrl.startsWith("http")
+        ? res.data.labelUrl
+        : `/api/couriers/shadowfax/label/${awb}?download=true`;
 
       setWalletBalance((prev) => Math.max(0, prev - requiredAmount));
       toast.success(`AWB ${awb} generated successfully! Deducted ${formatINR(requiredAmount)} from wallet.`);
@@ -311,20 +314,30 @@ export function ShipNowModal({
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Link
-                href={bookingSuccess.labelUrl || `/shipments/${bookingSuccess.shipmentId}/label`}
+              <a
+                href={bookingSuccess.labelUrl || `/api/couriers/shadowfax/label/${bookingSuccess.awbNumber}?download=true`}
+                download={`Shadowfax-${bookingSuccess.awbNumber}.pdf`}
                 target="_blank"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm"
+                rel="noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm cursor-pointer"
+              >
+                <Download size={15} />
+                <span>Download Official Label (PDF)</span>
+              </a>
+              <Link
+                href={`/shipments/${bookingSuccess.shipmentId}/label`}
+                target="_blank"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
                 <Printer size={15} />
-                <span>Print Shipping Label (4x6)</span>
+                <span>Print Preview</span>
               </Link>
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                className="w-full sm:w-auto rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
-                Close &amp; View Orders
+                Close
               </button>
             </div>
           </div>

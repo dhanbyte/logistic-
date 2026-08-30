@@ -20,6 +20,20 @@ export async function GET(
       if (sfxClient.isConfigured()) {
         const officialLabelUrl = await sfxClient.generateLabel(awb, "pdf");
         if (officialLabelUrl && officialLabelUrl.startsWith("http")) {
+          try {
+            const pdfResp = await fetch(officialLabelUrl);
+            if (pdfResp.ok) {
+              const pdfBuffer = await pdfResp.arrayBuffer();
+              return new NextResponse(pdfBuffer, {
+                status: 200,
+                headers: {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": `attachment; filename="Shadowfax-Label-${awb}.pdf"`,
+                  "Cache-Control": "public, max-age=86400",
+                },
+              });
+            }
+          } catch {}
           return NextResponse.redirect(officialLabelUrl);
         }
       }
@@ -28,6 +42,20 @@ export async function GET(
       if (sfxSurfaceClient.isConfigured()) {
         const surfaceLabelUrl = await sfxSurfaceClient.generateLabel(awb, "pdf");
         if (surfaceLabelUrl && surfaceLabelUrl.startsWith("http")) {
+          try {
+            const pdfResp = await fetch(surfaceLabelUrl);
+            if (pdfResp.ok) {
+              const pdfBuffer = await pdfResp.arrayBuffer();
+              return new NextResponse(pdfBuffer, {
+                status: 200,
+                headers: {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": `attachment; filename="Shadowfax-Label-${awb}.pdf"`,
+                  "Cache-Control": "public, max-age=86400",
+                },
+              });
+            }
+          } catch {}
           return NextResponse.redirect(surfaceLabelUrl);
         }
       }
